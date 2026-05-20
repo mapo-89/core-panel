@@ -96,6 +96,10 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
+            if ($this->files->exists($destinationPath) && $this->shouldNeverOverwrite($relativePath, $destinationPath)) {
+                continue;
+            }
+
             if (! $force && $this->files->exists($destinationPath) && ! $this->shouldAlwaysSynchronize($relativePath)) {
                 continue;
             }
@@ -111,9 +115,19 @@ final readonly class ScaffoldsCorePanelStubs
 
     private function shouldAlwaysSynchronize(string $relativePath): bool
     {
-        return in_array($relativePath, [
-            'config/app-version.json',
-        ], true);
+        return false;
+    }
+
+    private function shouldNeverOverwrite(string $relativePath, string $destinationPath): bool
+    {
+        if ($relativePath !== 'config/app-version.json') {
+            return false;
+        }
+
+        /** @var array<string, mixed>|null $decoded */
+        $decoded = json_decode((string) $this->files->get($destinationPath), true);
+
+        return is_array($decoded) && ($decoded['managed_by_application'] ?? false) === true;
     }
 
     private static function appendPathsFromRoot(array &$paths, string $root, string $prefix = ''): void

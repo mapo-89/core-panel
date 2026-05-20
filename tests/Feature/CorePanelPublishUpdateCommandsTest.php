@@ -115,20 +115,53 @@ it('synchronizes missing environment defaults during update', function (): void 
         ->and($contents)->toContain("LOG_CHANNEL=daily\n");
 });
 
-it('refreshes the published app version metadata during update without requiring force', function (): void {
+it('preserves a customized published app version metadata file during update', function (): void {
     $basePath = makePublishBasePath('app-version-update');
 
     mkdir($basePath.'/config', 0777, true);
     file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
-    file_put_contents($basePath.'/config/app-version.json', json_encode([
+    $customizedVersion = [
         'release_version' => '0.0.1',
         'display_version' => '0.0.1 (deadbee)',
         'image_version' => '0.0.1-deadbee',
         'commit' => 'deadbee',
         'commit_date' => '2026-01-01T00:00:00+00:00',
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+    ];
+    file_put_contents($basePath.'/config/app-version.json', json_encode(
+        $customizedVersion,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+    ).PHP_EOL);
 
     $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $publishedVersion = json_decode((string) file_get_contents($basePath.'/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($publishedVersion)->toBe($customizedVersion);
+});
+
+it('refreshes the published app version metadata during force update when the host does not mark it as application-managed', function (): void {
+    $basePath = makePublishBasePath('app-version-force-update');
+
+    mkdir($basePath.'/config', 0777, true);
+    mkdir($basePath.'/resources/js', 0777, true);
+    file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
+    file_put_contents($basePath.'/resources/js/app.ts', "console.log('local app');\n");
+    $customizedVersion = [
+        'release_version' => '9.9.9',
+        'display_version' => '9.9.9 (cafebabe)',
+        'image_version' => '9.9.9-cafebabe',
+        'commit' => 'cafebabe',
+        'commit_date' => '2026-02-02T00:00:00+00:00',
+    ];
+    file_put_contents($basePath.'/config/app-version.json', json_encode(
+        $customizedVersion,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+    ).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--force' => true,
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
@@ -136,6 +169,34 @@ it('refreshes the published app version metadata during update without requiring
     $packageVersion = json_decode((string) file_get_contents(__DIR__.'/../../stubs/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
 
     expect($publishedVersion)->toBe($packageVersion);
+});
+
+it('preserves a customized published app version metadata file during force update when the host marks it as application-managed', function (): void {
+    $basePath = makePublishBasePath('app-version-force-update-managed');
+
+    mkdir($basePath.'/config', 0777, true);
+    $customizedVersion = [
+        'managed_by_application' => true,
+        'release_version' => '9.9.9',
+        'display_version' => '9.9.9 (cafebabe)',
+        'image_version' => '9.9.9-cafebabe',
+        'commit' => 'cafebabe',
+        'commit_date' => '2026-02-02T00:00:00+00:00',
+    ];
+    file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
+    file_put_contents($basePath.'/config/app-version.json', json_encode(
+        $customizedVersion,
+        JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+    ).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--force' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $publishedVersion = json_decode((string) file_get_contents($basePath.'/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($publishedVersion)->toBe($customizedVersion);
 });
 
 it('publishes domain-grouped migration directories during update scaffolding', function (): void {

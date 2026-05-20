@@ -70,6 +70,7 @@ php artisan core-panel:update --force --with-addon-updates
 
 For normal in-place updates, the command also runs outstanding migrations automatically after refreshing the published assets.
 If you use `--base-path` to target a different application directory, migrations are skipped and must be run manually in that target application.
+If your application owns the frontend version metadata itself, set `"managed_by_application": true` in `config/app-version.json`. In that case, `core-panel:update` will leave that file untouched, including `--force` updates.
 
 Typical update runbook for an existing installation:
 
