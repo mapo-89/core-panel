@@ -1,7 +1,7 @@
 {
-    "release_version": "2026.5.0",
-    "display_version": "2026.5.0 (a3d15db)",
-    "image_version": "2026.5.0-a3d15db",
-    "commit": "a3d15db",
-    "commit_date": "2026-05-20T11:35:40+02:00"
+    "release_version": "1.0.0",
+    "display_version": "1.0.0 (c9b509f)",
+    "image_version": "1.0.0-c9b509f",
+    "commit": "c9b509f",
+    "commit_date": "2026-05-20T12:23:39+02:00"
 }
