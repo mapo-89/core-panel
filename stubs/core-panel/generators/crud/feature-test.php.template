@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Route;
+
+it('registers DummyModelLabel CRUD routes', function (): void {
+    expect(Route::has('core-panel.DummyRouteSegment.index'))->toBeTrue()
+        ->and(Route::has('core-panel.DummyRouteSegment.create'))->toBeTrue()
+        ->and(Route::has('core-panel.DummyRouteSegment.store'))->toBeTrue()
+        ->and(Route::has('core-panel.DummyRouteSegment.show'))->toBeTrue()
+        ->and(Route::has('core-panel.DummyRouteSegment.edit'))->toBeTrue()
+        ->and(Route::has('core-panel.DummyRouteSegment.update'))->toBeTrue()
+        ->and(Route::has('core-panel.DummyRouteSegment.destroy'))->toBeTrue();
+});

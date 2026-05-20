@@ -1,0 +1,73 @@
+/*
+ |---------------------------------------------------------------------------
+ | PrimeVue dialogs
+ |---------------------------------------------------------------------------
+ |
+ | Dialog and confirm-dialog dark-mode surface treatment.
+ | Keep this file focused on modal chrome:
+ | - panel shell
+ | - header / content / footer surfaces
+ | - header action buttons
+ | - modal mask
+ |
+ */
+
+.core-panel-dark {
+    /* Dialog shell */
+    .p-dialog,
+    .p-confirmdialog {
+        background: color-mix(in srgb, var(--cp-surface-panel) 94%, black 6%);
+        border-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 88%,
+            transparent
+        );
+        color: var(--cp-text-primary);
+    }
+
+    /* Content regions */
+    .p-dialog-header,
+    .p-confirmdialog .p-dialog-header {
+        background: transparent;
+        color: var(--cp-text-primary);
+        border-bottom-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 72%,
+            transparent
+        );
+    }
+
+    .p-dialog-content,
+    .p-confirmdialog .p-dialog-content {
+        background: transparent;
+        color: var(--cp-text-primary);
+    }
+
+    .p-dialog-footer,
+    .p-confirmdialog .p-dialog-footer {
+        background: transparent;
+        border-top-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 72%,
+            transparent
+        );
+    }
+
+    /* Header action buttons */
+    .p-dialog-header-actions .p-dialog-close-button,
+    .p-dialog-header-actions .p-dialog-maximize-button {
+        color: var(--cp-text-muted);
+    }
+
+    .p-dialog-header-actions .p-dialog-close-button:hover,
+    .p-dialog-header-actions .p-dialog-maximize-button:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--cp-text-primary);
+    }
+
+    /* Backdrop */
+    .p-dialog-mask {
+        background: color-mix(in srgb, black 58%, transparent);
+        backdrop-filter: blur(2px);
+    }
+}

@@ -1,0 +1,12 @@
+/**
+ * PrimeVue bridge layer
+ *
+ * Keep this file intentionally small.
+ * - Global field/button styling lives in `_forms.css`
+ * - Header popup menus live in `_menus.css`
+ * - Dialog styling lives in `_dialogs.css`
+ * - Generic overlay shells live in `_overlays.css`
+ *
+ * This file should only hold PrimeVue-wide adjustments that do not belong
+ * to a narrower component theme slice.
+ */

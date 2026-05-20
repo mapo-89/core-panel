@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domains\DummyDomain\DTOs;
+
+use App\Models\DummyModelClass;
+
+final readonly class DummyDtoClass
+{
+    public function __construct(
+        public string $id,
+        public mixed $name,
+        public bool $isActive,
+    ) {}
+
+    /**
+     * @return array{id:string,name:mixed,isActive:bool}
+     */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'isActive' => $this->isActive,
+        ];
+    }
+
+    public static function fromModel(DummyModelClass $model): self
+    {
+        return new self(
+            id: (string) $model->getKey(),
+            name: $model->getAttribute('name'),
+            isActive: (bool) $model->getAttribute('is_active'),
+        );
+    }
+}

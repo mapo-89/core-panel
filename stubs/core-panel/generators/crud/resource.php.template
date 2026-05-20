@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DummyResourceNamespace;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+final class DummyResourceClass extends JsonResource
+{
+    /**
+     * @return array{id:string,name:mixed,isActive:bool}
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => (string) $this->resource->getKey(),
+            'name' => $this->resource->getAttribute('name'),
+            'isActive' => (bool) $this->resource->getAttribute('is_active'),
+        ];
+    }
+}

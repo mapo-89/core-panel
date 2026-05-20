@@ -1,0 +1,278 @@
+/*
+ |---------------------------------------------------------------------------
+ | PrimeVue form controls
+ |---------------------------------------------------------------------------
+ |
+ | Global control styling for fields and compact form-affordance components.
+ | This file owns:
+ | - inputs and selects
+ | - checkbox styling
+ | - field-adjacent icon affordances
+ | - light / dark variants for the above
+ |
+ */
+
+/* Shared control radius and button density */
+.p-button,
+.p-inputtext,
+.p-password-input,
+.p-select,
+.p-multiselect,
+.p-datepicker-input,
+.p-inputnumber-input,
+.p-textarea {
+    border-radius: var(--cp-control-radius, 0.4rem);
+}
+
+.p-button {
+    font-weight: 600;
+    --p-button-padding-y: var(--cp-control-padding-y, 0.48rem);
+}
+
+/* Textual field surfaces and focus states */
+.p-inputtext,
+.p-password-input,
+.p-select,
+.p-multiselect,
+.p-datepicker-input,
+.p-inputnumber-input,
+.p-textarea {
+    min-height: var(--cp-input-height, auto);
+    border-color: color-mix(in srgb, var(--cp-surface-border) 88%, transparent);
+    background: color-mix(in srgb, var(--cp-surface-panel) 98%, white);
+    color: var(--cp-text-primary);
+    box-shadow: none;
+    transition:
+        border-color 160ms ease,
+        background-color 160ms ease,
+        box-shadow 160ms ease;
+
+    &::placeholder {
+        color: color-mix(in srgb, var(--cp-text-muted) 84%, transparent);
+    }
+
+    &:hover {
+        border-color: color-mix(
+            in srgb,
+            var(--cp-primary) 28%,
+            var(--cp-surface-border)
+        );
+    }
+
+    &:focus,
+    &:focus-visible {
+        border-color: color-mix(
+            in srgb,
+            var(--cp-primary) 52%,
+            var(--cp-surface-border)
+        );
+        box-shadow: 0 0 0 0.2rem
+            color-mix(in srgb, var(--cp-primary) 18%, transparent);
+        outline: none;
+    }
+}
+
+/* Select-family label and placeholder treatment */
+.p-select,
+.p-multiselect {
+    .p-select-label,
+    .p-multiselect-label,
+    .p-select-dropdown,
+    .p-multiselect-dropdown {
+        color: var(--cp-text-primary);
+    }
+
+    .p-placeholder {
+        color: color-mix(in srgb, var(--cp-text-muted) 84%, transparent);
+    }
+}
+
+/* Password wrapper specifics */
+.p-password {
+    width: 100%;
+
+    .p-password-input {
+        width: 100%;
+    }
+
+    .p-password-toggle-mask-icon {
+        color: var(--cp-text-muted);
+    }
+
+    .p-password-toggle-mask-button,
+    .p-password-toggle-mask-icon {
+        cursor: pointer;
+    }
+}
+
+/* InputIcon / IconField helpers */
+.p-iconfield {
+    width: 100%;
+}
+
+.p-inputicon {
+    color: var(--cp-text-muted);
+}
+
+/* Checkbox styling */
+.p-checkbox {
+    .p-checkbox-box {
+        border-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 88%,
+            transparent
+        );
+        background: color-mix(in srgb, var(--cp-surface-panel) 98%, white);
+        color: white;
+        box-shadow: none;
+        transition:
+            border-color 160ms ease,
+            background-color 160ms ease,
+            box-shadow 160ms ease;
+    }
+
+    &:not(.p-disabled) .p-checkbox-box:hover {
+        border-color: color-mix(
+            in srgb,
+            var(--cp-primary) 32%,
+            var(--cp-surface-border)
+        );
+        background: color-mix(in srgb, var(--cp-surface-panel) 100%, white);
+    }
+
+    &.p-checkbox-checked .p-checkbox-box,
+    &.p-checkbox-checked:not(.p-disabled) .p-checkbox-box:hover {
+        border-color: color-mix(in srgb, var(--cp-primary) 82%, black 4%);
+        background: var(--cp-primary);
+    }
+
+    &.p-focus .p-checkbox-box,
+    &:has(input:focus-visible) .p-checkbox-box {
+        border-color: color-mix(
+            in srgb,
+            var(--cp-primary) 52%,
+            var(--cp-surface-border)
+        );
+        box-shadow: 0 0 0 0.2rem
+            color-mix(in srgb, var(--cp-primary) 18%, transparent);
+        outline: none;
+    }
+
+    .p-checkbox-icon {
+        color: white;
+    }
+}
+
+/* Shared message rounding */
+.p-message {
+    border-radius: var(--cp-radius-lg);
+}
+
+/* Dark-mode variants for form controls */
+.core-panel-dark {
+    .p-inputtext,
+    .p-password-input,
+    .p-select,
+    .p-multiselect,
+    .p-datepicker-input,
+    .p-inputnumber-input,
+    .p-textarea {
+        border-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 92%,
+            transparent
+        );
+        background: color-mix(
+            in srgb,
+            var(--cp-surface-panel-alt) 96%,
+            black 4%
+        );
+        color: var(--cp-text-primary);
+
+        &::placeholder {
+            color: color-mix(in srgb, var(--cp-text-muted) 92%, transparent);
+        }
+
+        &:hover {
+            border-color: color-mix(
+                in srgb,
+                var(--cp-primary) 34%,
+                var(--cp-surface-border)
+            );
+            background: color-mix(
+                in srgb,
+                var(--cp-surface-panel-alt) 98%,
+                black 8%
+            );
+        }
+
+        &:focus,
+        &:focus-visible {
+            border-color: color-mix(
+                in srgb,
+                var(--cp-primary) 56%,
+                var(--cp-surface-border)
+            );
+            background: color-mix(
+                in srgb,
+                var(--cp-surface-panel-alt) 100%,
+                black 12%
+            );
+            box-shadow: 0 0 0 0.2rem
+                color-mix(in srgb, var(--cp-primary) 22%, transparent);
+        }
+    }
+
+    .p-select,
+    .p-multiselect {
+        .p-select-dropdown,
+        .p-multiselect-dropdown {
+            color: var(--cp-text-muted);
+        }
+    }
+
+    .p-checkbox {
+        .p-checkbox-box {
+            border-color: color-mix(
+                in srgb,
+                var(--cp-surface-border) 92%,
+                transparent
+            );
+            background: color-mix(
+                in srgb,
+                var(--cp-surface-panel-alt) 96%,
+                black 4%
+            );
+        }
+
+        &:not(.p-disabled) .p-checkbox-box:hover {
+            border-color: color-mix(
+                in srgb,
+                var(--cp-primary) 38%,
+                var(--cp-surface-border)
+            );
+            background: color-mix(
+                in srgb,
+                var(--cp-surface-panel-alt) 100%,
+                black 8%
+            );
+        }
+
+        &.p-checkbox-checked .p-checkbox-box,
+        &.p-checkbox-checked:not(.p-disabled) .p-checkbox-box:hover {
+            border-color: color-mix(in srgb, var(--cp-primary) 68%, black 12%);
+            background: color-mix(in srgb, var(--cp-primary) 72%, black 10%);
+        }
+
+        &.p-focus .p-checkbox-box,
+        &:has(input:focus-visible) .p-checkbox-box {
+            border-color: color-mix(
+                in srgb,
+                var(--cp-primary) 56%,
+                var(--cp-surface-border)
+            );
+            box-shadow: 0 0 0 0.2rem
+                color-mix(in srgb, var(--cp-primary) 22%, transparent);
+        }
+    }
+}

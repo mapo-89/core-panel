@@ -1,0 +1,34 @@
+/*
+ |---------------------------------------------------------------------------
+ | CorePanel scaffold theme entrypoint
+ |---------------------------------------------------------------------------
+ |
+ | Import order is deliberate:
+ | 1. Foundations and page shells
+ | 2. PrimeVue-facing slices
+ | 3. Feature / layout surfaces
+ | 4. Bridge layer for tiny PrimeVue-wide adjustments
+ |
+ */
+
+/* Foundations */
+@import './fonts.css';
+@import './_base.css';
+@import './_auth.css';
+@import './_admin.css';
+
+/* PrimeVue-facing slices */
+@import './_forms.css';
+@import './_menus.css';
+@import './_dialogs.css';
+@import './_overlays.css';
+
+/* Layout and feature surfaces */
+@import './_navigation.css';
+@import './_datatable.css';
+@import './_tabs.css';
+@import './_card.css';
+@import './_toast.css';
+
+/* PrimeVue bridge */
+@import './_primevue.css';

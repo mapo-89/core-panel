@@ -1,0 +1,64 @@
+.p-drawer,
+.p-menu,
+.p-tieredmenu,
+.p-contextmenu,
+.p-megamenu-submenu,
+.p-dialog,
+.p-confirmpopup,
+.p-confirmdialog,
+.p-popover,
+.p-select-overlay,
+.p-multiselect-overlay,
+.p-datepicker-panel {
+    border-color: color-mix(in srgb, var(--cp-surface-border) 84%, transparent);
+    box-shadow: var(--cp-shadow-lg);
+}
+
+.core-panel-dark {
+    .p-menu,
+    .p-tieredmenu,
+    .p-contextmenu,
+    .p-megamenu-submenu,
+    .p-popover,
+    .p-select-overlay,
+    .p-multiselect-overlay,
+    .p-datepicker-panel,
+    .p-drawer {
+        background: color-mix(
+            in srgb,
+            var(--cp-surface-panel) 92%,
+            rgba(255, 255, 255, 0.08) 8%
+        );
+        border-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 88%,
+            transparent
+        );
+        color: var(--cp-text-primary);
+    }
+
+    .p-menu-item-link,
+    .p-tieredmenu-item-link,
+    .p-contextmenu-item-link,
+    .p-megamenu-item-link {
+        color: var(--cp-text-primary);
+    }
+
+    .p-menu-separator,
+    .p-tieredmenu-separator,
+    .p-contextmenu-separator {
+        border-top-color: color-mix(
+            in srgb,
+            var(--cp-surface-border) 72%,
+            transparent
+        );
+    }
+
+    .p-menu-item-icon,
+    .p-tieredmenu-item-icon,
+    .p-contextmenu-item-icon,
+    .p-megamenu-item-icon,
+    .p-submenu-icon {
+        color: var(--cp-text-muted);
+    }
+}

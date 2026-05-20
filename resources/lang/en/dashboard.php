@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'active_users' => 'Active users',
+    'central_context' => 'Central overview',
+    'empty_activity' => 'There is no recent activity yet.',
+    'failed_jobs' => 'Failed jobs',
+    'guidance_api_summary' => 'Manage external access and tokens centrally in settings.',
+    'guidance_description' => 'Quiet placeholders for key work areas until more dashboard modules are added.',
+    'guidance_queue_summary' => 'Keep pending and failed jobs in view.',
+    'guidance_title' => 'Guidance',
+    'guidance_users_summary' => 'Review user status, roles, and presence in user management.',
+    'health_app' => 'App',
+    'health_database' => 'Database',
+    'health_laravel_version' => 'Laravel',
+    'health_octane' => 'Octane',
+    'health_php_version' => 'PHP',
+    'health_queue' => 'Queue',
+    'health_redis' => 'Redis',
+    'health_storage' => 'Storage',
+    'pending_jobs' => 'Pending jobs',
+    'quick_actions' => 'Quick actions',
+    'recent_activities' => 'Recent activity',
+    'show_api_tokens' => 'API tokens',
+    'show_roles' => 'Roles',
+    'show_users' => 'Users',
+    'status_degraded' => 'Degraded',
+    'status_disabled' => 'Disabled',
+    'status_enabled' => 'Enabled',
+    'status_offline' => 'Offline',
+    'status_ok' => 'OK',
+    'system_health' => 'System health',
+    'title' => 'Dashboard',
+    'total_users' => 'Total users',
+    'users' => 'Users',
+];

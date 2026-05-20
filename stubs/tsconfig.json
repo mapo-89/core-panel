@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "allowJs": false,
+        "baseUrl": ".",
+        "ignoreDeprecations": "6.0",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "noEmit": true,
+        "paths": {
+            "@/*": ["./resources/js/*"],
+            "@core-panel/*": ["./resources/js/*"]
+        },
+        "skipLibCheck": true,
+        "strict": true,
+        "target": "ES2022",
+        "types": ["vite/client"]
+    },
+    "include": [
+        "resources/**/*.ts",
+        "resources/**/*.d.ts",
+        "resources/**/*.vue",
+        "vite.config.ts"
+    ]
+}

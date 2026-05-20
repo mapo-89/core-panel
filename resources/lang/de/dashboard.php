@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'active_users' => 'Aktive Benutzer',
+    'central_context' => 'Zentrale Übersicht',
+    'empty_activity' => 'Derzeit liegen keine aktuellen Aktivitäten vor.',
+    'failed_jobs' => 'Fehlgeschlagene Jobs',
+    'guidance_api_summary' => 'Externe Zugriffe und Tokens zentral in den Einstellungen verwalten.',
+    'guidance_description' => 'Ruhige Platzhalter für wichtige Arbeitsbereiche, bis weitere Dashboard-Module hinzukommen.',
+    'guidance_queue_summary' => 'Offene und fehlgeschlagene Jobs schnell im Blick behalten.',
+    'guidance_title' => 'Hinweise',
+    'guidance_users_summary' => 'Benutzerstatus, Rollen und Präsenz über die Benutzerverwaltung prüfen.',
+    'health_app' => 'App',
+    'health_database' => 'Datenbank',
+    'health_laravel_version' => 'Laravel',
+    'health_octane' => 'Octane',
+    'health_php_version' => 'PHP',
+    'health_queue' => 'Queue',
+    'health_redis' => 'Redis',
+    'health_storage' => 'Storage',
+    'pending_jobs' => 'Offene Jobs',
+    'quick_actions' => 'Schnellaktionen',
+    'recent_activities' => 'Aktuelle Aktivitäten',
+    'show_api_tokens' => 'API-Tokens',
+    'show_roles' => 'Rollen',
+    'show_users' => 'Benutzer',
+    'status_degraded' => 'Eingeschränkt',
+    'status_disabled' => 'Deaktiviert',
+    'status_enabled' => 'Aktiv',
+    'status_offline' => 'Offline',
+    'status_ok' => 'OK',
+    'system_health' => 'Systemzustand',
+    'title' => 'Dashboard',
+    'total_users' => 'Benutzer gesamt',
+    'users' => 'Benutzer',
+];

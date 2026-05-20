@@ -1,0 +1,69 @@
+{
+    "name": "mapo-89/core-panel",
+    "description": "A Laravel admin starter kit built with Inertia, Vue, Tailwind CSS, Fortify, Passport, Horizon, and Wayfinder.",
+    "type": "library",
+    "version": "dev-main",
+    "license": "MIT",
+    "require": {
+        "darkaonline/l5-swagger": "^11.0",
+        "php": "^8.5",
+        "inertiajs/inertia-laravel": "^3.0",
+        "laravel/fortify": "^1.0",
+        "laravel/framework": "^13.0",
+        "laravel/horizon": "^5.0",
+        "laravel/passport": "^13.7",
+        "laravel/socialite": "^5.0",
+        "laravel/wayfinder": "^0.1",
+        "socialiteproviders/microsoft": "^4.9",
+        "spatie/laravel-activitylog": "^5.0",
+        "spatie/laravel-medialibrary": "^11.22",
+        "spatie/laravel-package-tools": "^1.92",
+        "spatie/laravel-permission": "^7.3",
+        "spatie/laravel-query-builder": "^7.2",
+        "spatie/laravel-translatable": "^6.14"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.9",
+        "laravel/boost": "^2.4",
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "CorePanel\\Database\\Seeders\\": "database/seeders/",
+            "CorePanel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CorePanel\\Database\\Factories\\": "database/factories/",
+            "CorePanel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "CorePanel\\CorePanelServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "analyse": "phpstan analyse --no-progress --memory-limit=1G -c phpstan.neon.dist",
+        "check-style": "pint --test",
+        "format": "pint --dirty --format agent",
+        "test": "cd ../.. && vendor/bin/pest packages/core-panel/tests --compact",
+        "test:update-test-projects": "cd ../.. && bash .github/scripts/update-test-projects.sh"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

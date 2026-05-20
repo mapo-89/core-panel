@@ -1,0 +1,12 @@
+Route::middleware(config('core-panel.middleware', ['web', 'auth']))
+    ->prefix(config('core-panel.route_prefix', 'admin'))
+    ->name('core-panel.DummyRouteSegment.')
+    ->group(function (): void {
+        Route::get('/DummyRouteSegment', [\DummyControllerNamespace\DummyModelClassController::class, 'index'])->name('index');
+        Route::get('/DummyRouteSegment/create', [\DummyControllerNamespace\DummyModelClassController::class, 'create'])->name('create');
+        Route::post('/DummyRouteSegment', [\DummyControllerNamespace\DummyModelClassController::class, 'store'])->name('store');
+        Route::get('/DummyRouteSegment/{DummyModelVariable}', [\DummyControllerNamespace\DummyModelClassController::class, 'show'])->name('show');
+        Route::get('/DummyRouteSegment/{DummyModelVariable}/edit', [\DummyControllerNamespace\DummyModelClassController::class, 'edit'])->name('edit');
+        Route::put('/DummyRouteSegment/{DummyModelVariable}', [\DummyControllerNamespace\DummyModelClassController::class, 'update'])->name('update');
+        Route::delete('/DummyRouteSegment/{DummyModelVariable}', [\DummyControllerNamespace\DummyModelClassController::class, 'destroy'])->name('destroy');
+    });

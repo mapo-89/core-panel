@@ -1,0 +1,38 @@
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3'
+
+import DummyModelClassController from '@/actions/App/Domains/DummyDomain/Http/Controllers/DummyModelClassController'
+import AppLayout from '../../core-panel/Layouts/AppLayout.vue'
+
+defineProps<{
+    item: {
+        id: string
+        name: unknown
+        isActive: boolean
+    }
+}>()
+</script>
+
+<template>
+    <AppLayout>
+        <Head title="DummyModelLabel" />
+
+        <div class="mx-auto grid max-w-4xl gap-6 px-4 py-8">
+            <div class="flex items-center justify-between gap-4">
+                <h1 class="text-2xl font-semibold text-[var(--cp-text-primary)]">{{ item.name }}</h1>
+
+                <Link :href="DummyModelClassController.edit(item.id).url()">
+                    <Button label="Edit" />
+                </Link>
+            </div>
+
+            <div class="cp-card grid gap-2">
+                <div class="text-sm text-[var(--cp-text-muted)]">ID</div>
+                <div class="font-medium text-[var(--cp-text-primary)]">{{ item.id }}</div>
+
+                <div class="text-sm text-[var(--cp-text-muted)]">Active</div>
+                <div class="font-medium text-[var(--cp-text-primary)]">{{ item.isActive ? 'Yes' : 'No' }}</div>
+            </div>
+        </div>
+    </AppLayout>
+</template>

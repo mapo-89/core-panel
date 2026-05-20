@@ -1,0 +1,86 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use Illuminate\Support\Facades\Artisan;
+use Tests\TestCase;
+
+final class CorePanelInstallationTest extends TestCase
+{
+    public function test_it_ships_published_package_assets_into_the_skeleton_app(): void
+    {
+        $this->assertSame('pgsql', config('database.default'));
+        $this->assertFileExists(base_path('config/core-panel.php'));
+        $this->assertFileExists(base_path('config/core-panel-access.php'));
+        $this->assertFileExists(base_path('lang/de/page-layout.php'));
+        $this->assertFileExists(base_path('lang/en/page-layout.php'));
+        $this->assertFileExists(base_path('lang/vendor/core-panel/de/navigation.php'));
+        $this->assertFileExists(base_path('lang/vendor/core-panel/en/navigation.php'));
+        $this->assertFileExists(base_path('resources/css/app.css'));
+        $this->assertFileExists(base_path('resources/css/theme/theme.css'));
+        $this->assertFileExists(base_path('resources/js/app.ts'));
+        $this->assertFileExists(base_path('resources/js/plugins/core-panel.ts'));
+        $this->assertFileExists(base_path('resources/js/components/AppIcon.vue'));
+        $this->assertFileExists(base_path('resources/js/components/Locale/LocaleFlag.vue'));
+        $this->assertFileExists(base_path('resources/js/components/UserAvatar.vue'));
+        $this->assertFileExists(base_path('resources/js/layouts/components/AppHeader.vue'));
+        $this->assertFileExists(base_path('resources/js/layouts/components/AppFooter.vue'));
+        $this->assertFileExists(base_path('resources/js/layouts/components/AppPageHeader.vue'));
+        $this->assertFileExists(base_path('resources/js/layouts/components/AppSidebar.vue'));
+        $this->assertFileExists(base_path('resources/js/composables/useSidebar.ts'));
+        $this->assertFileExists(base_path('resources/js/pages/Admin/Dashboard/Index.vue'));
+        $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
+        $this->assertFileExists(base_path('app/Http/Middleware/TrackUserPresence.php'));
+        $this->assertFileDoesNotExist(base_path('database/migrations/2026_01_01_000001_create_tenants_table.php'));
+    }
+
+    public function test_it_ships_primevue_bootstrap_and_theme_setup(): void
+    {
+        $appEntry = file_get_contents(base_path('resources/js/app.ts'));
+        $pluginEntry = file_get_contents(base_path('resources/js/plugins/core-panel.ts'));
+        $themeEntry = file_get_contents(base_path('resources/js/theme/core-panel/index.ts'));
+        $layoutEntry = file_get_contents(base_path('resources/js/layouts/AppLayout.vue'));
+
+        $this->assertStringContainsString("import { installCorePanelUi } from './plugins/core-panel'", $appEntry);
+        $this->assertStringContainsString('const lazyLanguageModules = import.meta.glob<{', $appEntry);
+        $this->assertStringContainsString('default: Record<string, string>', $appEntry);
+        $this->assertStringContainsString('`../../lang/php_${lang}.json`', $appEntry);
+        $this->assertStringContainsString('pages[`./pages/Admin/${name}.vue`]', $appEntry);
+        $this->assertStringContainsString('ToastService', $pluginEntry);
+        $this->assertStringContainsString('ConfirmationService', $pluginEntry);
+        $this->assertStringContainsString("import AppHeader from '@/layouts/components/AppHeader.vue'", $layoutEntry);
+        $this->assertStringContainsString("import AppFooter from '@/layouts/components/AppFooter.vue'", $layoutEntry);
+        $this->assertStringContainsString("import AppPageHeader from '@/layouts/components/AppPageHeader.vue'", $layoutEntry);
+        $this->assertStringContainsString("import AppSidebar from '@/layouts/components/AppSidebar.vue'", $layoutEntry);
+        $this->assertStringContainsString('core-panel-dark', $themeEntry);
+    }
+
+    public function test_it_registers_the_package_commands_in_the_host_application(): void
+    {
+        $commands = Artisan::all();
+
+        $this->assertArrayHasKey('core-panel:install', $commands);
+        $this->assertArrayHasKey('core-panel:publish', $commands);
+        $this->assertArrayHasKey('core-panel:sync-access', $commands);
+        $this->assertArrayHasKey('core-panel:update', $commands);
+    }
+
+    public function test_it_runs_the_installer_idempotently_in_the_skeleton_app(): void
+    {
+        $this->artisan('core-panel:install', [
+            '--no-interaction' => true,
+            '--force' => true,
+            '--publish-components' => 'true',
+            '--default-locale' => 'de',
+            '--fallback-locale' => 'en',
+            '--create-admin' => 'false',
+            '--run-migrations' => 'false',
+        ])->assertSuccessful();
+
+        $this->assertFileExists(base_path('resources/js/app.ts'));
+        $this->assertFileExists(base_path('resources/js/plugins/core-panel.ts'));
+        $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
+    }
+}

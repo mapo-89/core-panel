@@ -1,0 +1,40 @@
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3'
+
+import ProfileWorkspace from '@/pages/Admin/Settings/components/ProfileWorkspace.vue'
+import AppLayout from '@/layouts/AppLayout.vue'
+import type {
+    SocialAccountRecord,
+    SocialProviderRecord,
+    UserSessionRecord,
+} from '@/types/core-panel'
+
+defineProps<{
+    browserSessions: UserSessionRecord[]
+    requiresPasswordSetup: boolean
+    socialAccounts: SocialAccountRecord[]
+    socialProviders: SocialProviderRecord[]
+    twoFactor: {
+        confirmed: boolean
+        enabled: boolean
+    }
+}>()
+</script>
+
+<template>
+    <AppLayout
+        :title="$t('settings.security')"
+        :subtitle="$t('page-settings.profile_workspace_description')"
+    >
+        <Head :title="$t('settings.security')" />
+
+        <ProfileWorkspace
+            :browser-sessions="browserSessions"
+            initial-tab="security"
+            :requires-password-setup="requiresPasswordSetup"
+            :social-accounts="socialAccounts"
+            :social-providers="socialProviders"
+            :two-factor="twoFactor"
+        />
+    </AppLayout>
+</template>

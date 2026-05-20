@@ -1,0 +1,17 @@
+/*
+ |---------------------------------------------------------------------------
+ | CorePanel package runtime theme layer
+ |---------------------------------------------------------------------------
+ |
+ | This stylesheet belongs to the package runtime theme core. It only exposes
+ | runtime color-scheme behavior for the published UI layer and PrimeVue
+ | preset. Host application page/layout styling lives under stubs/resources/css.
+ |
+ */
+:root {
+    color-scheme: light;
+}
+
+:root.core-panel-dark {
+    color-scheme: dark;
+}

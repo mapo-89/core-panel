@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\FormBuilder\Forms;
+
+use CorePanel\Support\FormBuilder\Fields\Checkbox;
+use CorePanel\Support\FormBuilder\Fields\TextInput;
+use CorePanel\Support\FormBuilder\Form;
+
+final class DummyFormClass
+{
+    public static function build(): Form
+    {
+        return Form::make('DummyModelVariable-form')
+            ->schema([
+                TextInput::make('name')->label('DummyModelLabel Name')->required(),
+                Checkbox::make('is_active')->label('Active')->default(true),
+            ]);
+    }
+}

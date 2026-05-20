@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\TableBuilder\Tables;
+
+use App\Models\DummyModelClass;
+use CorePanel\Support\TableBuilder\Actions\DeleteAction;
+use CorePanel\Support\TableBuilder\Actions\EditAction;
+use CorePanel\Support\TableBuilder\Columns\BooleanColumn;
+use CorePanel\Support\TableBuilder\Columns\TextColumn;
+use CorePanel\Support\TableBuilder\Filters\TextFilter;
+use CorePanel\Support\TableBuilder\Table;
+
+final class DummyTableClass
+{
+    public static function build(): Table
+    {
+        return Table::make()
+            ->query(DummyModelClass::query())
+            ->columns([
+                TextColumn::make('name')->label('DummyPluralLabel')->searchable()->sortable(),
+                BooleanColumn::make('is_active')->label('Active'),
+            ])
+            ->filters([
+                TextFilter::make('name')->label('Search'),
+            ])
+            ->actions([
+                EditAction::make(),
+                DeleteAction::make(),
+            ]);
+    }
+}
