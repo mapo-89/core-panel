@@ -691,6 +691,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $addonPhpstanScript = file_get_contents(__DIR__.'/../../../../.github/scripts/addon-phpstan.sh');
     $frontendQualityScript = file_get_contents(__DIR__.'/../../../../.github/scripts/frontend-quality.sh');
     $installSmokeScript = file_get_contents(__DIR__.'/../../../../.github/scripts/install-smoke.sh');
+    $updateTestProjectsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/update-test-projects.sh');
     /** @var array{require-dev:array<string,string>,scripts:array<string,string>} $composer */
     $composer = json_decode((string) file_get_contents(__DIR__.'/../../composer.json'), true, 512, JSON_THROW_ON_ERROR);
     /** @var array{require-dev:array<string,string>,scripts:array<string,string>} $addonComposer */
@@ -728,12 +729,19 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($workflow)->toContain('bash .github/scripts/install-smoke.sh core-package')
         ->and($workflow)->toContain('bash .github/scripts/install-smoke.sh tenancy-addon')
         ->and($installSmokeScript)->toContain('php artisan core-panel:install')
+        ->and($installSmokeScript)->toContain('mkdir -p "${repo_root}/apps"')
+        ->and($installSmokeScript)->toContain('app_dir="${repo_root}/apps/ci-${variant}"')
         ->and($installSmokeScript)->toContain('install_tenancy="false"')
         ->and($installSmokeScript)->toContain('install_tenancy="true"')
         ->and($installSmokeScript)->toContain('php artisan serve --host=127.0.0.1')
         ->and($installSmokeScript)->toContain('wait_for_server "${path}"')
         ->and($installSmokeScript)->toContain('http://127.0.0.1:${serve_port}')
         ->and($installSmokeScript)->toContain('--header "Host: ${app_host}"')
+        ->and($updateTestProjectsScript)->toContain('target="${1:-all}"')
+        ->and($updateTestProjectsScript)->toContain('local app_dir="${apps_root}/${playground}"')
+        ->and($updateTestProjectsScript)->toContain('php artisan core-panel:update --force --with-addon-updates')
+        ->and($updateTestProjectsScript)->toContain('php artisan core-panel:update --force')
+        ->and($updateTestProjectsScript)->toContain('npm run build')
         ->and($installSmokeScript)->toContain('grep -q \'^TENANCY_CENTRAL_CONNECTION=pgsql$\' .env')
         ->and($installSmokeScript)->toContain('php artisan route:list --name=tenant.core-panel.users.index --except-vendor')
         ->and($composer['require-dev'])->toHaveKey('larastan/larastan')
@@ -741,9 +749,11 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($addonComposer['scripts'])->toHaveKey('analyse')
         ->and($composer['scripts'])->toHaveKeys([
             'analyse',
+            'apps:update',
             'check-style',
             'format',
             'test',
+            'test:update-test-projects',
         ]);
 });
 
