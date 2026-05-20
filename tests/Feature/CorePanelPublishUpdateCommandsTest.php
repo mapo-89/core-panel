@@ -138,6 +138,22 @@ it('refreshes the published app version metadata during update without requiring
     expect($publishedVersion)->toBe($packageVersion);
 });
 
+it('publishes domain-grouped migration directories during update scaffolding', function (): void {
+    $basePath = makePublishBasePath('domain-migrations');
+
+    mkdir($basePath.'/database/migrations', 0777, true);
+    file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
+    file_put_contents($basePath.'/database/migrations/0001_01_01_000000_create_users_table.php', 'legacy migration');
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($basePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php'))->toBeTrue()
+        ->and(file_exists($basePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php'))->toBeTrue()
+        ->and(file_exists($basePath.'/database/migrations/0001_01_01_000000_create_users_table.php'))->toBeFalse();
+});
+
 it('skips automatic migrations for external base-path updates', function (): void {
     $basePath = makePublishBasePath('skip-migrations');
 

@@ -7,6 +7,7 @@ use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
+use CorePanel\Support\Migrations\CorePanelHostMigrationRunner;
 use CorePanel\Support\SynchronizesEnvironmentFile;
 use Illuminate\Console\Command;
 use Illuminate\Console\OutputStyle;
@@ -149,6 +150,36 @@ it('supports no-interaction installer defaults', function (): void {
         ->and($installer->options?->installFrontend)->toBeTrue()
         ->and($installer->options?->installTenancy)->toBeFalse()
         ->and($installer->options?->createAdmin)->toBeTrue();
+});
+
+it('runs host migrations in global timestamp order across domain directories', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-order-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/files', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/tenancy', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/tenant/users', 0777, true);
+
+    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/files/2019_01_01_000001_create_media_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/tenancy/2026_01_01_000001_create_tenants_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/tenant/users/0001_01_01_000000_create_users_table.php', '<?php');
+
+    $runner = app(CorePanelHostMigrationRunner::class);
+    $method = new ReflectionMethod($runner, 'migrationFiles');
+    $method->setAccessible(true);
+
+    /** @var list<string> $migrationFiles */
+    $migrationFiles = $method->invoke($runner, $temporaryBasePath.'/database/migrations');
+
+    expect(array_map('basename', $migrationFiles))->toBe([
+        '0001_01_01_000000_create_users_table.php',
+        '2016_06_01_000001_create_oauth_auth_codes_table.php',
+        '2019_01_01_000001_create_media_table.php',
+        '2026_01_01_000001_create_tenants_table.php',
+    ]);
 });
 
 it('automatically disables seeders when migrations are disabled', function (): void {
@@ -388,7 +419,7 @@ it('clears optimized caches after synchronizing the environment and allows seede
     expect($contents)->toContain("runStep(\$command, 'Clearing optimized caches'")
         ->and($contents)->toContain('$this->refreshResolvedRuntimeServices();')
         ->and($contents)->toContain('if ($options->runMigrations) {')
-        ->and($contents)->toContain("\$command->call('migrate', ['--force' => true]);")
+        ->and($contents)->toContain('$this->migrations->run($command);')
         ->and($contents)->toContain('$this->applyRuntimeConfiguration($options, $environment);')
         ->and($contents)->toContain("\$command->call('optimize:clear')")
         ->and($contents)->toContain("\$originalCacheStore = config('cache.default');")

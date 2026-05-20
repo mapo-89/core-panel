@@ -8,6 +8,7 @@ use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Database\Seeders\CorePanelSettingsSeeder;
 use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Support\Migrations\CorePanelHostMigrationRunner;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\ScaffoldsCorePanelStubs;
@@ -41,6 +42,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         private PermissionService $permissions,
         private ResyncAccessMatrixAction $resyncAccessMatrix,
         private Filesystem $files,
+        private CorePanelHostMigrationRunner $migrations,
     ) {}
 
     public function install(CorePanelInstallOptions $options, Command $command): void
@@ -91,7 +93,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 
             if ($options->runMigrations) {
                 $this->runStep($command, 'Running migrations', function () use ($command): void {
-                    $command->call('migrate', ['--force' => true]);
+                    $this->migrations->run($command);
                 });
 
                 $this->applyRuntimeConfiguration($options, $environment);

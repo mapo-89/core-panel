@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Console;
 
+use CorePanel\Support\Migrations\CorePanelHostMigrationRunner;
 use CorePanel\Support\PublishesCorePanelAssets;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\ScaffoldsCorePanelStubs;
@@ -18,6 +19,7 @@ final class UpdateCommand extends Command
     public function __construct(
         private readonly ScaffoldsCorePanelStubs $stubs,
         private readonly SynchronizesEnvironmentFile $environment,
+        private readonly CorePanelHostMigrationRunner $migrations,
     ) {
         parent::__construct();
     }
@@ -155,7 +157,7 @@ final class UpdateCommand extends Command
             return;
         }
 
-        $this->call('migrate', ['--force' => true]);
+        $this->migrations->run($this, $basePath);
     }
 
     private function generateSwaggerDocs(): void

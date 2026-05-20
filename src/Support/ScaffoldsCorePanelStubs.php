@@ -129,7 +129,6 @@ final readonly class ScaffoldsCorePanelStubs
 
             $relativePath = ltrim(str_replace($root, '', $file->getPathname()), DIRECTORY_SEPARATOR);
             $prefixedPath = $prefix === '' ? $relativePath : $prefix.'/'.$relativePath;
-            $prefixedPath = self::normalizeMigrationScaffoldPath($prefixedPath);
 
             if (self::shouldSkipPath($prefixedPath)) {
                 continue;
@@ -145,10 +144,6 @@ final readonly class ScaffoldsCorePanelStubs
 
         if ($this->files->exists($stubSourcePath)) {
             return $stubSourcePath;
-        }
-
-        if (str_starts_with($relativePath, 'database/migrations/')) {
-            return $this->migrationSourcePath($relativePath);
         }
 
         if (str_starts_with($relativePath, 'routes/web/')) {
@@ -191,47 +186,6 @@ final readonly class ScaffoldsCorePanelStubs
         }
 
         return __DIR__.'/../../../../'.$relativePath;
-    }
-
-    private static function normalizeMigrationScaffoldPath(string $relativePath): string
-    {
-        if (! str_starts_with($relativePath, 'database/migrations/')) {
-            return $relativePath;
-        }
-
-        $filename = basename($relativePath);
-
-        if (str_starts_with($relativePath, 'database/migrations/tenant/')) {
-            return 'database/migrations/tenant/'.$filename;
-        }
-
-        return 'database/migrations/'.$filename;
-    }
-
-    private function migrationSourcePath(string $relativePath): string
-    {
-        $migrationsRoot = __DIR__.'/../../stubs/database/migrations';
-        $filename = basename($relativePath);
-        $tenantScoped = str_starts_with($relativePath, 'database/migrations/tenant/');
-
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($migrationsRoot, RecursiveDirectoryIterator::SKIP_DOTS),
-        );
-
-        foreach ($iterator as $file) {
-            if (! $file->isFile() || $file->getFilename() !== $filename) {
-                continue;
-            }
-
-            $sourcePath = $file->getPathname();
-            $isTenantMigration = str_contains($sourcePath, DIRECTORY_SEPARATOR.'tenant'.DIRECTORY_SEPARATOR);
-
-            if ($tenantScoped === $isTenantMigration) {
-                return $sourcePath;
-            }
-        }
-
-        return $migrationsRoot.'/'.$filename;
     }
 
     private function mergePackageJson(string $sourcePath, string $destinationPath, string $root): void
@@ -324,6 +278,30 @@ final readonly class ScaffoldsCorePanelStubs
 
             if ($this->files->exists($path)) {
                 $this->files->delete($path);
+            }
+        }
+
+        foreach (self::paths() as $relativePath) {
+            if (! str_starts_with($relativePath, 'database/migrations/')) {
+                continue;
+            }
+
+            $segments = explode('/', $relativePath);
+
+            if (count($segments) <= 3) {
+                continue;
+            }
+
+            $legacyPath = $root.'/database/migrations/';
+
+            if ($segments[2] === 'tenant') {
+                $legacyPath .= 'tenant/'.basename($relativePath);
+            } else {
+                $legacyPath .= basename($relativePath);
+            }
+
+            if ($this->files->exists($legacyPath)) {
+                $this->files->delete($legacyPath);
             }
         }
 

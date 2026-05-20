@@ -927,7 +927,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($updateTestProjectsScript)->toContain('php artisan core-panel:update --force --with-addon-updates')
         ->and($updateTestProjectsScript)->toContain('php artisan core-panel:update --force')
         ->and(file_get_contents(__DIR__.'/../../src/Console/UpdateCommand.php'))->toContain('$this->runMigrations($basePath);')
-        ->and(file_get_contents(__DIR__.'/../../src/Console/UpdateCommand.php'))->toContain("\$this->call('migrate', ['--force' => true]);")
+        ->and(file_get_contents(__DIR__.'/../../src/Console/UpdateCommand.php'))->toContain('$this->migrations->run($this, $basePath);')
         ->and(file_get_contents(__DIR__.'/../../src/Console/UpdateCommand.php'))->toContain('Skipping automatic migrations for external base-path updates.')
         ->and($updateTestProjectsScript)->toContain('npm run build')
         ->and($installSmokeScript)->toContain('grep -q \'^TENANCY_CENTRAL_CONNECTION=pgsql$\' .env')
@@ -1305,7 +1305,7 @@ PHP);
 
     app(ScaffoldsCorePanelStubs::class)->scaffold(false, $temporaryBasePath);
 
-    $contents = file_get_contents($temporaryBasePath.'/database/migrations/0001_01_01_000000_create_users_table.php');
+    $contents = file_get_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php');
     $userModel = file_get_contents($temporaryBasePath.'/app/Models/User.php');
     $userFactory = file_get_contents($temporaryBasePath.'/database/factories/UserFactory.php');
     $databaseSeeder = file_get_contents($temporaryBasePath.'/database/seeders/DatabaseSeeder.php');
@@ -1313,6 +1313,7 @@ PHP);
     expect($contents)->toContain("\$table->uuid('id')->primary();")
         ->and($contents)->not->toContain('$table->id();')
         ->and($contents)->not->toContain("\$table->string('name');")
+        ->and(file_exists($temporaryBasePath.'/database/migrations/0001_01_01_000000_create_users_table.php'))->toBeFalse()
         ->and($userModel)->toContain('use HasUuids;')
         ->and($userFactory)->toContain("'first_name' => fake()->firstName(),")
         ->and($databaseSeeder)->toContain("'first_name' => 'Test',");
