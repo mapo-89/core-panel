@@ -298,7 +298,7 @@ it('registers the configured publish tags', function (): void {
 it('merges the managed access configuration defaults', function (): void {
     expect(config('core-panel-access.resources.settings'))->toBeArray()
         ->and(config('core-panel-access.role_permissions.super-admin'))->toBe('*')
-        ->and(config('core-panel-access.custom_permissions'))->toContain('core-panel.view-horizon');
+        ->and(config('core-panel-access.custom_permissions'))->toContain('horizon.view');
 });
 
 it('registers the theme publish tag', function (): void {

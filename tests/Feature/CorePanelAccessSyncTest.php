@@ -26,7 +26,7 @@ it('seeds managed permissions and predefined roles from the access configuration
     );
 
     expect(Permission::query()->where('name', 'users.view')->exists())->toBeTrue()
-        ->and(Permission::query()->where('name', 'core-panel.view-horizon')->exists())->toBeTrue()
+        ->and(Permission::query()->where('name', 'horizon.view')->exists())->toBeTrue()
         ->and(Role::query()->where('name', 'super-admin')->exists())->toBeTrue()
         ->and(Role::query()->where('name', 'admin')->exists())->toBeTrue()
         ->and(Role::query()->where('name', 'user')->exists())->toBeTrue();

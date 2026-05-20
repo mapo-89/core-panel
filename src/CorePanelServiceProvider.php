@@ -271,7 +271,11 @@ final class CorePanelServiceProvider extends PackageServiceProvider
                     return true;
                 }
 
-                return method_exists($user, 'can') && $user->can('core-panel.view-horizon');
+                if (! method_exists($user, 'can')) {
+                    return false;
+                }
+
+                return $user->can('horizon.view') || $user->can('core-panel.view-horizon');
             });
         }
     }

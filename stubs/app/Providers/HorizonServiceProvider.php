@@ -36,7 +36,7 @@ final class HorizonServiceProvider extends HorizonApplicationServiceProvider
             return is_object($user)
                 && (
                     (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin())
-                    || (method_exists($user, 'can') && $user->can('core-panel.view-horizon'))
+                    || (method_exists($user, 'can') && ($user->can('horizon.view') || $user->can('core-panel.view-horizon')))
                 );
         });
     }
