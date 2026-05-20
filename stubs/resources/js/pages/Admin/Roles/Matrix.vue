@@ -477,164 +477,153 @@ function abilityHeading(ability: string): string {
         </template>
 
         <div class="cp-role-matrix-page">
-            <section
-                class="cp-card cp-access-panel cp-section cp-role-matrix-page__matrix-wrap"
-            >
-                <h2 class="cp-access-panel__title">
-                    {{ $t('page-roles.matrix') }}
-                </h2>
-                <p class="cp-access-panel__description">
-                    {{ $t('page-roles.matrix_description') }}
-                </p>
-
-                <div class="cp-role-matrix-table-wrap">
-                    <table class="cp-role-matrix-table">
-                        <thead>
-                            <tr>
-                                <th>{{ $t('common.ui.name') }}</th>
-                                <th class="cp-role-matrix-table__toggle">
+            <div class="cp-role-matrix-table-wrap">
+                <table class="cp-role-matrix-table">
+                    <thead>
+                        <tr>
+                            <th>{{ $t('common.ui.name') }}</th>
+                            <th class="cp-role-matrix-table__toggle">
+                                <Checkbox
+                                    :binary="true"
+                                    :indeterminate="
+                                        form.permissions.length > 0 &&
+                                        form.permissions.length <
+                                            allPermissionsFlat.length
+                                    "
+                                    :model-value="
+                                        allPermissionsFlat.length > 0 &&
+                                        form.permissions.length ===
+                                            allPermissionsFlat.length
+                                    "
+                                    @update:model-value="
+                                        toggleAllPermissions()
+                                    "
+                                />
+                            </th>
+                            <th
+                                v-for="ability in allAbilities"
+                                :key="ability"
+                            >
+                                <div class="cp-role-matrix-table__ability">
+                                    <span>{{
+                                        abilityHeading(ability)
+                                    }}</span>
                                     <Checkbox
                                         :binary="true"
                                         :indeterminate="
-                                            form.permissions.length > 0 &&
-                                            form.permissions.length <
-                                                allPermissionsFlat.length
+                                            isAbilityColumnPartiallyChecked(
+                                                ability,
+                                            )
                                         "
                                         :model-value="
-                                            allPermissionsFlat.length > 0 &&
-                                            form.permissions.length ===
-                                                allPermissionsFlat.length
+                                            isAbilityColumnAllChecked(
+                                                ability,
+                                            )
                                         "
                                         @update:model-value="
-                                            toggleAllPermissions()
+                                            toggleAbilityColumn(ability)
                                         "
                                     />
-                                </th>
-                                <th
-                                    v-for="ability in allAbilities"
-                                    :key="ability"
-                                >
-                                    <div class="cp-role-matrix-table__ability">
-                                        <span>{{
-                                            abilityHeading(ability)
-                                        }}</span>
-                                        <Checkbox
-                                            :binary="true"
-                                            :indeterminate="
-                                                isAbilityColumnPartiallyChecked(
-                                                    ability,
-                                                )
-                                            "
-                                            :model-value="
-                                                isAbilityColumnAllChecked(
-                                                    ability,
-                                                )
-                                            "
-                                            @update:model-value="
-                                                toggleAbilityColumn(ability)
-                                            "
-                                        />
-                                    </div>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template
-                                v-for="group in permissionMatrix"
-                                :key="group.key"
-                            >
-                                <tr class="cp-role-matrix-table__group-row">
-                                    <th>{{ group.label }}</th>
-                                    <td class="cp-role-matrix-table__toggle">
-                                        <Checkbox
-                                            :binary="true"
-                                            :indeterminate="
-                                                isGroupPartiallyChecked(group)
-                                            "
-                                            :model-value="
-                                                isGroupAllChecked(group)
-                                            "
-                                            @update:model-value="
-                                                toggleGroupPermissions(group)
-                                            "
-                                        />
-                                    </td>
-                                    <td
-                                        v-for="ability in allAbilities"
-                                        :key="`${group.key}-${ability}`"
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template
+                            v-for="group in permissionMatrix"
+                            :key="group.key"
+                        >
+                            <tr class="cp-role-matrix-table__group-row">
+                                <th>{{ group.label }}</th>
+                                <td class="cp-role-matrix-table__toggle">
+                                    <Checkbox
+                                        :binary="true"
+                                        :indeterminate="
+                                            isGroupPartiallyChecked(group)
+                                        "
+                                        :model-value="
+                                            isGroupAllChecked(group)
+                                        "
+                                        @update:model-value="
+                                            toggleGroupPermissions(group)
+                                        "
                                     />
-                                </tr>
+                                </td>
+                                <td
+                                    v-for="ability in allAbilities"
+                                    :key="`${group.key}-${ability}`"
+                                />
+                            </tr>
 
-                                <tr
-                                    v-for="resource in group.resources"
-                                    :key="resource.key"
+                            <tr
+                                v-for="resource in group.resources"
+                                :key="resource.key"
+                            >
+                                <th
+                                    class="cp-role-matrix-table__resource-cell"
                                 >
-                                    <th
-                                        class="cp-role-matrix-table__resource-cell"
-                                    >
-                                        {{ resource.label }}
-                                    </th>
-                                    <td class="cp-role-matrix-table__toggle">
-                                        <Checkbox
-                                            :binary="true"
-                                            :indeterminate="
-                                                isResourcePartiallyChecked(
-                                                    resource,
-                                                )
-                                            "
-                                            :model-value="
-                                                isResourceAllChecked(resource)
-                                            "
-                                            @update:model-value="
-                                                toggleResourcePermissions(
-                                                    resource,
-                                                )
-                                            "
-                                        />
-                                    </td>
-                                    <td
-                                        v-for="ability in allAbilities"
-                                        :key="`${resource.key}-${ability}`"
-                                    >
-                                        <Checkbox
-                                            v-if="
+                                    {{ resource.label }}
+                                </th>
+                                <td class="cp-role-matrix-table__toggle">
+                                    <Checkbox
+                                        :binary="true"
+                                        :indeterminate="
+                                            isResourcePartiallyChecked(
+                                                resource,
+                                            )
+                                        "
+                                        :model-value="
+                                            isResourceAllChecked(resource)
+                                        "
+                                        @update:model-value="
+                                            toggleResourcePermissions(
+                                                resource,
+                                            )
+                                        "
+                                    />
+                                </td>
+                                <td
+                                    v-for="ability in allAbilities"
+                                    :key="`${resource.key}-${ability}`"
+                                >
+                                    <Checkbox
+                                        v-if="
+                                            permissionNameFor(
+                                                resource,
+                                                ability,
+                                            )
+                                        "
+                                        :binary="true"
+                                        :input-id="`${resource.key}-${ability}`"
+                                        :model-value="
+                                            isRolePermissionSelected(
                                                 permissionNameFor(
                                                     resource,
                                                     ability,
-                                                )
-                                            "
-                                            :binary="true"
-                                            :input-id="`${resource.key}-${ability}`"
-                                            :model-value="
-                                                isRolePermissionSelected(
-                                                    permissionNameFor(
-                                                        resource,
-                                                        ability,
-                                                    )!,
-                                                )
-                                            "
-                                            @update:model-value="
-                                                toggleRolePermission(
-                                                    permissionNameFor(
-                                                        resource,
-                                                        ability,
-                                                    )!,
-                                                )
-                                            "
-                                        />
-                                        <span
-                                            v-else
-                                            class="cp-role-matrix-table__empty"
-                                        >
-                                            —
-                                        </span>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                                                )!,
+                                            )
+                                        "
+                                        @update:model-value="
+                                            toggleRolePermission(
+                                                permissionNameFor(
+                                                    resource,
+                                                    ability,
+                                                )!,
+                                            )
+                                        "
+                                    />
+                                    <span
+                                        v-else
+                                        class="cp-role-matrix-table__empty"
+                                    >
+                                        —
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
 
             <div class="cp-role-matrix-page__actions">
                 <Button

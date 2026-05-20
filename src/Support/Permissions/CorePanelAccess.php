@@ -176,10 +176,23 @@ final class CorePanelAccess
 
         /** @var array<string, array<string, string>> $labels */
         $labels = $this->displayNamesFor('groups');
+        $groupKeys = array_values(array_unique([
+            ...array_keys($this->groups()),
+            ...array_map(
+                static fn (array $role): string => (string) ($role['group'] ?? ''),
+                $this->defaultRoles(),
+            ),
+            'other',
+        ]));
 
         $resolved = [];
 
-        foreach ($labels as $group => $translations) {
+        foreach ($groupKeys as $group) {
+            if ($group === '') {
+                continue;
+            }
+
+            $translations = (array) ($labels[$group] ?? []);
             $resolved[$group] = $this->resolveLocalizedLabel($translations, 'groups', $group, $locale);
         }
 

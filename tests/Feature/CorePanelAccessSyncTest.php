@@ -118,3 +118,17 @@ it('counts assigned role users through the string-based permission pivot for uui
     expect($role)->not->toBeNull()
         ->and((int) $role->getAttribute('users_count'))->toBe(1);
 });
+
+it('resolves translated permission group labels for matrix payloads', function (): void {
+    app()->setLocale('de');
+
+    $labels = app(CorePanelAccess::class)->groupLabels();
+
+    expect($labels)
+        ->toMatchArray([
+            'developer' => 'Entwicklung',
+            'other' => 'Andere',
+            'system' => 'System',
+            'users' => 'Benutzerverwaltung',
+        ]);
+});
