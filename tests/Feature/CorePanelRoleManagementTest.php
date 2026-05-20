@@ -40,7 +40,7 @@ it('syncs selected permissions when storing a role', function (): void {
 
     $response
         ->assertRedirect(route('core-panel.roles.index'))
-        ->assertSessionHas('status', 'Role created.');
+        ->assertSessionHas('status', trans('core-panel::page-roles.roles.created'));
 
     $role = Role::query()
         ->where('name', 'auditor')
@@ -76,7 +76,7 @@ it('redirects newly created roles into the matrix when requested by the create d
         ->assertRedirect(route('core-panel.roles.matrix', [
             'role' => $role->getKey(),
         ]))
-        ->assertSessionHas('status', 'Role created.');
+        ->assertSessionHas('status', trans('core-panel::page-roles.roles.created'));
 });
 
 it('syncs an empty permission list when updating a role without selections', function (): void {
@@ -106,7 +106,7 @@ it('syncs an empty permission list when updating a role without selections', fun
 
     $response
         ->assertRedirect(route('core-panel.roles.index'))
-        ->assertSessionHas('status', 'Role updated.');
+        ->assertSessionHas('status', trans('core-panel::page-roles.roles.updated'));
 
     $role->refresh()->load('permissions');
 
@@ -115,6 +115,8 @@ it('syncs an empty permission list when updating a role without selections', fun
 });
 
 it('resolves nested role and permission translation keys for status flashes', function (): void {
+    app()->setLocale('en');
+
     expect(trans('page-roles.permissions.created'))->toBe('Permission created.')
         ->and(trans('page-roles.permissions.updated'))->toBe('Permission updated.')
         ->and(trans('page-roles.permissions.deleted'))->toBe('Permission deleted.')
@@ -122,4 +124,14 @@ it('resolves nested role and permission translation keys for status flashes', fu
         ->and(trans('page-roles.roles.created'))->toBe('Role created.')
         ->and(trans('page-roles.roles.permissions_updated'))->toBe('Role permissions updated.')
         ->and(trans('page-roles.roles.resynced'))->toBe('Managed roles and permissions synchronized.');
+
+    app()->setLocale('de');
+
+    expect(trans('page-roles.permissions.created'))->toBe('Berechtigung erstellt.')
+        ->and(trans('page-roles.permissions.updated'))->toBe('Berechtigung aktualisiert.')
+        ->and(trans('page-roles.permissions.deleted'))->toBe('Berechtigung gelöscht.')
+        ->and(trans('page-roles.permissions.users.view'))->toBe('Benutzer anzeigen')
+        ->and(trans('page-roles.roles.created'))->toBe('Rolle erstellt.')
+        ->and(trans('page-roles.roles.permissions_updated'))->toBe('Rollenberechtigungen aktualisiert.')
+        ->and(trans('page-roles.roles.resynced'))->toBe('Verwaltete Rollen und Berechtigungen synchronisiert.');
 });

@@ -88,5 +88,5 @@ it('uses the public storage asset url for logo urls by default', function (): vo
     $record->save();
 
     expect(app(SettingsLogoManager::class)->currentUrl())
-        ->toBe('http://localhost/storage/branding/logo.png');
+        ->toBe(rtrim((string) config('app.url'), '/').'/storage/branding/logo.png');
 });
