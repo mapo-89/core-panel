@@ -133,6 +133,37 @@ it('creates managed users through an invitation flow instead of requiring a pass
     });
 });
 
+it('blocks invited user creation when password resets are disabled', function (): void {
+    Mail::fake();
+    config()->set('core-panel.auth.password_reset_enabled', false);
+    $this->withoutMiddleware([CheckPermission::class, EnsureCorePanelEmailIsVerified::class]);
+
+    $actor = FakeUser::query()->create([
+        'email' => 'admin-invite-blocked@example.test',
+        'email_verified_at' => now(),
+        'first_name' => 'Admin',
+        'last_name' => 'Invite',
+        'password' => Hash::make('secret-password'),
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($actor)
+        ->from(route('core-panel.users.create'))
+        ->post(route('core-panel.users.store'), [
+            'email' => 'blocked-invite@example.test',
+            'first_name' => 'Blocked',
+            'last_name' => 'Invite',
+            'status' => 'active',
+            'user_group_ids' => [],
+        ])
+        ->assertRedirect(route('core-panel.users.create'))
+        ->assertSessionHas('error', trans('page-users.users.invitation_requires_password_reset'));
+
+    expect(FakeUser::query()->where('email', 'blocked-invite@example.test')->exists())->toBeFalse();
+
+    Mail::assertNothingSent();
+});
+
 it('renders a localized invitation mail', function (): void {
     app()->setLocale('de');
     config()->set('app.name', 'CorePanel');
@@ -238,6 +269,69 @@ it('re-sends the custom invitation mail for an invited user from the admin area'
             && $mail->user->is($target)
             && str_contains($mail->invitationUrl, 'context=invitation');
     });
+});
+
+it('blocks re-invites when password resets are disabled', function (): void {
+    Mail::fake();
+    config()->set('core-panel.auth.password_reset_enabled', false);
+
+    $actor = FakeUser::query()->create([
+        'email' => 'admin-reinvite-blocked@example.test',
+        'first_name' => 'Admin',
+        'last_name' => 'Reinvite',
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    $target = FakeUser::query()->create([
+        'email' => 'target-reinvite-blocked@example.test',
+        'first_name' => 'Target',
+        'invited_at' => now()->subMinutes(10),
+        'last_name' => 'Reinvite',
+        'password' => Hash::make('secret-password'),
+        'requires_password_setup' => true,
+    ]);
+
+    $this->actingAs($actor)
+        ->from(route('core-panel.users.show', $target->getKey()))
+        ->post(route('core-panel.users.reinvite', $target->getKey()))
+        ->assertRedirect(route('core-panel.users.show', $target->getKey()))
+        ->assertSessionHas('error', trans('page-users.users.invitation_requires_password_reset'));
+
+    Mail::assertNothingSent();
+});
+
+it('blocks re-invites for users that already accepted their invitation', function (): void {
+    Mail::fake();
+
+    $actor = FakeUser::query()->create([
+        'email' => 'admin-reinvite-accepted@example.test',
+        'first_name' => 'Admin',
+        'last_name' => 'Accepted',
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    $target = FakeUser::query()->create([
+        'email' => 'target-reinvite-accepted@example.test',
+        'first_name' => 'Target',
+        'invitation_accepted_at' => now()->subMinute(),
+        'invited_at' => now()->subMinutes(30),
+        'last_name' => 'Accepted',
+        'password' => Hash::make('secret-password'),
+        'requires_password_setup' => false,
+    ]);
+
+    $this->actingAs($actor)
+        ->from(route('core-panel.users.show', $target->getKey()))
+        ->post(route('core-panel.users.reinvite', $target->getKey()))
+        ->assertRedirect(route('core-panel.users.show', $target->getKey()))
+        ->assertSessionHas('error', trans('page-users.users.invitation_already_accepted'));
+
+    $target->refresh();
+
+    expect($target->requiresPasswordSetup())->toBeFalse()
+        ->and($target->getAttribute('invitation_accepted_at'))->not->toBeNull();
+
+    Mail::assertNothingSent();
 });
 
 it('exposes the user locale as the preferred notification locale', function (): void {

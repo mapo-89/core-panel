@@ -28,6 +28,18 @@ final class FakeUser extends Authenticatable implements HasLocalePreference
 
     protected string $guard_name = 'web';
 
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'invitation_accepted_at' => 'datetime',
+            'invited_at' => 'datetime',
+            'requires_password_setup' => 'boolean',
+        ];
+    }
+
     public function corePanelUserStatus(): string
     {
         return (string) ($this->getAttribute('status') ?? 'active');

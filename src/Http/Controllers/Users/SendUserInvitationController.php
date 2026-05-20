@@ -23,6 +23,14 @@ final class SendUserInvitationController extends Controller
         $target = $this->users->findOrFail($user, true);
         Gate::authorize('update', $target);
 
+        if (! (bool) config('core-panel.auth.password_reset_enabled', true)) {
+            return back()->with('error', __('page-users.users.invitation_requires_password_reset'));
+        }
+
+        if (method_exists($target, 'invitationStatus') && $target->invitationStatus() === 'accepted') {
+            return back()->with('error', __('page-users.users.invitation_already_accepted'));
+        }
+
         $this->sendUserInvitation->execute($target);
 
         return back()->with('status', __('page-users.users.invited'));

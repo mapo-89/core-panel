@@ -211,7 +211,10 @@ final class UserController extends Controller
         Gate::authorize('create', $this->users->modelClass());
 
         $user = $this->createUser->execute($request->validated());
-        $this->sendUserInvitation->execute($user);
+
+        if ($this->passwordResetEnabled()) {
+            $this->sendUserInvitation->execute($user);
+        }
 
         $this->activityLog
             ->withCauser($request->user())
@@ -221,7 +224,9 @@ final class UserController extends Controller
 
         return redirect()
             ->route('core-panel.users.show', $user->getKey())
-            ->with('status', __('page-users.users.invited'));
+            ->with('status', $this->passwordResetEnabled()
+                ? __('page-users.users.invited')
+                : __('page-users.users.created'));
     }
 
     public function destroy(string $user): RedirectResponse
@@ -240,6 +245,11 @@ final class UserController extends Controller
         return redirect()
             ->route('core-panel.users.index')
             ->with('status', __('page-users.users.deleted'));
+    }
+
+    private function passwordResetEnabled(): bool
+    {
+        return (bool) config('core-panel.auth.password_reset_enabled', true);
     }
 
     /**
