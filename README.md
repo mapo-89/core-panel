@@ -76,23 +76,6 @@ Defaults:
 - Horizon always enabled
 - social login disabled until configured
 
-## v1.0.0 Release Rehearsal
-
-For `v1.0.0`, do not test against an old local prototype database. The schema has been consolidated to a new baseline with UUID users and cleaned initial migrations.
-
-Use this flow:
-
-1. Start with a fresh Laravel app.
-2. Install `mapo-89/core-panel`.
-3. Run `php artisan core-panel:install`.
-4. If you want tenancy, answer `yes` to the tenancy installer prompt.
-5. Build assets and verify the central app.
-6. If tenancy is enabled, create a tenant and verify tenant login, uploads, branding, settings, and social login.
-
-Detailed runbook:
-
-- [docs/release-v1-checklist.md](./docs/release-v1-checklist.md)
-
 ## Local Package Development
 
 For local development with a path repository:
@@ -162,37 +145,6 @@ php artisan core-panel:publish --tag=components
 php artisan core-panel:publish --tag=theme
 php artisan core-panel:publish --tag=stubs
 ```
-
-## Documentation
-
-Start here:
-
-- [docs/installation.md](./docs/installation.md)
-- [docs/package-installation.md](./docs/package-installation.md)
-- [docs/create-project.md](./docs/create-project.md)
-- [docs/release-v1-checklist.md](./docs/release-v1-checklist.md)
-- [docs/testing.md](./docs/testing.md)
-- [docs/updating.md](./docs/updating.md)
-
-Reference docs:
-
-- [docs/architecture.md](./docs/architecture.md)
-- [docs/auth.md](./docs/auth.md)
-- [docs/passport.md](./docs/passport.md)
-- [docs/permissions.md](./docs/permissions.md)
-- [docs/settings.md](./docs/settings.md)
-- [docs/activity-logs.md](./docs/activity-logs.md)
-- [docs/file-manager.md](./docs/file-manager.md)
-- [docs/form-builder.md](./docs/form-builder.md)
-- [docs/table-builder.md](./docs/table-builder.md)
-- [docs/tab-builder.md](./docs/tab-builder.md)
-- [docs/api-response-builder.md](./docs/api-response-builder.md)
-- [docs/security.md](./docs/security.md)
-- [docs/horizon.md](./docs/horizon.md)
-- [docs/generators.md](./docs/generators.md)
-- [docs/i18n.md](./docs/i18n.md)
-- [docs/ui-primevue-theme.md](./docs/ui-primevue-theme.md)
-- [docs/deployment-docker-octane.md](./docs/deployment-docker-octane.md)
 
 ## License
 
