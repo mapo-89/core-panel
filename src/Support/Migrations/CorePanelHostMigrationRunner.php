@@ -22,13 +22,17 @@ final readonly class CorePanelHostMigrationRunner
             return;
         }
 
-        foreach ($this->migrationFiles($migrationsRoot) as $migrationFile) {
-            $command->call('migrate', [
-                '--force' => true,
-                '--path' => $migrationFile,
-                '--realpath' => true,
-            ]);
+        $migrationFiles = $this->migrationFiles($migrationsRoot);
+
+        if ($migrationFiles === []) {
+            return;
         }
+
+        $command->call('migrate', [
+            '--force' => true,
+            '--path' => $migrationFiles,
+            '--realpath' => true,
+        ]);
     }
 
     /**

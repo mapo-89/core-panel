@@ -123,6 +123,34 @@ final class InstallerRoleAwareCommand extends Command
     }
 }
 
+final class RecordingMigrationCommand extends Command
+{
+    protected $signature = 'core-panel:test-migration-runner';
+
+    /**
+     * @var list<array{command:string, arguments:array<string, mixed>}>
+     */
+    public array $calls = [];
+
+    public function handle(): int
+    {
+        return self::SUCCESS;
+    }
+
+    /**
+     * @param  array<string, mixed>  $arguments
+     */
+    public function call($command, array $arguments = []): int
+    {
+        $this->calls[] = [
+            'command' => (string) $command,
+            'arguments' => $arguments,
+        ];
+
+        return self::SUCCESS;
+    }
+}
+
 it('supports no-interaction installer defaults', function (): void {
     $installer = new CapturingInstaller;
     $expectedDefaultAppUrl = sprintf(
@@ -180,6 +208,30 @@ it('runs host migrations in global timestamp order across domain directories', f
         '2019_01_01_000001_create_media_table.php',
         '2026_01_01_000001_create_tenants_table.php',
     ]);
+});
+
+it('executes host migrations in a single batch-preserving migrate call', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-run-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
+
+    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
+
+    $runner = app(CorePanelHostMigrationRunner::class);
+    $command = new RecordingMigrationCommand;
+
+    $runner->run($command, $temporaryBasePath);
+
+    expect($command->calls)->toHaveCount(1)
+        ->and($command->calls[0]['command'])->toBe('migrate')
+        ->and($command->calls[0]['arguments']['--force'])->toBeTrue()
+        ->and($command->calls[0]['arguments']['--realpath'])->toBeTrue()
+        ->and(array_map('basename', $command->calls[0]['arguments']['--path']))->toBe([
+            '0001_01_01_000000_create_users_table.php',
+            '2016_06_01_000001_create_oauth_auth_codes_table.php',
+        ]);
 });
 
 it('automatically disables seeders when migrations are disabled', function (): void {
