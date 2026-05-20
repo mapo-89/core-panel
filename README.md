@@ -52,6 +52,23 @@ CorePanel also registers the short alias:
 php artisan core:install
 ```
 
+## Update
+
+Refresh published CorePanel assets after upgrading the package:
+
+```bash
+php artisan core-panel:update --force
+```
+
+If you also have optional addons installed:
+
+```bash
+php artisan core-panel:update --force --with-addon-updates
+```
+
+For normal in-place updates, the command also runs outstanding migrations automatically after refreshing the published assets.
+If you use `--base-path` to target a different application directory, migrations are skipped and must be run manually in that target application.
+
 The installer now asks for:
 
 - `APP_URL`

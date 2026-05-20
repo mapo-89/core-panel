@@ -30,7 +30,12 @@ final class UserResource extends JsonResource
      *     canDelete:bool,
      *     canForceDelete:bool,
      *     emailVerifiedAt:?string,
-     *     deletedAt:?string
+     *     deletedAt:?string,
+     *     invitationAcceptedAt:?string,
+     *     invitationExpiresAt:?string,
+     *     invitationSentAt:?string,
+     *     invitationStatus:string,
+     *     requiresPasswordSetup:bool
      * }
      */
     public function toArray(Request $request): array

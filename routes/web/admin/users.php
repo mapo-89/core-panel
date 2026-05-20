@@ -6,6 +6,7 @@ use CorePanel\Http\Controllers\Permissions\AssignUserRoleController;
 use CorePanel\Http\Controllers\Users\ForceDeleteUserController;
 use CorePanel\Http\Controllers\Users\ResetUserPasswordController;
 use CorePanel\Http\Controllers\Users\RestoreUserController;
+use CorePanel\Http\Controllers\Users\SendUserInvitationController;
 use CorePanel\Http\Controllers\Users\SendUserPasswordResetLinkController;
 use CorePanel\Http\Controllers\Users\UserAvatarController;
 use CorePanel\Http\Controllers\Users\UserController;
@@ -25,6 +26,7 @@ Route::post('/users/{user}/restore', RestoreUserController::class)->name('users.
 Route::delete('/users/{user}/force', ForceDeleteUserController::class)->name('users.force-delete');
 Route::post('/users/{user}/avatar', [UserAvatarController::class, 'store'])->name('users.avatar.store');
 Route::delete('/users/{user}/avatar', [UserAvatarController::class, 'destroy'])->name('users.avatar.destroy');
+Route::post('/users/{user}/reinvite', SendUserInvitationController::class)->name('users.reinvite');
 Route::post('/users/{user}/password/reset-link', SendUserPasswordResetLinkController::class)->name('users.password.reset-link');
 Route::put('/users/{user}/password', ResetUserPasswordController::class)->name('users.password.update');
 Route::get('/users/{user}/sessions', [UserSessionsController::class, 'index'])->name('users.sessions.index');

@@ -81,8 +81,6 @@ final class UpdateCommand extends Command
         if (! $dryRun) {
             $this->stubs->scaffold($force, $basePath);
             $this->syncEnvironmentDefaults($basePath);
-            $this->generateWayfinderRoutes();
-            $this->generateSwaggerDocs();
 
             if ($withAddonUpdates) {
                 $this->updateInstalledOptionalAddons(
@@ -91,6 +89,10 @@ final class UpdateCommand extends Command
                     $force,
                 );
             }
+
+            $this->runMigrations($basePath);
+            $this->generateWayfinderRoutes();
+            $this->generateSwaggerDocs();
         }
 
         return collect($result['changes'])->contains(static fn (array $change): bool => $change['status'] === 'conflict')
@@ -139,6 +141,21 @@ final class UpdateCommand extends Command
         }
 
         $this->environment->sync($basePath);
+    }
+
+    private function runMigrations(?string $basePath): void
+    {
+        if ($basePath !== null && realpath($basePath) !== realpath(base_path())) {
+            $this->components->warn('Skipping automatic migrations for external base-path updates. Run php artisan migrate in the target application manually.');
+
+            return;
+        }
+
+        if (! ($this->getApplication()?->has('migrate') ?? false)) {
+            return;
+        }
+
+        $this->call('migrate', ['--force' => true]);
     }
 
     private function generateSwaggerDocs(): void

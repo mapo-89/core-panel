@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\HasApiTokens as PassportHasApiTokens;
 use Spatie\MediaLibrary\HasMedia;
@@ -60,6 +61,8 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
         'first_name',
         'last_name',
         'email',
+        'invitation_accepted_at',
+        'invited_at',
         'locale',
         'password',
         'requires_password_setup',
@@ -83,6 +86,8 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
     {
         return [
             'email_verified_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
+            'invited_at' => 'datetime',
             'password' => 'hashed',
             'requires_password_setup' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
@@ -122,6 +127,36 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
     public function requiresPasswordSetup(): bool
     {
         return (bool) ($this->getAttribute('requires_password_setup') ?? false);
+    }
+
+    public function invitationExpiresAt(): ?Carbon
+    {
+        $invitedAt = $this->getAttribute('invited_at');
+
+        if (! $invitedAt instanceof Carbon) {
+            return null;
+        }
+
+        return $invitedAt->copy()->addMinutes((int) config('auth.passwords.users.expire', 60));
+    }
+
+    public function invitationStatus(): string
+    {
+        if (! $this->getAttribute('invited_at') instanceof Carbon) {
+            return 'none';
+        }
+
+        if ($this->requiresPasswordSetup()) {
+            $invitationExpiresAt = $this->invitationExpiresAt();
+
+            return $invitationExpiresAt instanceof Carbon && $invitationExpiresAt->isPast()
+                ? 'expired'
+                : 'pending';
+        }
+
+        return $this->getAttribute('invitation_accepted_at') instanceof Carbon
+            ? 'accepted'
+            : 'none';
     }
 
     public function preferredLocale(): ?string

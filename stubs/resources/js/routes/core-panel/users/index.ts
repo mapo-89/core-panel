@@ -10,6 +10,7 @@ export default {
     edit: callableAction('get'),
     forceDelete: callableAction('delete'),
     index: action('get'),
+    reinvite: callableAction('post'),
     roles,
     restore: callableAction('post'),
     sessions,

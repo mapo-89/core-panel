@@ -77,6 +77,7 @@ function submit(): void {
                     :form="form"
                     :role-labels="roleLabels"
                     :roles="roles"
+                    :show-password-fields="true"
                     :user-group-options="userGroupOptions"
                 />
 

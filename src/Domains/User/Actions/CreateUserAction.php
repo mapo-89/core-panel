@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 final readonly class CreateUserAction
 {
@@ -25,7 +26,6 @@ final readonly class CreateUserAction
      *     first_name:string,
      *     last_name:string,
      *     email:string,
-     *     password:string,
      *     avatar?:?UploadedFile,
      *     locale?:?string,
      *     remove_avatar?:bool,
@@ -43,10 +43,22 @@ final readonly class CreateUserAction
                 'first_name' => $attributes['first_name'],
                 'last_name' => $attributes['last_name'],
                 'email' => $attributes['email'],
-                'password' => Hash::make($attributes['password']),
+                'password' => Hash::make(Str::password(32)),
             ];
 
             $user->forceFill($payload);
+
+            if ($this->users->hasColumn('requires_password_setup')) {
+                $user->setAttribute('requires_password_setup', true);
+            }
+
+            if ($this->users->hasColumn('invited_at')) {
+                $user->setAttribute('invited_at', now());
+            }
+
+            if ($this->users->hasColumn('invitation_accepted_at')) {
+                $user->setAttribute('invitation_accepted_at', null);
+            }
 
             if ($this->users->supportsLocale() && array_key_exists('locale', $attributes)) {
                 $user->setAttribute('locale', $attributes['locale']);

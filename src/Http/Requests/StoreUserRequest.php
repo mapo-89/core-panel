@@ -33,7 +33,6 @@ final class StoreUserRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', $emailRule],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'string', 'confirmed', 'min:8'],
             'remove_avatar' => ['sometimes', 'boolean'],
             'user_group_ids' => ['array'],
             'user_group_ids.*' => ['integer', Rule::exists($userGroupModel->getTable(), 'id')],

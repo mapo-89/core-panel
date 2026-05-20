@@ -31,6 +31,10 @@ final readonly class ResetUserPasswordAction
             $attributes['requires_password_setup'] = false;
         }
 
+        if (array_key_exists('invitation_accepted_at', $user->getAttributes())) {
+            $attributes['invitation_accepted_at'] = now();
+        }
+
         $user->forceFill($attributes)->save();
 
         if (config('session.driver') === 'database' && $user instanceof Authenticatable) {

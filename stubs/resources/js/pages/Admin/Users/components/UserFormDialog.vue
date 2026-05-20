@@ -99,6 +99,7 @@ function submit(): void {
             :form="form"
             :role-labels="roleLabels"
             :roles="roles"
+            :show-password-fields="!!user"
             :user-group-options="userGroupOptions"
         />
 
@@ -109,9 +110,13 @@ function submit(): void {
             </Button>
             <Button :loading="form.processing" type="submit">
                 <AppIcon name="save" />
-                <span>{{
-                    user ? $t('common.ui.save_changes') : $t('page-users.save')
-                }}</span>
+                <span>
+                    {{
+                        user
+                            ? $t('common.ui.save_changes')
+                            : $t('page-users.invite')
+                    }}
+                </span>
             </Button>
         </div>
 

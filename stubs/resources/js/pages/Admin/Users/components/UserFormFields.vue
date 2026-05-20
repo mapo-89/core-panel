@@ -45,6 +45,7 @@ const props = defineProps<{
     capabilities: UserCapabilities
     currentAvatarUrl?: string | null
     form: UserFormShape
+    showPasswordFields?: boolean
     userGroupOptions: Array<{
         color: string
         label: string
@@ -132,20 +133,22 @@ const formSchema = computed<FormSchema>(() => {
         })
     }
 
-    schema.push(
-        {
-            label: trans('common.auth.password'),
-            meta: passwordMinLengthMeta(8),
-            name: 'password',
-            type: 'password',
-        },
-        {
-            label: trans('page-auth.confirm_password'),
-            meta: passwordMatchMeta(),
-            name: 'password_confirmation',
-            type: 'password',
-        },
-    )
+    if (props.showPasswordFields === true) {
+        schema.push(
+            {
+                label: trans('common.auth.password'),
+                meta: passwordMinLengthMeta(8),
+                name: 'password',
+                type: 'password',
+            },
+            {
+                label: trans('page-auth.confirm_password'),
+                meta: passwordMatchMeta(),
+                name: 'password_confirmation',
+                type: 'password',
+            },
+        )
+    }
 
     return schema
 })

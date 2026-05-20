@@ -30,6 +30,11 @@ final readonly class UserData
         public ?string $createdAt,
         public ?string $emailVerifiedAt,
         public ?string $deletedAt,
+        public ?string $invitationAcceptedAt,
+        public ?string $invitationExpiresAt,
+        public ?string $invitationSentAt,
+        public string $invitationStatus,
+        public bool $requiresPasswordSetup,
     ) {}
 
     /**
@@ -49,7 +54,12 @@ final readonly class UserData
      *     twoFactorEnabled:bool,
      *     createdAt:?string,
      *     emailVerifiedAt:?string,
-     *     deletedAt:?string
+     *     deletedAt:?string,
+     *     invitationAcceptedAt:?string,
+     *     invitationExpiresAt:?string,
+     *     invitationSentAt:?string,
+     *     invitationStatus:string,
+     *     requiresPasswordSetup:bool
      * }
      */
     public function toArray(): array
@@ -71,6 +81,11 @@ final readonly class UserData
             'createdAt' => $this->createdAt,
             'emailVerifiedAt' => $this->emailVerifiedAt,
             'deletedAt' => $this->deletedAt,
+            'invitationAcceptedAt' => $this->invitationAcceptedAt,
+            'invitationExpiresAt' => $this->invitationExpiresAt,
+            'invitationSentAt' => $this->invitationSentAt,
+            'invitationStatus' => $this->invitationStatus,
+            'requiresPasswordSetup' => $this->requiresPasswordSetup,
         ];
     }
 
@@ -93,6 +108,10 @@ final readonly class UserData
         $createdAt = $user->getAttribute('created_at');
         $emailVerifiedAt = $user->getAttribute('email_verified_at');
         $deletedAt = $user->getAttribute('deleted_at');
+        $invitationAcceptedAt = $user->getAttribute('invitation_accepted_at');
+        $invitationExpiresAt = method_exists($user, 'invitationExpiresAt') ? $user->invitationExpiresAt() : null;
+        $invitationSentAt = $user->getAttribute('invited_at');
+        $invitationStatus = method_exists($user, 'invitationStatus') ? $user->invitationStatus() : 'none';
         $firstName = (string) ($user->getAttribute('first_name') ?? '');
         $lastName = (string) ($user->getAttribute('last_name') ?? '');
         $name = $users->composeDisplayName($firstName, $lastName);
@@ -114,6 +133,11 @@ final readonly class UserData
             createdAt: $createdAt instanceof \DateTimeInterface ? $createdAt->format(DATE_ATOM) : null,
             emailVerifiedAt: $emailVerifiedAt instanceof \DateTimeInterface ? $emailVerifiedAt->format(DATE_ATOM) : null,
             deletedAt: $deletedAt instanceof \DateTimeInterface ? $deletedAt->format(DATE_ATOM) : null,
+            invitationAcceptedAt: $invitationAcceptedAt instanceof \DateTimeInterface ? $invitationAcceptedAt->format(DATE_ATOM) : null,
+            invitationExpiresAt: $invitationExpiresAt instanceof \DateTimeInterface ? $invitationExpiresAt->format(DATE_ATOM) : null,
+            invitationSentAt: $invitationSentAt instanceof \DateTimeInterface ? $invitationSentAt->format(DATE_ATOM) : null,
+            invitationStatus: is_string($invitationStatus) ? $invitationStatus : 'none',
+            requiresPasswordSetup: method_exists($user, 'requiresPasswordSetup') ? (bool) $user->requiresPasswordSetup() : false,
         );
     }
 }

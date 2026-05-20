@@ -277,6 +277,34 @@ function statusSeverity(
           : 'success'
 }
 
+function invitationStatusSeverity(
+    status: UserRecord['invitationStatus'],
+): 'contrast' | 'danger' | 'secondary' | 'success' | 'warn' {
+    return status === 'accepted'
+        ? 'success'
+        : status === 'expired'
+          ? 'warn'
+          : status === 'pending'
+            ? 'contrast'
+            : 'secondary'
+}
+
+function invitationActionIcon(status: UserRecord['invitationStatus']): string {
+    return status === 'accepted'
+        ? 'circle-check-big'
+        : status === 'expired'
+          ? 'circle-alert'
+          : status === 'pending'
+            ? 'clock-3'
+            : 'envelope'
+}
+
+function invitationActionTooltip(
+    status: UserRecord['invitationStatus'],
+): string {
+    return trans(`page-users.invitation_action_hint.${status}`)
+}
+
 function userActions(user: UserRecord): Array<{
     danger?: boolean
     key: string
@@ -289,6 +317,15 @@ function userActions(user: UserRecord): Array<{
             label: trans('common.ui.view'),
             run: () => router.visit(userRoutes.show.url(user.id)),
         },
+        ...(user.requiresPasswordSetup || user.invitationStatus === 'accepted'
+            ? [
+                  {
+                      key: 'reinvite',
+                      label: trans('page-users.invite'),
+                      run: () => reinviteUser(user),
+                  },
+              ]
+            : []),
         {
             key: 'edit',
             label: trans('common.ui.edit'),
@@ -323,6 +360,20 @@ function userActions(user: UserRecord): Array<{
                 ]
               : []),
     ]
+}
+
+function reinviteUser(user: UserRecord): void {
+    if (user.invitationStatus === 'accepted') {
+        return
+    }
+
+    router.post(
+        userRoutes.reinvite.url(user.id),
+        {},
+        {
+            preserveScroll: true,
+        },
+    )
 }
 
 function destroyUser(user: UserRecord): void {
@@ -647,7 +698,7 @@ function openRowActionsMenu(event: Event, user: UserRecord): void {
             <template #row-actions="{ row }">
                 <div class="flex items-center justify-end gap-1.5">
                     <template
-                        v-if="userActions(row.user as UserRecord).length <= 3"
+                        v-if="userActions(row.user as UserRecord).length <= 4"
                     >
                         <Link
                             class="cp-users-tab__action-link"
@@ -665,6 +716,42 @@ function openRowActionsMenu(event: Event, user: UserRecord): void {
                                 <AppIcon name="eye" />
                             </Button>
                         </Link>
+                        <Button
+                            v-if="
+                                (row.user as UserRecord)
+                                    .requiresPasswordSetup ||
+                                (row.user as UserRecord).invitationStatus ===
+                                    'accepted'
+                            "
+                            v-tooltip.top="
+                                invitationActionTooltip(
+                                    (row.user as UserRecord).invitationStatus,
+                                )
+                            "
+                            :aria-label="$t('page-users.invite')"
+                            class="cp-datatable__action-button"
+                            :disabled="
+                                (row.user as UserRecord).invitationStatus ===
+                                'accepted'
+                            "
+                            outlined
+                            :severity="
+                                invitationStatusSeverity(
+                                    (row.user as UserRecord).invitationStatus,
+                                )
+                            "
+                            size="small"
+                            @click="reinviteUser(row.user as UserRecord)"
+                        >
+                            <AppIcon
+                                :name="
+                                    invitationActionIcon(
+                                        (row.user as UserRecord)
+                                            .invitationStatus,
+                                    )
+                                "
+                            />
+                        </Button>
                         <Button
                             :aria-label="$t('common.ui.edit')"
                             class="cp-datatable__action-button"

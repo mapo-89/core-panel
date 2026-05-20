@@ -61,6 +61,7 @@ function submit(): void {
                     :form="form"
                     :role-labels="roleLabels"
                     :roles="roles"
+                    :show-password-fields="false"
                     :user-group-options="userGroupOptions"
                 />
 
@@ -73,7 +74,7 @@ function submit(): void {
                     </Link>
                     <Button type="submit" :loading="form.processing">
                         <AppIcon name="save" />
-                        <span>{{ $t('page-users.save') }}</span>
+                        <span>{{ $t('page-users.invite') }}</span>
                     </Button>
                 </div>
             </form>

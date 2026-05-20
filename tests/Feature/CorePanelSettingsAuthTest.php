@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Actions\Fortify\UpdateUserPassword;
 use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
 use CorePanel\Http\Responses\LoginResponse;
 use CorePanel\Models\Setting;
@@ -289,11 +290,13 @@ it('blocks registration and password reset actions when the auth settings disabl
 
     require_once __DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php';
     require_once __DIR__.'/../../stubs/app/Actions/Fortify/ResetUserPassword.php';
+    require_once __DIR__.'/../../stubs/app/Actions/Fortify/UpdateUserPassword.php';
 
     $user = FakeUser::query()->create([
         'email' => 'auth-action-guard@example.test',
         'first_name' => 'Auth',
         'last_name' => 'Guard',
+        'invitation_accepted_at' => null,
         'password' => Hash::make('secret-password'),
     ]);
 
@@ -308,6 +311,45 @@ it('blocks registration and password reset actions when the auth settings disabl
             'password' => 'another-secret-password',
             'password_confirmation' => 'another-secret-password',
         ]))->toThrow(NotFoundHttpException::class);
+});
+
+it('marks invitation-based password setup as accepted in fortify password actions', function (): void {
+    require_once __DIR__.'/../../stubs/app/Actions/Fortify/ResetUserPassword.php';
+    require_once __DIR__.'/../../stubs/app/Actions/Fortify/UpdateUserPassword.php';
+
+    $user = FakeUser::query()->create([
+        'email' => 'invitation-password-setup@example.test',
+        'first_name' => 'Invite',
+        'last_name' => 'Accepted',
+        'invitation_accepted_at' => null,
+        'password' => Hash::make('secret-password'),
+        'requires_password_setup' => true,
+    ]);
+
+    (new UpdateUserPassword)->update($user, [
+        'password' => 'another-secret-password',
+        'password_confirmation' => 'another-secret-password',
+    ]);
+
+    $user->refresh();
+
+    expect($user->requiresPasswordSetup())->toBeFalse()
+        ->and($user->getAttribute('invitation_accepted_at'))->not->toBeNull();
+
+    $user->forceFill([
+        'invitation_accepted_at' => null,
+        'requires_password_setup' => true,
+    ])->save();
+
+    (new ResetUserPassword)->reset($user, [
+        'password' => 'third-secret-password',
+        'password_confirmation' => 'third-secret-password',
+    ]);
+
+    $user->refresh();
+
+    expect($user->requiresPasswordSetup())->toBeFalse()
+        ->and($user->getAttribute('invitation_accepted_at'))->not->toBeNull();
 });
 
 it('preserves intended verification links after login for unverified users', function (): void {

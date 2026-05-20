@@ -123,6 +123,11 @@ export type UserRecord = {
     createdAt: string | null
     emailVerifiedAt: string | null
     deletedAt: string | null
+    invitationAcceptedAt: string | null
+    invitationExpiresAt: string | null
+    invitationSentAt: string | null
+    invitationStatus: 'accepted' | 'expired' | 'none' | 'pending'
+    requiresPasswordSetup: boolean
 }
 
 export type UserCapabilities = {

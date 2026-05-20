@@ -30,6 +30,10 @@ final class ResetUserPassword implements ResetsUserPasswords
             $attributes['requires_password_setup'] = false;
         }
 
+        if (array_key_exists('invitation_accepted_at', $user->getAttributes())) {
+            $attributes['invitation_accepted_at'] = now();
+        }
+
         $user->forceFill($attributes)->save();
     }
 }

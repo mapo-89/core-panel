@@ -138,6 +138,19 @@ it('refreshes the published app version metadata during update without requiring
     expect($publishedVersion)->toBe($packageVersion);
 });
 
+it('skips automatic migrations for external base-path updates', function (): void {
+    $basePath = makePublishBasePath('skip-migrations');
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])
+        ->expectsOutputToContain('Skipping automatic migrations for external base-path updates.')
+        ->assertExitCode(0);
+});
+
 it('does not create optional publish targets during update when they were never published', function (): void {
     $basePath = makePublishBasePath('skip-unpublished');
 

@@ -8,6 +8,7 @@ use CorePanel\Domains\Permission\DTOs\PermissionData;
 use CorePanel\Domains\Permission\DTOs\RoleData;
 use CorePanel\Domains\User\Actions\CreateUserAction;
 use CorePanel\Domains\User\Actions\DeleteUserAction;
+use CorePanel\Domains\User\Actions\SendUserInvitationAction;
 use CorePanel\Http\Requests\StoreUserRequest;
 use CorePanel\Http\Resources\UserResource;
 use CorePanel\Support\ActivityLog\ActivityLogService;
@@ -36,6 +37,7 @@ final class UserController extends Controller
         private readonly UserGroupModelManager $userGroups,
         private readonly CreateUserAction $createUser,
         private readonly DeleteUserAction $deleteUser,
+        private readonly SendUserInvitationAction $sendUserInvitation,
         private readonly ActivityLogService $activityLog,
     ) {}
 
@@ -209,6 +211,7 @@ final class UserController extends Controller
         Gate::authorize('create', $this->users->modelClass());
 
         $user = $this->createUser->execute($request->validated());
+        $this->sendUserInvitation->execute($user);
 
         $this->activityLog
             ->withCauser($request->user())
@@ -218,7 +221,7 @@ final class UserController extends Controller
 
         return redirect()
             ->route('core-panel.users.show', $user->getKey())
-            ->with('status', __('page-users.users.created'));
+            ->with('status', __('page-users.users.invited'));
     }
 
     public function destroy(string $user): RedirectResponse
