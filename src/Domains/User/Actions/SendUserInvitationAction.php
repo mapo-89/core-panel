@@ -39,10 +39,6 @@ final readonly class SendUserInvitationAction
             $attributes['invitation_accepted_at'] = null;
         }
 
-        if ($attributes !== []) {
-            $user->forceFill($attributes)->save();
-        }
-
         /** @var PasswordBroker $passwordBroker */
         $passwordBroker = Password::broker();
 
@@ -64,5 +60,9 @@ final readonly class SendUserInvitationAction
         }
 
         $mailer->send(new UserInvitationMail($user, $invitationUrl));
+
+        if ($attributes !== []) {
+            $user->forceFill($attributes)->save();
+        }
     }
 }
