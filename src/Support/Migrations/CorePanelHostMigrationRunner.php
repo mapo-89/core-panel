@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use RuntimeException;
 
 final readonly class CorePanelHostMigrationRunner
 {
@@ -27,6 +28,8 @@ final readonly class CorePanelHostMigrationRunner
         if ($migrationFiles === []) {
             return;
         }
+
+        $this->assertUniqueMigrationBasenames($migrationFiles);
 
         $command->call('migrate', [
             '--force' => true,
@@ -72,5 +75,36 @@ final readonly class CorePanelHostMigrationRunner
         });
 
         return $files;
+    }
+
+    /**
+     * @param  list<string>  $migrationFiles
+     */
+    private function assertUniqueMigrationBasenames(array $migrationFiles): void
+    {
+        $groupedByBasename = [];
+
+        foreach ($migrationFiles as $migrationFile) {
+            $groupedByBasename[basename($migrationFile)][] = $migrationFile;
+        }
+
+        $duplicates = array_filter(
+            $groupedByBasename,
+            static fn (array $paths): bool => count($paths) > 1,
+        );
+
+        if ($duplicates === []) {
+            return;
+        }
+
+        $details = collect($duplicates)
+            ->map(static function (array $paths, string $basename): string {
+                return sprintf("%s\n- %s", $basename, implode("\n- ", $paths));
+            })
+            ->implode("\n\n");
+
+        throw new RuntimeException(
+            "Duplicate host migration basenames detected. Laravel de-duplicates migrations by basename within a single migrate run, so these files must be renamed to stay globally unique:\n\n{$details}",
+        );
     }
 }

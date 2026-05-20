@@ -234,6 +234,22 @@ it('executes host migrations in a single batch-preserving migrate call', functio
         ]);
 });
 
+it('rejects duplicate host migration basenames across domain directories', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-duplicates-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
+
+    file_put_contents($temporaryBasePath.'/database/migrations/auth/2026_01_01_000001_create_users_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/users/2026_01_01_000001_create_users_table.php', '<?php');
+
+    $runner = app(CorePanelHostMigrationRunner::class);
+    $command = new RecordingMigrationCommand;
+
+    expect(fn () => $runner->run($command, $temporaryBasePath))
+        ->toThrow(RuntimeException::class, 'Duplicate host migration basenames detected');
+});
+
 it('automatically disables seeders when migrations are disabled', function (): void {
     $installer = new CapturingInstaller;
 
