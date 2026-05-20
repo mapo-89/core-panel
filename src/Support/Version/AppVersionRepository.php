@@ -42,7 +42,7 @@ final readonly class AppVersionRepository
             ];
         }
 
-        $fallback = $this->nullableString(env('APP_VERSION'));
+        $fallback = $this->nullableString(config('app.version'));
 
         return [
             'release_version' => $fallback,

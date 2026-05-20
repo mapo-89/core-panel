@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    'default_env' => env('DB_CONNECTION', 'pgsql'),
     'default' => env('DB_CONNECTION', 'pgsql'),
 
     'connections' => [
