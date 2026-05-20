@@ -51,7 +51,7 @@
         }
     },
     "scripts": {
-        "analyse": "phpstan analyse --no-progress --memory-limit=1G -c phpstan.neon.dist",
+        "analyse": "phpstan analyse --debug --no-progress --memory-limit=1G -c phpstan.neon.dist",
         "check-style": "pint --test",
         "format": "pint --dirty --format agent",
         "test": "cd ../.. && vendor/bin/pest packages/core-panel/tests --compact",
