@@ -13,6 +13,7 @@ use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\ScaffoldsCorePanelStubs;
 use CorePanel\Support\SynchronizesEnvironmentFile;
+use CorePanel\Support\Version\AppVersionRepository;
 use CorePanel\Tests\FakeUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\Filesystem;
@@ -688,11 +689,17 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $eslint = file_get_contents(__DIR__.'/../../stubs/eslint.config.mjs');
     $prettier = file_get_contents(__DIR__.'/../../stubs/prettier.config.mjs');
     $workflow = file_get_contents(__DIR__.'/../../../../.github/workflows/ci.yml');
+    $releaseWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/release.yml');
     $addonPhpstanScript = file_get_contents(__DIR__.'/../../../../.github/scripts/addon-phpstan.sh');
     $frontendQualityScript = file_get_contents(__DIR__.'/../../../../.github/scripts/frontend-quality.sh');
     $installSmokeScript = file_get_contents(__DIR__.'/../../../../.github/scripts/install-smoke.sh');
     $provisionPlaygroundsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
+    $setReleaseVersionScript = file_get_contents(__DIR__.'/../../../../.github/scripts/set-release-version.php');
     $updateTestProjectsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/update-test-projects.sh');
+    $appVersionJson = file_get_contents(__DIR__.'/../../config/app-version.json');
+    $hostAppVersionJson = file_get_contents(__DIR__.'/../../stubs/config/app-version.json');
+    $versionSupport = file_get_contents(__DIR__.'/../../stubs/resources/js/support/version.ts');
+    $middleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php');
     /** @var array{require-dev:array<string,string>,scripts:array<string,string>} $composer */
     $composer = json_decode((string) file_get_contents(__DIR__.'/../../composer.json'), true, 512, JSON_THROW_ON_ERROR);
     /** @var array{require-dev:array<string,string>,scripts:array<string,string>} $addonComposer */
@@ -704,6 +711,21 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($eslint)->toContain('typescript-eslint')
         ->and($prettier)->toContain('singleQuote: true')
         ->and($workflow)->toContain('name: CI')
+        ->and($releaseWorkflow)->toContain('name: Release')
+        ->and($releaseWorkflow)->toContain("RELEASE_COMMIT_PATTERN: '^🚀 release: v?[0-9]+\\.[0-9]+\\.[0-9]+$'")
+        ->and($releaseWorkflow)->toContain('php .github/scripts/set-release-version.php "${RELEASE_VERSION}"')
+        ->and($releaseWorkflow)->toContain('git tag "${RELEASE_VERSION}"')
+        ->and($releaseWorkflow)->toContain('packages/core-panel/config/app-version.json')
+        ->and($releaseWorkflow)->toContain('packages/core-panel/stubs/config/app-version.json')
+        ->and($setReleaseVersionScript)->toContain('APP_VERSION=\'.$version')
+        ->and($setReleaseVersionScript)->toContain("'display_version' => \$displayVersion")
+        ->and($setReleaseVersionScript)->toContain('CorePanelApiDocumentation.php')
+        ->and($appVersionJson)->toContain('"release_version": "1.0.0"')
+        ->and($hostAppVersionJson)->toContain('"display_version": "1.0.0 (')
+        ->and($versionSupport)->toContain("import versionInfo from '../../config/app-version.json'")
+        ->and($versionSupport)->toContain('export const APP_RELEASE_VERSION')
+        ->and($versionSupport)->toContain('export function formatCommitDate')
+        ->and($middleware)->toContain('AppVersionRepository::class')
         ->and($workflow)->toContain('vendor/bin/phpstan analyse')
         ->and($workflow)->toContain('vendor/bin/pint --test')
         ->and($workflow)->toContain('composer test')
@@ -738,7 +760,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('wait_for_server "${path}"')
         ->and($installSmokeScript)->toContain('http://127.0.0.1:${serve_port}')
         ->and($installSmokeScript)->toContain('--header "Host: ${app_host}"')
-        ->and($provisionPlaygroundsScript)->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0" --no-interaction --prefer-dist')
+        ->and($provisionPlaygroundsScript)->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0" --no-scripts --no-interaction --prefer-dist')
         ->and($provisionPlaygroundsScript)->toContain('composer config repositories.core-panel')
         ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel:dev-main --no-interaction --prefer-dist')
         ->and($provisionPlaygroundsScript)->toContain('php artisan core-panel:install')
@@ -761,6 +783,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
             'apps:update',
             'check-style',
             'format',
+            'release:prepare',
             'test',
             'test:update-test-projects',
         ]);
@@ -787,6 +810,20 @@ it('synchronizes the environment file with the core panel defaults', function ()
         ->and($contents)->toContain('CACHE_STORE=database')
         ->and($contents)->toContain('QUEUE_CONNECTION=redis')
         ->and($contents)->toContain('REDIS_HOST=127.0.0.1');
+});
+
+it('reads the packaged app version metadata from app-version json', function (): void {
+    $version = app(AppVersionRepository::class)->current();
+
+    expect($version['release_version'])->toBe('1.0.0')
+        ->and($version['display_version'])->not->toBeNull()
+        ->and($version)->toHaveKeys([
+            'release_version',
+            'display_version',
+            'image_version',
+            'commit',
+            'commit_date',
+        ]);
 });
 
 it('does not use legacy .stub suffixes inside the host template tree', function (): void {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CorePanel\Domains\Dashboard\Actions;
 
 use CorePanel\Domains\Dashboard\DTOs\SystemHealthData;
+use CorePanel\Support\Version\AppVersionRepository;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\Redis;
@@ -16,12 +17,13 @@ final readonly class GetSystemHealthAction
     public function __construct(
         private ConfigRepository $config,
         private DatabaseManager $database,
+        private AppVersionRepository $versions,
     ) {}
 
     public function execute(): SystemHealthData
     {
         return new SystemHealthData(
-            appVersion: (string) $this->config->get('app.version', 'dev'),
+            appVersion: $this->versions->displayVersion() ?? (string) $this->config->get('app.version', 'dev'),
             phpVersion: PHP_VERSION,
             laravelVersion: app()->version(),
             queueStatus: $this->resolveQueueStatus(),

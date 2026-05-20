@@ -56,6 +56,7 @@
         "apps:update": "cd ../.. && bash .github/scripts/update-test-projects.sh",
         "check-style": "pint --test",
         "format": "pint --dirty --format agent",
+        "release:prepare": "cd ../.. && php .github/scripts/set-release-version.php",
         "test": "cd ../.. && vendor/bin/pest packages/core-panel/tests --compact",
         "test:update-test-projects": "cd ../.. && bash .github/scripts/update-test-projects.sh"
     },

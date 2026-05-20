@@ -9,6 +9,7 @@ use CorePanel\Support\Presence\PresenceManager;
 use CorePanel\Support\Settings\SettingsLogoManager;
 use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Support\Users\UserModelManager;
+use CorePanel\Support\Version\AppVersionRepository;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -50,6 +51,7 @@ final class HandleInertiaRequests extends Middleware
         $logoFormatBadges = $this->formatBadges($logoMimeTypes);
         $users = app(UserModelManager::class);
         $presence = app(PresenceManager::class);
+        $appVersion = app(AppVersionRepository::class)->displayVersion();
         $roleNames = $user === null ? [] : $users->roleNames($user);
         $permissionNames = $users->permissionNames($user);
         $settingsLogo = app(SettingsLogoManager::class);
@@ -94,7 +96,7 @@ final class HandleInertiaRequests extends Middleware
                 'isLocal' => app()->environment('local'),
                 'name' => config('app.name'),
                 'shortName' => 'CorePanel',
-                'version' => config('core-panel.app_version'),
+                'version' => $appVersion,
                 'canRegister' => (bool) config('core-panel.auth.registration_enabled', false),
                 'settings' => app(SettingsRepository::class)->public(),
                 'uploads' => [

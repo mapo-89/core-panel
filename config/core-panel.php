@@ -10,8 +10,6 @@ return [
     'user_group_model' => env('CORE_PANEL_USER_GROUP_MODEL', UserGroup::class),
     'route_prefix' => env('CORE_PANEL_ROUTE_PREFIX', 'admin'),
     'middleware' => ['web', 'auth'],
-    'app_version' => env('APP_VERSION'),
-
     'api' => [
         'version' => env('CORE_PANEL_API_VERSION', 'v1'),
     ],
