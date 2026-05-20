@@ -880,14 +880,17 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($addonComposer['scripts'])->toHaveKey('analyse')
         ->and($composer['scripts'])->toHaveKeys([
             'analyse',
-            'apps:provision',
-            'apps:update',
             'check-style',
             'format',
-            'release:prepare',
             'test',
+        ])
+        ->and($composer['scripts'])->not->toHaveKeys([
+            'apps:provision',
+            'apps:update',
+            'release:prepare',
             'test:update-test-projects',
-        ]);
+        ])
+        ->and($composer['scripts']['test'])->toBe('pest --compact tests');
 });
 
 it('synchronizes the environment file with the core panel defaults', function (): void {

@@ -52,13 +52,9 @@
     },
     "scripts": {
         "analyse": "phpstan analyse --debug --no-progress --memory-limit=1G -c phpstan.neon.dist",
-        "apps:provision": "cd ../.. && bash .github/scripts/provision-playgrounds.sh",
-        "apps:update": "cd ../.. && bash .github/scripts/update-test-projects.sh",
         "check-style": "pint --test",
         "format": "pint --dirty --format agent",
-        "release:prepare": "cd ../.. && php .github/scripts/set-release-version.php",
-        "test": "cd ../.. && vendor/bin/pest packages/core-panel/tests --compact",
-        "test:update-test-projects": "cd ../.. && bash .github/scripts/update-test-projects.sh"
+        "test": "pest --compact tests"
     },
     "config": {
         "sort-packages": true,

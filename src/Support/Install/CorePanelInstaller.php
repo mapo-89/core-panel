@@ -808,20 +808,28 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         $require = $composer['require'] ?? [];
         $changed = false;
 
-        $repositoryExists = collect($repositories)->contains(function (mixed $repository) use ($addon): bool {
+        $repositoryIndex = collect($repositories)->search(function (mixed $repository) use ($addon): bool {
             return is_array($repository)
                 && ($repository['type'] ?? null) === 'path'
                 && ($repository['url'] ?? null) === $addon['path'];
         });
 
-        if (! $repositoryExists) {
-            $repositories[] = [
-                'type' => 'path',
-                'url' => $addon['path'],
-                'options' => [
-                    'symlink' => true,
+        $expectedRepository = [
+            'type' => 'path',
+            'url' => $addon['path'],
+            'options' => [
+                'symlink' => true,
+                'versions' => [
+                    $addon['package'] => $addon['version'],
                 ],
-            ];
+            ],
+        ];
+
+        if ($repositoryIndex === false) {
+            $repositories[] = $expectedRepository;
+            $changed = true;
+        } elseif (($repositories[$repositoryIndex] ?? null) !== $expectedRepository) {
+            $repositories[$repositoryIndex] = $expectedRepository;
             $changed = true;
         }
 

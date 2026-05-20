@@ -306,8 +306,61 @@ it('adds the local tenancy addon path repository and requirement to the host com
             'url' => '/tmp/core-panel/packages/core-panel-tenancy',
             'options' => [
                 'symlink' => true,
+                'versions' => [
+                    'mapo-89/core-panel-tenancy' => 'dev-main',
+                ],
             ],
         ]);
+});
+
+it('updates an existing local tenancy addon path repository to include the expected version override', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-tenancy-composer-update-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath, 0777, true);
+
+    $composerPath = $temporaryBasePath.'/composer.json';
+
+    file_put_contents($composerPath, json_encode([
+        'name' => 'acme/test-app',
+        'repositories' => [
+            [
+                'type' => 'path',
+                'url' => '/tmp/core-panel/packages/core-panel-tenancy',
+                'options' => [
+                    'symlink' => true,
+                ],
+            ],
+        ],
+        'require' => [
+            'php' => '^8.5',
+            'mapo-89/core-panel' => 'dev-main',
+            'mapo-89/core-panel-tenancy' => 'dev-main',
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+
+    $installer = app(CorePanelInstaller::class);
+    $method = new ReflectionMethod($installer, 'ensureComposerManifestContainsAddon');
+    $method->setAccessible(true);
+
+    $method->invoke($installer, $composerPath, [
+        'package' => 'mapo-89/core-panel-tenancy',
+        'version' => 'dev-main',
+        'path' => '/tmp/core-panel/packages/core-panel-tenancy',
+    ]);
+
+    /** @var array{repositories?:array<int, array<string, mixed>>} $composer */
+    $composer = json_decode((string) file_get_contents($composerPath), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($composer['repositories'] ?? [])->toContain([
+        'type' => 'path',
+        'url' => '/tmp/core-panel/packages/core-panel-tenancy',
+        'options' => [
+            'symlink' => true,
+            'versions' => [
+                'mapo-89/core-panel-tenancy' => 'dev-main',
+            ],
+        ],
+    ]);
 });
 
 it('keeps frontend overlays out of the installer publish flow because the scaffold already ships resources js assets', function (): void {
