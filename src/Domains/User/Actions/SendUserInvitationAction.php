@@ -6,6 +6,9 @@ namespace CorePanel\Domains\User\Actions;
 
 use CorePanel\Mail\UserInvitationMail;
 use CorePanel\Support\Users\UserModelManager;
+use Illuminate\Auth\Passwords\PasswordBroker;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
@@ -18,6 +21,10 @@ final readonly class SendUserInvitationAction
 
     public function execute(Model $user): void
     {
+        if (! $user instanceof Authenticatable || ! $user instanceof CanResetPassword) {
+            throw new \InvalidArgumentException('Invitation mail targets must implement Authenticatable and CanResetPassword.');
+        }
+
         $attributes = [];
 
         if ($this->users->hasColumn('requires_password_setup')) {
@@ -36,7 +43,10 @@ final readonly class SendUserInvitationAction
             $user->forceFill($attributes)->save();
         }
 
-        $token = Password::broker()->createToken($user);
+        /** @var PasswordBroker $passwordBroker */
+        $passwordBroker = Password::broker();
+
+        $token = $passwordBroker->createToken($user);
         $invitationUrl = route('password.reset', [
             'context' => 'invitation',
             'token' => $token,
