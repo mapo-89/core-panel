@@ -6,6 +6,7 @@ use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\EnsureCorePanelEmailIsVerified;
 use CorePanel\Http\Resources\UserResource;
 use CorePanel\Mail\UserInvitationMail;
+use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Tests\FakeUser;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -136,6 +137,7 @@ it('creates managed users through an invitation flow instead of requiring a pass
 it('blocks invited user creation when password resets are disabled', function (): void {
     Mail::fake();
     config()->set('core-panel.auth.password_reset_enabled', false);
+    app(SettingsRepository::class)->set('auth', 'password_reset_enabled', false, 'boolean', false);
     $this->withoutMiddleware([CheckPermission::class, EnsureCorePanelEmailIsVerified::class]);
 
     $actor = FakeUser::query()->create([
@@ -274,6 +276,7 @@ it('re-sends the custom invitation mail for an invited user from the admin area'
 it('blocks re-invites when password resets are disabled', function (): void {
     Mail::fake();
     config()->set('core-panel.auth.password_reset_enabled', false);
+    app(SettingsRepository::class)->set('auth', 'password_reset_enabled', false, 'boolean', false);
 
     $actor = FakeUser::query()->create([
         'email' => 'admin-reinvite-blocked@example.test',

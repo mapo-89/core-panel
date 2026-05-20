@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CorePanel\Http\Controllers\Users;
 
 use CorePanel\Domains\User\Actions\SendUserInvitationAction;
+use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ final class SendUserInvitationController extends Controller
 {
     public function __construct(
         private readonly UserModelManager $users,
+        private readonly SettingsRepository $settings,
         private readonly SendUserInvitationAction $sendUserInvitation,
     ) {}
 
@@ -23,7 +25,11 @@ final class SendUserInvitationController extends Controller
         $target = $this->users->findOrFail($user, true);
         Gate::authorize('update', $target);
 
-        if (! (bool) config('core-panel.auth.password_reset_enabled', true)) {
+        if (! (bool) $this->settings->get(
+            'auth',
+            'password_reset_enabled',
+            (bool) config('core-panel.auth.password_reset_enabled', true),
+        )) {
             return back()->with('error', __('page-users.users.invitation_requires_password_reset'));
         }
 

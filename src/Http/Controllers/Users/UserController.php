@@ -18,6 +18,7 @@ use CorePanel\Support\Permissions\CorePanelPermissions;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Query\AllowedQuery;
 use CorePanel\Support\Query\QueryBuilderAdapter;
+use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Support\UserGroups\UserGroupModelManager;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,7 @@ final class UserController extends Controller
         private readonly CorePanelAccess $access,
         private readonly QueryBuilderAdapter $queries,
         private readonly UserGroupModelManager $userGroups,
+        private readonly SettingsRepository $settings,
         private readonly CreateUserAction $createUser,
         private readonly DeleteUserAction $deleteUser,
         private readonly SendUserInvitationAction $sendUserInvitation,
@@ -210,11 +212,14 @@ final class UserController extends Controller
     {
         Gate::authorize('create', $this->users->modelClass());
 
-        $user = $this->createUser->execute($request->validated());
-
-        if ($this->passwordResetEnabled()) {
-            $this->sendUserInvitation->execute($user);
+        if (! $this->passwordResetEnabled()) {
+            return back()
+                ->withInput()
+                ->with('error', __('page-users.users.invitation_requires_password_reset'));
         }
+
+        $user = $this->createUser->execute($request->validated());
+        $this->sendUserInvitation->execute($user);
 
         $this->activityLog
             ->withCauser($request->user())
@@ -224,9 +229,7 @@ final class UserController extends Controller
 
         return redirect()
             ->route('core-panel.users.show', $user->getKey())
-            ->with('status', $this->passwordResetEnabled()
-                ? __('page-users.users.invited')
-                : __('page-users.users.created'));
+            ->with('status', __('page-users.users.invited'));
     }
 
     public function destroy(string $user): RedirectResponse
@@ -249,7 +252,11 @@ final class UserController extends Controller
 
     private function passwordResetEnabled(): bool
     {
-        return (bool) config('core-panel.auth.password_reset_enabled', true);
+        return (bool) $this->settings->get(
+            'auth',
+            'password_reset_enabled',
+            (bool) config('core-panel.auth.password_reset_enabled', true),
+        );
     }
 
     /**
