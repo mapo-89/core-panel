@@ -1,7 +1,7 @@
 {
-    "release_version": "1.1.1",
-    "display_version": "1.1.1 (9542832)",
-    "image_version": "1.1.1-9542832",
-    "commit": "9542832",
-    "commit_date": "2026-05-20T18:59:27+02:00"
+    "release_version": "1.1.2",
+    "display_version": "1.1.2 (4ae8b25)",
+    "image_version": "1.1.2-4ae8b25",
+    "commit": "4ae8b25",
+    "commit_date": "2026-05-20T20:29:05+02:00"
 }
