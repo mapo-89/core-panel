@@ -1270,6 +1270,7 @@ it('replaces the default laravel bootstrap and web entrypoints when scaffolding 
 
     mkdir($temporaryBasePath.'/bootstrap', 0777, true);
     mkdir($temporaryBasePath.'/routes', 0777, true);
+    mkdir($temporaryBasePath.'/resources/js', 0777, true);
     mkdir($temporaryBasePath.'/resources/views', 0777, true);
 
     file_put_contents($temporaryBasePath.'/bootstrap/app.php', <<<'PHP'
@@ -1319,6 +1320,7 @@ PHP);
     </head>
 </html>
 BLADE);
+    file_put_contents($temporaryBasePath.'/resources/js/app.js', 'console.log("legacy app entry");');
 
     app(ScaffoldsCorePanelStubs::class)->scaffold(false, $temporaryBasePath);
 
@@ -1333,6 +1335,8 @@ BLADE);
         ->and($webRoutes)->not->toContain("return view('welcome');")
         ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {")
         ->and(file_exists($temporaryBasePath.'/resources/views/welcome.blade.php'))->toBeFalse()
+        ->and(file_exists($temporaryBasePath.'/resources/js/app.js'))->toBeFalse()
+        ->and(file_exists($temporaryBasePath.'/resources/js/app.ts'))->toBeTrue()
         ->and(file_exists($temporaryBasePath.'/resources/views/app.blade.php'))->toBeTrue();
 });
 

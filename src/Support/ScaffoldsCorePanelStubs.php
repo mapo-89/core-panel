@@ -96,7 +96,7 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
-            if (! $force && $this->files->exists($destinationPath)) {
+            if (! $force && $this->files->exists($destinationPath) && ! $this->shouldAlwaysSynchronize($relativePath)) {
                 continue;
             }
 
@@ -107,6 +107,13 @@ final readonly class ScaffoldsCorePanelStubs
             $this->files->ensureDirectoryExists(dirname($destinationPath));
             $this->files->copy($sourcePath, $destinationPath);
         }
+    }
+
+    private function shouldAlwaysSynchronize(string $relativePath): bool
+    {
+        return in_array($relativePath, [
+            'config/app-version.json',
+        ], true);
     }
 
     private static function appendPathsFromRoot(array &$paths, string $root, string $prefix = ''): void
@@ -255,6 +262,7 @@ final readonly class ScaffoldsCorePanelStubs
             'database/seeders/DatabaseSeeder.php',
             'routes/console.php',
             'routes/web.php',
+            'resources/js/app.js',
             'resources/css/app.css',
             'resources/css/app.scss',
             'resources/css/theme/theme.scss',

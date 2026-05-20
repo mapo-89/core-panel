@@ -115,6 +115,29 @@ it('synchronizes missing environment defaults during update', function (): void 
         ->and($contents)->toContain("LOG_CHANNEL=daily\n");
 });
 
+it('refreshes the published app version metadata during update without requiring force', function (): void {
+    $basePath = makePublishBasePath('app-version-update');
+
+    mkdir($basePath.'/config', 0777, true);
+    file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
+    file_put_contents($basePath.'/config/app-version.json', json_encode([
+        'release_version' => '0.0.1',
+        'display_version' => '0.0.1 (deadbee)',
+        'image_version' => '0.0.1-deadbee',
+        'commit' => 'deadbee',
+        'commit_date' => '2026-01-01T00:00:00+00:00',
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $publishedVersion = json_decode((string) file_get_contents($basePath.'/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
+    $packageVersion = json_decode((string) file_get_contents(__DIR__.'/../../stubs/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($publishedVersion)->toBe($packageVersion);
+});
+
 it('does not create optional publish targets during update when they were never published', function (): void {
     $basePath = makePublishBasePath('skip-unpublished');
 
