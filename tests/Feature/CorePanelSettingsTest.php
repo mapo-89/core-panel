@@ -73,6 +73,11 @@ final class InMemorySettingsRepository extends SettingsRepository
     {
         self::$records = [];
     }
+
+    public function exposedCacheKey(string $prefix, ?string $group, ?string $locale): string
+    {
+        return $this->cacheKey($prefix, $group, $locale);
+    }
 }
 
 function settingsRepository(): InMemorySettingsRepository
@@ -145,4 +150,25 @@ it('stores grouped settings with typed values', function (): void {
         'radius_token' => 'none',
         'show_app_footer' => false,
     ]);
+});
+
+it('namespaces settings cache keys per application installation context', function (): void {
+    $repository = settingsRepository();
+
+    config()->set('app.key', 'base64:first-app-key');
+    config()->set('app.url', 'https://core-panel-app.test');
+    config()->set('database.default', 'pgsql');
+    config()->set('database.connections.pgsql.database', 'core_panel_playground');
+
+    $firstKey = $repository->exposedCacheKey('public', null, 'de');
+
+    config()->set('app.key', 'base64:second-app-key');
+    config()->set('app.url', 'https://re-sulting-onehub.test');
+    config()->set('database.connections.pgsql.database', 'onehub');
+
+    $secondKey = $repository->exposedCacheKey('public', null, 'de');
+
+    expect($firstKey)->not->toBe($secondKey)
+        ->and($firstKey)->toStartWith('core-panel:settings:')
+        ->and($secondKey)->toStartWith('core-panel:settings:');
 });

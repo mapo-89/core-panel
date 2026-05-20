@@ -11,6 +11,7 @@ use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Support\Users\UserModelManager;
 use CorePanel\Support\Version\AppVersionRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Inertia\Middleware;
 
 final class HandleInertiaRequests extends Middleware
@@ -56,13 +57,17 @@ final class HandleInertiaRequests extends Middleware
         $permissionNames = $users->permissionNames($user);
         $settingsLogo = app(SettingsLogoManager::class);
         $publicSettings = app(SettingsRepository::class)->public();
+        $appName = data_get($publicSettings, 'general.app_name');
         $appSubtitle = data_get($publicSettings, 'general.app_subtitle');
+        $hasAppSubtitle = Arr::has($publicSettings, 'general.app_subtitle');
 
         return [
             ...parent::share($request),
-            'appName' => config('app.name'),
-            'appSubtitle' => is_string($appSubtitle)
-                ? $appSubtitle
+            'appName' => is_string($appName) && $appName !== ''
+                ? $appName
+                : config('app.name'),
+            'appSubtitle' => $hasAppSubtitle
+                ? (is_string($appSubtitle) ? $appSubtitle : null)
                 : (string) __('page-layout.brand_subtitle_default'),
             'appLogo' => fn (): ?string => $settingsLogo->currentUrl(),
             'flash' => [
@@ -94,7 +99,9 @@ final class HandleInertiaRequests extends Middleware
                 'debug' => (bool) config('app.debug', false),
                 'environment' => app()->environment(),
                 'isLocal' => app()->environment('local'),
-                'name' => config('app.name'),
+                'name' => is_string($appName) && $appName !== ''
+                    ? $appName
+                    : config('app.name'),
                 'shortName' => 'CorePanel',
                 'version' => $appVersion,
                 'canRegister' => (bool) config('core-panel.auth.registration_enabled', false),

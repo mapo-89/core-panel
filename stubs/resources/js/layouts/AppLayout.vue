@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+    computed,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    watch,
+    watchEffect,
+} from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import { useToast } from 'primevue/usetoast'
@@ -29,6 +36,7 @@ const props = withDefaults(
 )
 
 const page = usePage<{
+    appName?: string
     auth?: {
         user?: {
             id?: string | null
@@ -59,6 +67,7 @@ const page = usePage<{
     }
 }>()
 const toast = useToast()
+const sharedAppName = computed(() => page.props.appName ?? 'CorePanel')
 const { colorMode, isDarkMode, setColorMode } = useColorMode('system')
 const {
     closeMobileSidebar,
@@ -77,6 +86,10 @@ const authUserPresenceLastSeenAt = computed(
 )
 
 usePresenceRuntime(authUserId, authUserPresenceLastSeenAt)
+
+watchEffect(() => {
+    document.documentElement.dataset.appName = sharedAppName.value
+})
 
 function resolveFlashStatus(status: string): string {
     const normalizedStatus = status.trim()

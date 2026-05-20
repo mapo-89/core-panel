@@ -5,7 +5,7 @@ import {
     loadLanguageAsync,
 } from 'laravel-vue-i18n'
 import type { MenuItem } from 'primevue/menuitem'
-import { computed, ref, useSlots } from 'vue'
+import { computed, ref, useSlots, watchEffect } from 'vue'
 
 import AppIcon from '@/components/AppIcon.vue'
 import AppToast from '@/components/AppToast.vue'
@@ -76,6 +76,10 @@ const localeMenuItems = computed<LocaleMenuItem[]>(() =>
 )
 
 const hasHeaderSlot = computed(() => Boolean(slots.header))
+
+watchEffect(() => {
+    document.documentElement.dataset.appName = appName.value
+})
 
 function displayLocaleLabel(code: string): string {
     return page.props.locale?.labels?.[code] ?? code.toUpperCase()

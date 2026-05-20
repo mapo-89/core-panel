@@ -9,9 +9,23 @@ import { installCorePanelUi } from './plugins/core-panel'
 const lazyLanguageModules = import.meta.glob<{
     default: Record<string, string>
 }>('../../lang/*.json')
+let currentAppName = 'CorePanel'
+
+function resolveAppName(props: Record<string, unknown>): string {
+    const value = props.appName
+
+    return typeof value === 'string' && value.trim() !== ''
+        ? value.trim()
+        : 'CorePanel'
+}
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - CorePanel` : 'CorePanel'),
+    title: (title) => {
+        const activeAppName =
+            document.documentElement.dataset.appName?.trim() || currentAppName
+
+        return title ? `${title} - ${activeAppName}` : activeAppName
+    },
     resolve: (name) => {
         const pages = import.meta.glob<{ default: DefineComponent }>(
             './pages/**/*.vue',
@@ -24,6 +38,8 @@ createInertiaApp({
     },
     async setup({ el, App, props, plugin }) {
         const app = createApp({ render: () => h(App, props) })
+        const initialPageProps = props.initialPage.props as Record<string, unknown>
+        currentAppName = resolveAppName(initialPageProps)
         const locale = (props.initialPage.props as Record<string, unknown>)
             .locale as
             | {
@@ -65,6 +81,7 @@ createInertiaApp({
         )
 
         document.documentElement.lang = activeLocale
+        document.documentElement.dataset.appName = currentAppName
 
         app.use(plugin)
         app.use(i18nVue, i18nOptions)

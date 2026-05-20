@@ -235,10 +235,32 @@ class SettingsRepository
         return implode(':', array_filter([
             'core-panel',
             'settings',
+            $this->cacheNamespace(),
             $prefix,
             $group,
             $locale,
         ], static fn (mixed $value): bool => $value !== null && $value !== ''));
+    }
+
+    protected function cacheNamespace(): string
+    {
+        $defaultConnection = (string) config('database.default', '');
+        $databaseName = $defaultConnection !== ''
+            ? (string) config("database.connections.{$defaultConnection}.database", '')
+            : '';
+
+        $parts = array_filter([
+            (string) config('app.key', ''),
+            (string) config('app.url', ''),
+            $defaultConnection,
+            $databaseName,
+        ], static fn (string $value): bool => $value !== '');
+
+        if ($parts === []) {
+            return 'default';
+        }
+
+        return substr(sha1(implode('|', $parts)), 0, 12);
     }
 
     protected function forgetCaches(string $group): void
