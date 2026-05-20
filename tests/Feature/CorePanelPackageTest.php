@@ -696,8 +696,10 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $provisionPlaygroundsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
     $setReleaseVersionScript = file_get_contents(__DIR__.'/../../../../.github/scripts/set-release-version.php');
     $updateTestProjectsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/update-test-projects.sh');
-    $appVersionJson = file_get_contents(__DIR__.'/../../config/app-version.json');
-    $hostAppVersionJson = file_get_contents(__DIR__.'/../../stubs/config/app-version.json');
+    /** @var array{release_version:string,display_version:string,image_version:string,commit:string,commit_date:string} $appVersionJson */
+    $appVersionJson = json_decode((string) file_get_contents(__DIR__.'/../../config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
+    /** @var array{release_version:string,display_version:string,image_version:string,commit:string,commit_date:string} $hostAppVersionJson */
+    $hostAppVersionJson = json_decode((string) file_get_contents(__DIR__.'/../../stubs/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
     $versionSupport = file_get_contents(__DIR__.'/../../stubs/resources/js/support/version.ts');
     $middleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php');
     /** @var array{require-dev:array<string,string>,scripts:array<string,string>} $composer */
@@ -712,8 +714,15 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($prettier)->toContain('singleQuote: true')
         ->and($workflow)->toContain('name: CI')
         ->and($releaseWorkflow)->toContain('name: Release')
-        ->and($releaseWorkflow)->toContain("RELEASE_COMMIT_PATTERN: '^🚀 Release: v?[0-9]+\\.[0-9]+\\.[0-9]+$'")
+        ->and($releaseWorkflow)->toContain("RELEASE_COMMIT_PATTERN: '^🚀 Release:'")
+        ->and($releaseWorkflow)->toContain('PREFIX="${YEAR}.${MONTH}."')
+        ->and($releaseWorkflow)->toContain('LAST_TAG="$(git tag -l "${PREFIX}*" | sort -V | tail -n 1)"')
+        ->and($releaseWorkflow)->toContain('if [ "${SHOULD_RELEASE}" = "true" ]; then')
+        ->and($releaseWorkflow)->toContain('RELEASE_COUNTER=$((LAST_COUNTER + 1))')
+        ->and($releaseWorkflow)->toContain('RELEASE_VERSION="${PREFIX}${RELEASE_COUNTER}"')
+        ->and($releaseWorkflow)->toContain('SHORT_COMMIT_ID="$(git rev-parse --short HEAD)"')
         ->and($releaseWorkflow)->toContain('php .github/scripts/set-release-version.php "${RELEASE_VERSION}"')
+        ->and($releaseWorkflow)->toContain('git commit -m "⚙️ Chore: set version to ${DISPLAY_VERSION}"')
         ->and($releaseWorkflow)->toContain('git tag "${RELEASE_VERSION}"')
         ->and($releaseWorkflow)->toContain('packages/core-panel/config/app-version.json')
         ->and($releaseWorkflow)->toContain('packages/core-panel/stubs/config/app-version.json')
@@ -722,8 +731,11 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($setReleaseVersionScript)->toContain('APP_VERSION=\'.$version')
         ->and($setReleaseVersionScript)->toContain("'display_version' => \$displayVersion")
         ->and($setReleaseVersionScript)->toContain('CorePanelApiDocumentation.php')
-        ->and($appVersionJson)->toContain('"release_version": "1.0.0"')
-        ->and($hostAppVersionJson)->toContain('"display_version": "1.0.0 (')
+        ->and($appVersionJson['release_version'])->toMatch('/^\d+\.\d+\.\d+$/')
+        ->and($appVersionJson['display_version'])->toMatch('/^\d+\.\d+\.\d+ \([a-f0-9]+\)$/')
+        ->and($appVersionJson['image_version'])->toMatch('/^\d+\.\d+\.\d+-[a-f0-9]+$/')
+        ->and($hostAppVersionJson['release_version'])->toMatch('/^\d+\.\d+\.\d+$/')
+        ->and($hostAppVersionJson['display_version'])->toMatch('/^\d+\.\d+\.\d+ \([a-f0-9]+\)$/')
         ->and($versionSupport)->toContain("import versionInfo from '../../../config/app-version.json'")
         ->and($versionSupport)->toContain('export const APP_RELEASE_VERSION')
         ->and($versionSupport)->toContain('export function formatCommitDate')
@@ -817,8 +829,11 @@ it('synchronizes the environment file with the core panel defaults', function ()
 it('reads the packaged app version metadata from app-version json', function (): void {
     $version = app(AppVersionRepository::class)->current();
 
-    expect($version['release_version'])->toBe('1.0.0')
-        ->and($version['display_version'])->not->toBeNull()
+    expect($version['release_version'])->toMatch('/^\d+\.\d+\.\d+$/')
+        ->and($version['display_version'])->toMatch('/^\d+\.\d+\.\d+ \([a-f0-9]+\)$/')
+        ->and($version['image_version'])->toMatch('/^\d+\.\d+\.\d+-[a-f0-9]+$/')
+        ->and($version['commit'])->toMatch('/^[a-f0-9]+$/')
+        ->and($version['commit_date'])->not->toBeNull()
         ->and($version)->toHaveKeys([
             'release_version',
             'display_version',
