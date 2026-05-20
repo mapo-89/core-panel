@@ -563,11 +563,29 @@ it('excludes generated scaffold artifacts from the installable stubs tree', func
     }
 });
 
+it('ships the managed host gitignore stub', function (): void {
+    $contents = file_get_contents(__DIR__.'/../../stubs/.gitignore');
+
+    expect($contents)->toContain('/.codex')
+        ->and($contents)->toContain('/bootstrap/cache/*.php')
+        ->and($contents)->toContain('/coverage')
+        ->and($contents)->toContain('/node_modules')
+        ->and($contents)->toContain('/public/build')
+        ->and($contents)->toContain('/storage/framework/cache/*')
+        ->and($contents)->toContain('/storage/logs/*')
+        ->and($contents)->toContain('auto-imports.d.ts')
+        ->and($contents)->toContain('lang/php_*.json')
+        ->and($contents)->toContain('/resources/js/actions')
+        ->and($contents)->toContain('/resources/js/routes')
+        ->and($contents)->toContain('/resources/js/wayfinder');
+});
+
 it('maps installer templates onto the host application paths by relative path', function (): void {
     expect(ScaffoldsCorePanelStubs::paths())->toContain(
         '.ai/skills/tenancy-development/SKILL.md',
         '.agents/skills/changelog-generator/SKILL.md',
         '.claude/settings.json',
+        '.gitignore',
         '.prettierignore',
         'AGENTS.md',
         '.env.example',
@@ -782,8 +800,14 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($workflow)->not->toContain("\npush:")
         ->and($coreReadme)->toContain('Read-only split repository')
         ->and($coreReadme)->toContain('mapo-89/core-panel-monorepo')
+        ->and($coreReadme)->toContain('composer update mapo-89/core-panel')
         ->and($coreReadme)->toContain('php artisan core-panel:update --force')
+        ->and($coreReadme)->toContain('composer update mapo-89/core-panel mapo-89/core-panel-tenancy')
         ->and($coreReadme)->toContain('php artisan core-panel:update --force --with-addon-updates')
+        ->and($coreReadme)->toContain('npm install')
+        ->and($coreReadme)->toContain('npm run build')
+        ->and($coreReadme)->toContain('php artisan optimize:clear')
+        ->and($coreReadme)->toContain('git rm -r --cached -- resources/js/actions resources/js/routes resources/js/wayfinder public/build public/hot')
         ->and($coreReadme)->toContain('migrations are skipped and must be run manually')
         ->and($releaseWorkflow)->toContain('name: Release')
         ->and($splitWorkflow)->toContain('name: Split Packages')
@@ -2078,6 +2102,8 @@ it('defines the shared card surface globally in the admin theme', function (): v
 
 it('renders user management with a reference-style datatable shell and a table-only roles tab variant', function (): void {
     $usersIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/Index.vue');
+    $logsIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/Index.vue');
+    $developerIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Developer/Index.vue');
     $usersTableContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UsersTableTab.vue');
     $userGroupsTabContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserGroupsTab.vue');
     $userGroupFormContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/UserGroups/components/UserGroupForm.vue');
@@ -2185,11 +2211,14 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($datatableThemeContents)->toContain('justify-content: center;')
         ->and($datatableThemeContents)->toContain('.cp-datatable-actions__item--danger {')
         ->and($tabsThemeContents)->toContain('.cp-side-tabs__panel-surface--flush {')
+        ->and($tabsThemeContents)->toContain('.cp-side-tabs__panel-surface--unpadded {')
         ->and($tabsThemeContents)->toContain('border: 0;')
         ->and($tabsThemeContents)->toContain('border-radius: 0;')
         ->and($tabsThemeContents)->toContain('background: transparent;')
         ->and($tabsThemeContents)->toContain('.cp-side-tabs__panel-surface:has(> .cp-card.cp-datatable__surface),')
-        ->and($tabsThemeContents)->toContain('.cp-user-management .cp-side-tabs__panel-surface {')
+        ->and($usersIndexContents)->toContain("panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded'")
+        ->and($logsIndexContents)->toContain("panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded'")
+        ->and($developerIndexContents)->toContain("panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded'")
         ->and($tableBuilderGerman)->toContain("'reset_filters' => 'Alles zurücksetzen'")
         ->and($tableBuilderGerman)->toContain("'loading' => 'Wird geladen'")
         ->and($usersIndexContents)->toContain('openImportUserGroupsDialog')

@@ -82,6 +82,7 @@ const tabComponents = {
 
 const tabSchema = computed<TabsSchema>(() => ({
     panelSurface: true,
+    panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded',
     panelSurfaceVariant: 'card',
     tabs: [
         {

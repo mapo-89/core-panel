@@ -84,6 +84,7 @@ const tabSchema = computed<TabsSchema>(() => {
 
     return {
         panelSurface: true,
+        panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded',
         panelSurfaceVariant: 'card',
         tabs,
     }
@@ -117,15 +118,13 @@ const tabSchema = computed<TabsSchema>(() => {
             />
         </template>
 
-        <div class="cp-route-management">
-            <TabsRenderer
-                v-model="activeTab"
-                class="cp-side-tabs"
-                :components="tabComponents"
-                layout="vertical"
-                :schema="tabSchema"
-                sync-with-url
-            />
-        </div>
+        <TabsRenderer
+            v-model="activeTab"
+            class="cp-side-tabs"
+            :components="tabComponents"
+            layout="vertical"
+            :schema="tabSchema"
+            sync-with-url
+        />
     </AppLayout>
 </template>

@@ -212,20 +212,12 @@
     padding: 0;
 }
 
+.cp-side-tabs__panel-surface--unpadded {
+    padding: 0;
+}
+
 .cp-side-tabs__panel-surface:has(> .cp-card.cp-datatable__surface),
 .cp-side-tabs__panel-surface:has(> .cp-datatable) {
-    padding: 0;
-}
-
-.cp-user-management .cp-side-tabs__panel-surface {
-    padding: 0;
-}
-
-.cp-log-management .cp-side-tabs__panel-surface {
-    padding: 0;
-}
-
-.cp-route-management .cp-side-tabs__panel-surface {
     padding: 0;
 }
 
