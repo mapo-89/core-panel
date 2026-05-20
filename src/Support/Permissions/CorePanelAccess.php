@@ -179,7 +179,7 @@ final class CorePanelAccess
         $groupKeys = array_values(array_unique([
             ...array_keys($this->groups()),
             ...array_map(
-                static fn (array $role): string => (string) ($role['group'] ?? ''),
+                static fn (array $role): string => $role['group'],
                 $this->defaultRoles(),
             ),
             'other',
