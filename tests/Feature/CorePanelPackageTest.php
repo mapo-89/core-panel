@@ -507,6 +507,13 @@ it('ships host application templates as regular files inside the package sources
     }
 });
 
+it('keeps ai, agent and claude support files inside the core package tree', function (): void {
+    expect(file_exists(__DIR__.'/../../.ai/skills/tenancy-development/SKILL.md'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../.agents/skills/changelog-generator/SKILL.md'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../.claude/settings.json'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../AGENTS.md'))->toBeTrue();
+});
+
 it('excludes generated scaffold artifacts from the installable stubs tree', function (): void {
     foreach (ScaffoldsCorePanelStubs::paths() as $path) {
         expect($path)->not->toBe('.env')

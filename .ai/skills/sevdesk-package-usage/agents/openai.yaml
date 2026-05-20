@@ -1,0 +1,4 @@
+interface:
+  display_name: "SevDesk Package Usage"
+  short_description: "Use laravel-sevdesk-api in this project."
+  default_prompt: "Use $sevdesk-package-usage to implement or review sevDesk integration code in this Laravel project."
