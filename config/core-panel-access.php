@@ -25,7 +25,7 @@ return [
     'custom_permissions' => [
         'api-docs.view',
         'users.reinvite',
-        'core-panel.view-horizon',
+        'horizon.view',
     ],
 
     'permission_groups' => [

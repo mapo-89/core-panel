@@ -5,8 +5,9 @@ declare(strict_types=1);
 return [
     'groups' => [
         'developer' => 'Developer',
+        'other' => 'Other',
         'system' => 'System',
-        'users' => 'Users',
+        'users' => 'User management',
     ],
     'roles' => [
         'admin' => 'Admin',
