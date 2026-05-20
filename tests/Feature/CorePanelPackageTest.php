@@ -107,6 +107,44 @@ function resolveRelativeImportCandidates(string $importerPath, string $importPat
     ];
 }
 
+function coreMigrationStubPath(string $filename): string
+{
+    $root = __DIR__.'/../../stubs/database/migrations';
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+    );
+
+    foreach ($iterator as $file) {
+        if ($file->isFile() && $file->getFilename() === $filename) {
+            return $file->getPathname();
+        }
+    }
+
+    return $root.'/'.$filename;
+}
+
+/**
+ * @return list<string>
+ */
+function coreMigrationStubFiles(string $extension): array
+{
+    $root = __DIR__.'/../../stubs/database/migrations';
+    $files = [];
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+    );
+
+    foreach ($iterator as $file) {
+        if ($file->isFile() && $file->getExtension() === $extension) {
+            $files[] = $file->getPathname();
+        }
+    }
+
+    sort($files);
+
+    return $files;
+}
+
 it('loads the package service provider', function (): void {
     expect(app()->getProvider(CorePanelServiceProvider::class))
         ->toBeInstanceOf(CorePanelServiceProvider::class);
@@ -499,9 +537,11 @@ it('ships host application templates as regular files inside the package sources
         $workspaceSourcePath = __DIR__.'/../../../../'.$path;
         $sourcePath = file_exists($stubSourcePath)
             ? $stubSourcePath
-            : (file_exists($packageSourcePath)
-                ? $packageSourcePath
-                : (file_exists($packageResourceSourcePath) ? $packageResourceSourcePath : $workspaceSourcePath));
+            : (str_starts_with($path, 'database/migrations/')
+                ? coreMigrationStubPath(basename($path))
+                : (file_exists($packageSourcePath)
+                    ? $packageSourcePath
+                    : (file_exists($packageResourceSourcePath) ? $packageResourceSourcePath : $workspaceSourcePath)));
 
         expect(file_exists($sourcePath))->toBeTrue();
     }
@@ -589,7 +629,7 @@ it('maps installer templates onto the host application paths by relative path', 
 });
 
 it('ships split user name scaffolding without legacy user name migration fallbacks', function (): void {
-    $usersMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/0001_01_01_000000_create_users_table.php');
+    $usersMigration = file_get_contents(coreMigrationStubPath('0001_01_01_000000_create_users_table.php'));
     $fortifyCreateUser = file_get_contents(__DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php');
     $inertiaMiddleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php');
     $presenceMiddleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/TrackUserPresence.php');
@@ -616,7 +656,7 @@ it('ships split user name scaffolding without legacy user name migration fallbac
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000017_add_two_factor_columns_to_users_table.php'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000018_add_status_to_users_table.php'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000020_add_requires_password_setup_to_users_table.php'))->toBeFalse()
-        ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000023_add_invitation_tracking_columns_to_users_table.php'))->toBeTrue()
+        ->and(file_exists(coreMigrationStubPath('2026_01_01_000023_add_invitation_tracking_columns_to_users_table.php')))->toBeTrue()
         ->and($fortifyCreateUser)->not->toContain("'name' =>")
         ->and($inertiaMiddleware)->not->toContain("'firstName' => \$firstName,\n                    'lastName' => \$lastName,\n                    'name' =>")
         ->and($inertiaMiddleware)->toContain('use CorePanel\\Support\\Users\\UserModelManager;')
@@ -803,6 +843,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($releaseWorkflow)->toContain('git commit -m "⚙️ Chore: set version to ${DISPLAY_VERSION}"')
         ->and($releaseWorkflow)->toContain("if: steps.release_gate.outputs.should_release == 'true' && steps.release_state.outputs.tag_exists != 'true'")
         ->and($releaseWorkflow)->toContain('git tag "${RELEASE_VERSION}"')
+        ->and($releaseWorkflow)->toContain('packages/core-panel/composer.json')
+        ->and($releaseWorkflow)->toContain('packages/core-panel-tenancy/composer.json')
         ->and($releaseWorkflow)->toContain('packages/core-panel/config/app-version.json')
         ->and($releaseWorkflow)->toContain('packages/core-panel/stubs/config/app-version.json')
         ->and($releaseWorkflow)->toContain('name: Create GitHub release')
@@ -1718,8 +1760,8 @@ it('ships the optional tenancy addon package scaffold', function (): void {
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/routes/central.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/routes/tenant.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/routes/universal.php'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/database/migrations/2026_01_01_000001_create_tenants_table.php'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/database/migrations/2026_01_01_000020_create_domains_table.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/database/migrations/tenancy/2026_01_01_000001_create_tenants_table.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/database/migrations/tenancy/2026_01_01_000020_create_domains_table.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/lang/en/page-tenants.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/lang/de/page-tenants.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/lang/en/tenancy.php'))->toBeTrue()
@@ -2939,11 +2981,11 @@ it('orders assignable users without relying on a legacy name column', function (
 });
 
 it('ships core panel migrations with fixed timestamped php filenames', function (): void {
-    $migrations = glob(__DIR__.'/../../stubs/database/migrations/*.php');
+    $migrations = coreMigrationStubFiles('php');
 
     expect($migrations)->not->toBeFalse()
         ->and($migrations)->each->toMatch('/\/\d{4}_\d{2}_\d{2}_\d{6}_.+\.php$/')
-        ->and(glob(__DIR__.'/../../stubs/database/migrations/*.stub'))->toBe([]);
+        ->and(coreMigrationStubFiles('stub'))->toBe([]);
 });
 
 it('keeps package-level database migrations empty because scaffold migrations are the source of truth', function (): void {
@@ -2952,9 +2994,9 @@ it('keeps package-level database migrations empty because scaffold migrations ar
 });
 
 it('ships laravel default migration names in the scaffold', function (): void {
-    $usersMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/0001_01_01_000000_create_users_table.php');
-    $cacheMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/0001_01_01_000001_create_cache_table.php');
-    $jobsMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/0001_01_01_000002_create_jobs_table.php');
+    $usersMigration = file_get_contents(coreMigrationStubPath('0001_01_01_000000_create_users_table.php'));
+    $cacheMigration = file_get_contents(coreMigrationStubPath('0001_01_01_000001_create_cache_table.php'));
+    $jobsMigration = file_get_contents(coreMigrationStubPath('0001_01_01_000002_create_jobs_table.php'));
 
     expect($usersMigration)->toContain("Schema::create('users'")
         ->and($usersMigration)->toContain("\$table->uuid('id')->primary();")
@@ -2969,7 +3011,7 @@ it('ships laravel default migration names in the scaffold', function (): void {
 });
 
 it('bundles fixed permission migrations from installed packages', function (): void {
-    $permissionMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2026_01_01_000014_create_permission_tables.php');
+    $permissionMigration = file_get_contents(coreMigrationStubPath('2026_01_01_000014_create_permission_tables.php'));
 
     expect($permissionMigration)->toContain("Schema::create(\$tableNames['permissions']")
         ->and($permissionMigration)->toContain("Schema::create(\$tableNames['roles']")
@@ -2978,14 +3020,14 @@ it('bundles fixed permission migrations from installed packages', function (): v
 });
 
 it('bundles fixed passport, activitylog, and medialibrary migrations from installed packages', function (): void {
-    $passportAuthCodesMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2016_06_01_000001_create_oauth_auth_codes_table.php');
-    $passportAccessTokensMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2016_06_01_000002_create_oauth_access_tokens_table.php');
-    $passportAccessTokensLastUsedMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2026_01_01_000022_add_last_used_at_to_oauth_access_tokens_table.php');
-    $passportClientsMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2016_06_01_000004_create_oauth_clients_table.php');
-    $passportDeviceCodesMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2024_06_01_000001_create_oauth_device_codes_table.php');
-    $socialAccountsMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2026_01_01_000008_create_social_accounts_table.php');
-    $activityLogMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2018_01_01_000001_create_activity_log_table.php');
-    $mediaMigration = file_get_contents(__DIR__.'/../../stubs/database/migrations/2019_01_01_000001_create_media_table.php');
+    $passportAuthCodesMigration = file_get_contents(coreMigrationStubPath('2016_06_01_000001_create_oauth_auth_codes_table.php'));
+    $passportAccessTokensMigration = file_get_contents(coreMigrationStubPath('2016_06_01_000002_create_oauth_access_tokens_table.php'));
+    $passportAccessTokensLastUsedMigration = file_get_contents(coreMigrationStubPath('2026_01_01_000022_add_last_used_at_to_oauth_access_tokens_table.php'));
+    $passportClientsMigration = file_get_contents(coreMigrationStubPath('2016_06_01_000004_create_oauth_clients_table.php'));
+    $passportDeviceCodesMigration = file_get_contents(coreMigrationStubPath('2024_06_01_000001_create_oauth_device_codes_table.php'));
+    $socialAccountsMigration = file_get_contents(coreMigrationStubPath('2026_01_01_000008_create_social_accounts_table.php'));
+    $activityLogMigration = file_get_contents(coreMigrationStubPath('2018_01_01_000001_create_activity_log_table.php'));
+    $mediaMigration = file_get_contents(coreMigrationStubPath('2019_01_01_000001_create_media_table.php'));
 
     expect($passportAuthCodesMigration)->toContain("\$table->uuid('user_id')->index();")
         ->and($passportAccessTokensMigration)->toContain("\$table->uuid('user_id')->nullable()->index();")

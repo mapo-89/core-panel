@@ -103,15 +103,47 @@ abstract class TestCase extends Orchestra
             return;
         }
 
-        $this->artisan('migrate:fresh', [
+        $this->artisan('db:wipe', [
             '--database' => 'sqlite',
-            '--path' => __DIR__.'/../stubs/database/migrations',
-            '--realpath' => true,
+            '--force' => true,
         ])->run();
+
+        $migrationFiles = $this->scaffoldMigrationFiles();
+
+        foreach ($migrationFiles as $migrationFile) {
+            $this->artisan('migrate', [
+                '--database' => 'sqlite',
+                '--path' => $migrationFile,
+                '--realpath' => true,
+                '--force' => true,
+            ])->run();
+        }
 
         app(ClientRepository::class)->createPersonalAccessGrantClient(
             'CorePanel Test Personal Access Client',
             'users',
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function scaffoldMigrationFiles(): array
+    {
+        $root = __DIR__.'/../stubs/database/migrations';
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \RecursiveDirectoryIterator::SKIP_DOTS),
+        );
+
+        foreach ($iterator as $file) {
+            if ($file->isFile() && $file->getExtension() === 'php') {
+                $files[] = $file->getPathname();
+            }
+        }
+
+        usort($files, static fn (string $left, string $right): int => strcmp(basename($left), basename($right)));
+
+        return $files;
     }
 }
