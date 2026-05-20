@@ -141,6 +141,18 @@ php artisan core-panel:install \
   --sync-environment=true
 ```
 
+If you keep the default PostgreSQL installer values, the PostgreSQL user `core_panel` with password `core_panel` must already exist before running the install command.
+
+Example:
+
+```bash
+psql postgres
+CREATE ROLE core_panel WITH LOGIN PASSWORD 'core_panel' CREATEDB;
+CREATE DATABASE core_panel OWNER core_panel;
+CREATE DATABASE core_panel_test OWNER core_panel;
+\q
+```
+
 ## Publish Commands
 
 ```bash

@@ -16,8 +16,6 @@ use Spatie\Permission\PermissionRegistrar;
 
 final class PermissionService
 {
-    public function __construct(private PermissionRegistrar $registrar) {}
-
     public function userHas(Authenticatable $user, string $permission): bool
     {
         if ($this->isSuperAdmin($user)) {
@@ -50,8 +48,22 @@ final class PermissionService
 
     public function resetCache(): void
     {
-        $this->registrar->forgetCachedPermissions();
-        $this->registrar->clearPermissionsCollection();
+        if ($this->shouldBypassCacheWrites()) {
+            if (app()->resolved(PermissionRegistrar::class)) {
+                app(PermissionRegistrar::class)->clearPermissionsCollection();
+            }
+
+            return;
+        }
+
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->forgetCachedPermissions();
+        $registrar->clearPermissionsCollection();
+    }
+
+    private function shouldBypassCacheWrites(): bool
+    {
+        return (bool) config('core-panel.runtime.installing', false);
     }
 
     public function roleModelClass(): string

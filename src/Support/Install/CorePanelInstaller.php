@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace CorePanel\Support\Install;
 
 use CorePanel\Contracts\CorePanelInstallerInterface;
+use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
+use CorePanel\Database\Seeders\CorePanelSettingsSeeder;
 use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\PublishTag;
@@ -14,6 +16,7 @@ use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Seeder;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Facade;
@@ -42,78 +45,91 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 
     public function install(CorePanelInstallOptions $options, Command $command): void
     {
-        $command->newLine();
+        config()->set('core-panel.runtime.installing', true);
 
-        $this->runStep($command, 'Synchronizing scaffolds', function () use ($options): void {
-            $this->stubs->scaffold($options->force);
-        });
+        try {
+            $command->newLine();
 
-        $environment = [];
-
-        if ($options->syncEnvironment) {
-            $this->runStep($command, 'Synchronizing environment', function () use ($options, &$environment): void {
-                $environment = $this->environment->sync(
-                    overrides: $this->environmentOverrides($options),
-                    replaceTemplateValues: true,
-                );
+            $this->runStep($command, 'Synchronizing scaffolds', function () use ($options): void {
+                $this->stubs->scaffold($options->force);
             });
-        }
 
-        $this->applyRuntimeConfiguration($options, $environment);
-        $this->refreshResolvedRuntimeServices();
+            $environment = [];
 
-        $this->runStep($command, 'Preparing database connection', function () use ($command, $options): void {
-            $this->prepareDatabaseConnection($command, $options);
-        });
+            if ($options->syncEnvironment) {
+                $this->runStep($command, 'Synchronizing environment', function () use ($options, &$environment): void {
+                    $environment = $this->environment->sync(
+                        overrides: $this->environmentOverrides($options),
+                        replaceTemplateValues: true,
+                    );
+                });
+            }
 
-        $this->runStep($command, 'Clearing optimized caches', function () use ($command): void {
-            $this->clearOptimizedState($command);
-        });
+            $this->applyRuntimeConfiguration($options, $environment);
+            $this->refreshResolvedRuntimeServices();
 
-        $this->runStep($command, 'Ensuring application key', function () use ($command): void {
-            $this->ensureApplicationKey($command);
-        });
-
-        $this->runStep($command, 'Publishing package assets', function () use ($command, $options): void {
-            $this->publishMigrations($command, $options);
-            $this->publishAssets($command, $options);
-        });
-
-        $this->runStep($command, 'Synchronizing optional addon overlays', function () use ($command, $options): void {
-            $this->synchronizeOptionalAddonOverlays($command, $options);
-        });
-
-        if ($options->runMigrations) {
-            $this->runStep($command, 'Running migrations', function () use ($command): void {
-                $command->call('migrate', ['--force' => true]);
+            $this->runStep($command, 'Preparing database connection', function () use ($command, $options): void {
+                $this->prepareDatabaseConnection($command, $options);
             });
-        }
 
-        if ($options->runSeeders) {
-            $this->runStep($command, 'Seeding permissions and settings', function () use ($command): void {
-                $this->ensureSeederPrerequisites();
-                $command->call('db:seed', ['--class' => 'CorePanel\\Database\\Seeders\\CorePanelPermissionSeeder', '--force' => true]);
-                $command->call('db:seed', ['--class' => 'CorePanel\\Database\\Seeders\\CorePanelSettingsSeeder', '--force' => true]);
+            $this->runStep($command, 'Clearing optimized caches', function () use ($command): void {
+                $this->clearOptimizedState($command);
             });
-        }
 
-        $admin = $this->createAdminUser($options, $command);
-        $this->runStep($command, 'Linking storage', function () use ($command): void {
-            $command->call('storage:link');
-        });
+            $this->runStep($command, 'Ensuring application key', function () use ($command): void {
+                $this->ensureApplicationKey($command);
+            });
 
-        $this->runStep($command, 'Generating Wayfinder routes', function () use ($command): void {
-            $this->generateWayfinderRoutes($command);
-        });
+            $this->runStep($command, 'Publishing package assets', function () use ($command, $options): void {
+                $this->publishMigrations($command, $options);
+                $this->publishAssets($command, $options);
+            });
 
-        $this->runStep($command, 'Generating Swagger API docs', function () use ($command): void {
-            $this->generateSwaggerDocs($command);
-        });
+            $this->runStep($command, 'Synchronizing optional addon overlays', function () use ($command, $options): void {
+                $this->synchronizeOptionalAddonOverlays($command, $options);
+            });
 
-        if ($options->installFrontend) {
-            $this->installFrontend($command);
-        } else {
-            $command->warn('Frontend assets changed. Run npm install && npm run build or docker compose -f docker-compose.dev.yml up -d --build.');
+            if ($options->runMigrations) {
+                $this->runStep($command, 'Running migrations', function () use ($command): void {
+                    $command->call('migrate', ['--force' => true]);
+                });
+
+                $this->applyRuntimeConfiguration($options, $environment);
+                $this->refreshResolvedRuntimeServices();
+            }
+
+            if ($options->runSeeders) {
+                $this->runStep($command, 'Seeding permissions and settings', function () use ($command): void {
+                    $this->ensureSeederPrerequisites();
+                    $this->runInstallerSeeder($command, CorePanelPermissionSeeder::class);
+                    $this->runInstallerSeeder($command, CorePanelSettingsSeeder::class);
+                });
+            }
+
+            $this->runStep($command, 'Ensuring Passport personal access client', function (): void {
+                $this->ensurePassportPersonalAccessClient();
+            });
+
+            $admin = $this->createAdminUser($options, $command);
+            $this->runStep($command, 'Linking storage', function () use ($command): void {
+                $command->call('storage:link');
+            });
+
+            $this->runStep($command, 'Generating Wayfinder routes', function () use ($command): void {
+                $this->generateWayfinderRoutes($command);
+            });
+
+            $this->runStep($command, 'Generating Swagger API docs', function () use ($command): void {
+                $this->generateSwaggerDocs($command);
+            });
+
+            if ($options->installFrontend) {
+                $this->installFrontend($command);
+            } else {
+                $command->warn('Frontend assets changed. Run npm install && npm run build or docker compose -f docker-compose.dev.yml up -d --build.');
+            }
+        } finally {
+            config()->set('core-panel.runtime.installing', false);
         }
     }
 
@@ -155,6 +171,24 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
     {
         unset($environment);
 
+        $this->syncRuntimeEnvironment([
+            'APP_NAME' => 'CorePanel',
+            'APP_URL' => $options->appUrl,
+            'APP_LOCALE' => $options->defaultLocale,
+            'APP_FALLBACK_LOCALE' => $options->fallbackLocale,
+            'DB_CONNECTION' => $options->databaseConnection,
+            'DB_HOST' => $options->databaseHost,
+            'DB_PORT' => $options->databasePort,
+            'DB_DATABASE' => $options->databaseName,
+            'DB_USERNAME' => $options->databaseUsername,
+            'DB_PASSWORD' => $options->databasePassword,
+            'DB_CACHE_CONNECTION' => $options->databaseConnection,
+            'DB_CACHE_LOCK_CONNECTION' => $options->databaseConnection,
+            'CACHE_STORE' => 'array',
+            'SESSION_DRIVER' => 'array',
+            'QUEUE_CONNECTION' => 'sync',
+        ]);
+
         config()->set('app.locale', $options->defaultLocale);
         config()->set('app.fallback_locale', $options->fallbackLocale);
         config()->set('app.name', 'CorePanel');
@@ -180,6 +214,18 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
             config()->set('tenancy.central_domains', [$options->centralDomain]);
             config()->set('tenancy.database.central_connection', $options->databaseConnection);
             config()->set('tenancy.database.template_tenant_connection', $options->databaseConnection);
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $variables
+     */
+    private function syncRuntimeEnvironment(array $variables): void
+    {
+        foreach ($variables as $key => $value) {
+            putenv(sprintf('%s=%s', $key, $value));
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
         }
     }
 
@@ -228,13 +274,15 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         if (($command->getApplication()?->has('passport:keys') ?? false) || app()->bound('command.passport.keys')) {
             $command->call('passport:keys', ['--force' => true]);
         }
-
-        $this->ensurePassportPersonalAccessClient();
     }
 
     private function ensurePassportPersonalAccessClient(): void
     {
         if (! class_exists(ClientRepository::class)) {
+            return;
+        }
+
+        if (! Schema::hasTable('oauth_clients')) {
             return;
         }
 
@@ -483,6 +531,18 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
                 'Cannot run CorePanel seeders before the required tables exist. Run migrations first or disable seeders during installation.',
             );
         }
+    }
+
+    /**
+     * @param  class-string<Seeder>  $seederClass
+     */
+    private function runInstallerSeeder(Command $command, string $seederClass): void
+    {
+        /** @var Seeder $seeder */
+        $seeder = app($seederClass);
+        $seeder->setContainer(app());
+        $seeder->setCommand($command);
+        $seeder->__invoke();
     }
 
     private function generateWayfinderRoutes(Command $command): void

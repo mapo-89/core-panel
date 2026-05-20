@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use CorePanel\Contracts\CorePanelInstallerInterface;
+use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
@@ -258,7 +259,9 @@ it('contains the passport key generation step for passport installs', function (
 
     expect($contents)->not->toContain("'passport-config'")
         ->and($contents)->not->toContain("'passport-migrations'")
-        ->and($contents)->toContain("'passport:keys'");
+        ->and($contents)->toContain("'passport:keys'")
+        ->and($contents)->toContain("runStep(\$command, 'Ensuring Passport personal access client'")
+        ->and($contents)->toContain("if (! Schema::hasTable('oauth_clients')) {");
 });
 
 it('persists the generated application key back into the environment file during installation', function (): void {
@@ -319,18 +322,32 @@ it('clears optimized caches after synchronizing the environment and allows seede
     $commandContents = file_get_contents(__DIR__.'/../../src/Console/InstallCommand.php');
     $prepareDatabasePosition = strpos($contents, "runStep(\$command, 'Preparing database connection'");
     $clearCachesPosition = strpos($contents, "runStep(\$command, 'Clearing optimized caches'");
+    $publishAssetsPosition = strpos($contents, "runStep(\$command, 'Publishing package assets'");
+    $passportClientPosition = strpos($contents, "runStep(\$command, 'Ensuring Passport personal access client'");
 
     expect($prepareDatabasePosition)->not->toBeFalse()
         ->and($clearCachesPosition)->not->toBeFalse()
-        ->and($prepareDatabasePosition)->toBeLessThan($clearCachesPosition);
+        ->and($prepareDatabasePosition)->toBeLessThan($clearCachesPosition)
+        ->and($publishAssetsPosition)->not->toBeFalse()
+        ->and($passportClientPosition)->not->toBeFalse()
+        ->and($publishAssetsPosition)->toBeLessThan($passportClientPosition);
 
     expect($contents)->toContain("runStep(\$command, 'Clearing optimized caches'")
         ->and($contents)->toContain('$this->refreshResolvedRuntimeServices();')
+        ->and($contents)->toContain('if ($options->runMigrations) {')
+        ->and($contents)->toContain("\$command->call('migrate', ['--force' => true]);")
+        ->and($contents)->toContain('$this->applyRuntimeConfiguration($options, $environment);')
         ->and($contents)->toContain("\$command->call('optimize:clear')")
         ->and($contents)->toContain("\$originalCacheStore = config('cache.default');")
         ->and($contents)->toContain("config()->set('cache.default', 'array');")
         ->and($contents)->toContain("config()->set('cache.default', \$originalCacheStore);")
         ->and($contents)->toContain("config()->set('permission.cache.store', 'array');")
+        ->and($contents)->toContain('$this->syncRuntimeEnvironment([')
+        ->and($contents)->toContain("'DB_CACHE_CONNECTION' => \$options->databaseConnection")
+        ->and($contents)->toContain("'DB_CACHE_LOCK_CONNECTION' => \$options->databaseConnection")
+        ->and($contents)->toContain("'CACHE_STORE' => 'array'")
+        ->and($contents)->toContain("'SESSION_DRIVER' => 'array'")
+        ->and($contents)->toContain("'QUEUE_CONNECTION' => 'sync'")
         ->and($contents)->toContain("config()->set('cache.stores.database.connection', \$options->databaseConnection);")
         ->and($contents)->toContain("config()->set('cache.stores.database.lock_connection', \$options->databaseConnection);")
         ->and($contents)->toContain("app()->forgetInstance('db');")
@@ -341,6 +358,12 @@ it('clears optimized caches after synchronizing the environment and allows seede
         ->and($contents)->toContain("Facade::clearResolvedInstance('cache');")
         ->and($contents)->toContain("Facade::clearResolvedInstance('cache.store');")
         ->and($contents)->toContain('$this->ensureSeederPrerequisites();')
+        ->and($contents)->toContain('$this->runInstallerSeeder($command, CorePanelPermissionSeeder::class);')
+        ->and($contents)->toContain('$this->runInstallerSeeder($command, CorePanelSettingsSeeder::class);')
+        ->and($contents)->toContain('private function runInstallerSeeder(Command $command, string $seederClass): void')
+        ->and($contents)->toContain('$seeder->setContainer(app());')
+        ->and($contents)->toContain('$seeder->setCommand($command);')
+        ->and($contents)->toContain('$seeder->__invoke();')
         ->and($contents)->toContain('private function ensureSeederPrerequisites(): void')
         ->and($contents)->toContain("! \$this->permissionTablesExist() || ! Schema::hasTable('settings')")
         ->and($contents)->toContain('Cannot run CorePanel seeders before the required tables exist. Run migrations first or disable seeders during installation.')
@@ -353,6 +376,7 @@ it('clears optimized caches after synchronizing the environment and allows seede
         ->and($contents)->toContain("config()->set('tenancy.database.central_connection', \$options->databaseConnection);")
         ->and($contents)->toContain("config()->set('tenancy.database.template_tenant_connection', \$options->databaseConnection);")
         ->and($contents)->toContain('if ($options->runSeeders)')
+        ->and($contents)->not->toContain("\$command->call('db:seed'")
         ->and($contents)->toContain('if ($options->installFrontend)')
         ->and($contents)->toContain('Preparing database connection')
         ->and($contents)->toContain('CREATE DATABASE IF NOT EXISTS')
@@ -448,7 +472,41 @@ it('forces in-memory cache stores during installation runtime', function (): voi
     expect(config('cache.default'))->toBe('array')
         ->and(config('permission.cache.store'))->toBe('array')
         ->and(config('cache.stores.database.connection'))->toBe('pgsql')
-        ->and(config('cache.stores.database.lock_connection'))->toBe('pgsql');
+        ->and(config('cache.stores.database.lock_connection'))->toBe('pgsql')
+        ->and(getenv('DB_CONNECTION'))->toBe('pgsql')
+        ->and(getenv('CACHE_STORE'))->toBe('array')
+        ->and(getenv('SESSION_DRIVER'))->toBe('array')
+        ->and(getenv('QUEUE_CONNECTION'))->toBe('sync');
+});
+
+it('skips external permission cache writes while the installer seeders run', function (): void {
+    if (! corePanelTestbenchDatabaseAvailable()) {
+        test()->markTestSkipped('pdo_sqlite is not available in this environment.');
+    }
+
+    config()->set('permission.teams', false);
+    config()->set('permission.testing', false);
+
+    $this->migrateScaffoldDatabase();
+
+    config()->set('permission.cache.store', 'default');
+    config()->set('cache.default', 'database');
+    config()->set('cache.stores.database.connection', 'missing-installer-cache');
+    config()->set('core-panel.runtime.installing', true);
+
+    app()->forgetInstance('cache');
+    app()->forgetInstance('cache.store');
+    app()->forgetInstance(PermissionRegistrar::class);
+    Facade::clearResolvedInstance('cache');
+    Facade::clearResolvedInstance('cache.store');
+
+    $seeder = app(CorePanelPermissionSeeder::class);
+    $seeder->setContainer(app());
+    $seeder->setCommand(new InstallerRoleAwareCommand);
+
+    expect(fn () => $seeder->__invoke())->not->toThrow(Throwable::class);
+
+    config()->set('core-panel.runtime.installing', false);
 });
 
 it('keeps environment synchronization idempotent when the installer runs twice with the same overrides', function (): void {

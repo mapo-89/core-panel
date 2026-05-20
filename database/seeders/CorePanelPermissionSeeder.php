@@ -16,7 +16,11 @@ final class CorePanelPermissionSeeder extends Seeder
 
     public function run(PermissionService $permissions, CorePanelAccess $access): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        if (! $this->runningDuringInstaller()) {
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        } elseif (app()->resolved(PermissionRegistrar::class)) {
+            app(PermissionRegistrar::class)->clearPermissionsCollection();
+        }
 
         $managedPermissions = $access->managedPermissions();
 
@@ -37,6 +41,11 @@ final class CorePanelPermissionSeeder extends Seeder
             count($managedPermissions),
             $removedPermissions,
         ));
+    }
+
+    private function runningDuringInstaller(): bool
+    {
+        return (bool) config('core-panel.runtime.installing', false);
     }
 
     /**

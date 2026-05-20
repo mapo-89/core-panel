@@ -691,6 +691,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $addonPhpstanScript = file_get_contents(__DIR__.'/../../../../.github/scripts/addon-phpstan.sh');
     $frontendQualityScript = file_get_contents(__DIR__.'/../../../../.github/scripts/frontend-quality.sh');
     $installSmokeScript = file_get_contents(__DIR__.'/../../../../.github/scripts/install-smoke.sh');
+    $provisionPlaygroundsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
     $updateTestProjectsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/update-test-projects.sh');
     /** @var array{require-dev:array<string,string>,scripts:array<string,string>} $composer */
     $composer = json_decode((string) file_get_contents(__DIR__.'/../../composer.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -737,6 +738,13 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('wait_for_server "${path}"')
         ->and($installSmokeScript)->toContain('http://127.0.0.1:${serve_port}')
         ->and($installSmokeScript)->toContain('--header "Host: ${app_host}"')
+        ->and($provisionPlaygroundsScript)->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0" --no-interaction --prefer-dist')
+        ->and($provisionPlaygroundsScript)->toContain('composer config repositories.core-panel')
+        ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel:dev-main --no-interaction --prefer-dist')
+        ->and($provisionPlaygroundsScript)->toContain('php artisan core-panel:install')
+        ->and($provisionPlaygroundsScript)->toContain('--install-tenancy="${install_tenancy}"')
+        ->and($provisionPlaygroundsScript)->toContain('npm install')
+        ->and($provisionPlaygroundsScript)->toContain('npm run build')
         ->and($updateTestProjectsScript)->toContain('target="${1:-all}"')
         ->and($updateTestProjectsScript)->toContain('local app_dir="${apps_root}/${playground}"')
         ->and($updateTestProjectsScript)->toContain('php artisan core-panel:update --force --with-addon-updates')
@@ -749,6 +757,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($addonComposer['scripts'])->toHaveKey('analyse')
         ->and($composer['scripts'])->toHaveKeys([
             'analyse',
+            'apps:provision',
             'apps:update',
             'check-style',
             'format',
