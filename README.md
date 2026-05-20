@@ -100,12 +100,19 @@ For local development with a path repository:
 ```bash
 composer create-project laravel/laravel core-panel-app
 cd core-panel-app
-composer config repositories.core-panel '{"type":"path","url":"/home/manue/projects/packages/core-panel","options":{"symlink":true}}'
+composer config repositories.core-panel '{"type":"path","url":"/home/manue/projects/packages/core-panel/packages/core-panel","options":{"symlink":true}}'
 composer require mapo-89/core-panel:dev-main
 php artisan core-panel:install
 ```
 
-If you enable tenancy during install and the addon exists locally under `packages/core-panel-tenancy`, the installer can add the local addon dependency automatically.
+If you are developing from the monorepo and want the addon too, register both path repositories:
+
+```bash
+composer config repositories.core-panel '{"type":"path","url":"/home/manue/projects/packages/core-panel/packages/core-panel","options":{"symlink":true}}'
+composer config repositories.core-panel-tenancy '{"type":"path","url":"/home/manue/projects/packages/core-panel/packages/core-panel-tenancy","options":{"symlink":true}}'
+```
+
+If tenancy is enabled during install and the addon exists as a sibling package, the installer can add the local addon dependency automatically.
 
 Non-interactive example:
 
