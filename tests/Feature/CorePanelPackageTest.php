@@ -697,6 +697,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $prettier = file_get_contents(__DIR__.'/../../stubs/prettier.config.mjs');
     $workflow = file_get_contents(__DIR__.'/../../../../.github/workflows/ci.yml');
     $releaseWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/release.yml');
+    $splitWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/split.yml');
     $addonPhpstanScript = file_get_contents(__DIR__.'/../../../../.github/scripts/addon-phpstan.sh');
     $frontendQualityScript = file_get_contents(__DIR__.'/../../../../.github/scripts/frontend-quality.sh');
     $installSmokeScript = file_get_contents(__DIR__.'/../../../../.github/scripts/install-smoke.sh');
@@ -721,12 +722,27 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($prettier)->toContain('singleQuote: true')
         ->and($workflow)->toContain('name: CI')
         ->and($releaseWorkflow)->toContain('name: Release')
-        ->and($releaseWorkflow)->toContain("RELEASE_COMMIT_PATTERN: '^🚀 Release:'")
-        ->and($releaseWorkflow)->toContain('PREFIX="${YEAR}.${MONTH}."')
-        ->and($releaseWorkflow)->toContain('LAST_TAG="$(git tag -l "${PREFIX}*" | sort -V | tail -n 1)"')
-        ->and($releaseWorkflow)->toContain('if [ "${SHOULD_RELEASE}" = "true" ]; then')
-        ->and($releaseWorkflow)->toContain('RELEASE_COUNTER=$((LAST_COUNTER + 1))')
-        ->and($releaseWorkflow)->toContain('RELEASE_VERSION="${PREFIX}${RELEASE_COUNTER}"')
+        ->and($splitWorkflow)->toContain('name: Split Packages')
+        ->and($splitWorkflow)->toContain('SPLIT_REPO_TOKEN')
+        ->and($splitWorkflow)->toContain('persist-credentials: false')
+        ->and($splitWorkflow)->toContain('PUSH_USER: ${{ github.repository_owner }}')
+        ->and($splitWorkflow)->toContain('mapo-89/core-panel')
+        ->and($splitWorkflow)->toContain('mapo-89/core-panel-tenancy')
+        ->and($splitWorkflow)->toContain('PUSH_URL="https://${PUSH_USER}:${SPLIT_REPO_TOKEN}@github.com/${{ matrix.target_repo }}.git"')
+        ->and($splitWorkflow)->toContain('git ls-remote "${PUSH_URL}" HEAD >/dev/null')
+        ->and($splitWorkflow)->toContain('git subtree split --prefix="${{ matrix.prefix }}"')
+        ->and($splitWorkflow)->toContain('git push "${PUSH_URL}" "split-${{ matrix.package_name }}":main --force')
+        ->and($splitWorkflow)->toContain('git push "${PUSH_URL}" "${RELEASE_TAG}" --force')
+        ->and($releaseWorkflow)->toContain("RELEASE_COMMIT_PATTERN: '^🚀 Release:( major|minor|patch)?$'")
+        ->and($releaseWorkflow)->toContain('default: patch')
+        ->and($releaseWorkflow)->toContain('type: choice')
+        ->and($releaseWorkflow)->toContain('echo "bump_type=${INPUT_BUMP}" >> "$GITHUB_OUTPUT"')
+        ->and($releaseWorkflow)->toContain("BUMP_TYPE=\"\$(printf '%s\\n' \"\$COMMIT_MESSAGE\" | sed -E 's/^🚀 Release:( (major|minor|patch))?\$/\\2/')\"")
+        ->and($releaseWorkflow)->toContain('echo "bump_type=patch" >> "$GITHUB_OUTPUT"')
+        ->and($releaseWorkflow)->toContain('LAST_TAG="$(git tag -l | grep -E')
+        ->and($releaseWorkflow)->toContain('IFS=\'.\' read -r MAJOR MINOR PATCH <<< "${LAST_TAG}"')
+        ->and($releaseWorkflow)->toContain('case "${BUMP_TYPE}" in')
+        ->and($releaseWorkflow)->toContain('RELEASE_VERSION="${MAJOR}.${MINOR}.${PATCH}"')
         ->and($releaseWorkflow)->toContain('SHORT_COMMIT_ID="$(git rev-parse --short HEAD)"')
         ->and($releaseWorkflow)->toContain('php .github/scripts/set-release-version.php "${RELEASE_VERSION}"')
         ->and($releaseWorkflow)->toContain('git commit -m "⚙️ Chore: set version to ${DISPLAY_VERSION}"')
@@ -797,6 +813,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('php artisan route:list --name=tenant.core-panel.users.index --except-vendor')
         ->and($composer['require-dev'])->toHaveKey('larastan/larastan')
         ->and($addonComposer['require-dev'])->toHaveKey('larastan/larastan')
+        ->and($addonComposer['require']['mapo-89/core-panel'])->toBe('^1.0 || dev-main')
         ->and($addonComposer['scripts'])->toHaveKey('analyse')
         ->and($composer['scripts'])->toHaveKeys([
             'analyse',
