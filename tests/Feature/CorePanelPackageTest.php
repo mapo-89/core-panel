@@ -496,9 +496,12 @@ it('ships host application templates as regular files inside the package sources
         $stubSourcePath = __DIR__.'/../../stubs/'.$path;
         $packageSourcePath = __DIR__.'/../../'.$path;
         $packageResourceSourcePath = __DIR__.'/../../resources/'.$path;
+        $workspaceSourcePath = __DIR__.'/../../../../'.$path;
         $sourcePath = file_exists($stubSourcePath)
             ? $stubSourcePath
-            : (file_exists($packageSourcePath) ? $packageSourcePath : $packageResourceSourcePath);
+            : (file_exists($packageSourcePath)
+                ? $packageSourcePath
+                : (file_exists($packageResourceSourcePath) ? $packageResourceSourcePath : $workspaceSourcePath));
 
         expect(file_exists($sourcePath))->toBeTrue();
     }
@@ -515,7 +518,11 @@ it('excludes generated scaffold artifacts from the installable stubs tree', func
 
 it('maps installer templates onto the host application paths by relative path', function (): void {
     expect(ScaffoldsCorePanelStubs::paths())->toContain(
+        '.ai/skills/tenancy-development/SKILL.md',
+        '.agents/skills/changelog-generator/SKILL.md',
+        '.claude/settings.json',
         '.prettierignore',
+        'AGENTS.md',
         '.env.example',
         '.env.testing',
         'app/Actions/Fortify/CreateNewUser.php',
@@ -1294,6 +1301,20 @@ it('merges the scaffold package.json into an existing host package.json', functi
         ->and($packageJson['devDependencies'])->toHaveKey('@vitejs/plugin-vue')
         ->and($packageJson['devDependencies'])->not->toHaveKey('sass')
         ->and(glob($temporaryBasePath.'/.core-panel-backups/*/package.json'))->not->toBe([]);
+});
+
+it('scaffolds ai, agent and claude support files into a host application', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-agent-files-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath, 0777, true);
+
+    app(ScaffoldsCorePanelStubs::class)->scaffold(false, $temporaryBasePath);
+
+    expect(file_exists($temporaryBasePath.'/.ai/skills/tenancy-development/SKILL.md'))->toBeTrue()
+        ->and(file_exists($temporaryBasePath.'/AGENTS.md'))->toBeTrue()
+        ->and(file_exists($temporaryBasePath.'/.agents/skills/changelog-generator/SKILL.md'))->toBeTrue()
+        ->and(file_exists($temporaryBasePath.'/.claude/settings.json'))->toBeTrue()
+        ->and(file_exists($temporaryBasePath.'/.claude/agents/backend-architect.md'))->toBeTrue();
 });
 
 // it('imports the published theme css from the javascript theme target path', function (): void {

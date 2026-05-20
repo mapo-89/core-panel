@@ -22,6 +22,10 @@ final readonly class ScaffoldsCorePanelStubs
         $packageRoutesRoot = realpath(__DIR__.'/../../routes/web');
         $packageResourcesRoot = realpath(__DIR__.'/../../resources/js');
         $packageLanguageRoot = realpath(__DIR__.'/../../resources/lang');
+        $workspaceAiRoot = realpath(__DIR__.'/../../../../.ai');
+        $workspaceAgentsRoot = realpath(__DIR__.'/../../../../.agents');
+        $workspaceClaudeRoot = realpath(__DIR__.'/../../../../.claude');
+        $workspaceAgentsFile = realpath(__DIR__.'/../../../../AGENTS.md');
 
         if ($stubRoot === false) {
             return [];
@@ -41,6 +45,22 @@ final readonly class ScaffoldsCorePanelStubs
 
         if ($packageLanguageRoot !== false) {
             self::appendPathsFromRoot($paths, $packageLanguageRoot, 'lang');
+        }
+
+        if ($workspaceAiRoot !== false) {
+            self::appendPathsFromRoot($paths, $workspaceAiRoot, '.ai');
+        }
+
+        if ($workspaceAgentsRoot !== false) {
+            self::appendPathsFromRoot($paths, $workspaceAgentsRoot, '.agents');
+        }
+
+        if ($workspaceClaudeRoot !== false) {
+            self::appendPathsFromRoot($paths, $workspaceClaudeRoot, '.claude');
+        }
+
+        if ($workspaceAgentsFile !== false) {
+            $paths[] = 'AGENTS.md';
         }
 
         sort($paths);
@@ -117,6 +137,22 @@ final readonly class ScaffoldsCorePanelStubs
 
         if (str_starts_with($relativePath, 'lang/')) {
             return __DIR__.'/../../resources/'.$relativePath;
+        }
+
+        if (str_starts_with($relativePath, '.ai/')) {
+            return __DIR__.'/../../../../'.$relativePath;
+        }
+
+        if ($relativePath === 'AGENTS.md') {
+            return __DIR__.'/../../../../AGENTS.md';
+        }
+
+        if (str_starts_with($relativePath, '.agents/')) {
+            return __DIR__.'/../../../../'.$relativePath;
+        }
+
+        if (str_starts_with($relativePath, '.claude/')) {
+            return __DIR__.'/../../../../'.$relativePath;
         }
 
         return $stubSourcePath;
