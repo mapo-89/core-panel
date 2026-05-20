@@ -1,4 +1,4 @@
-import versionInfo from '../../config/app-version.json'
+import versionInfo from '../../../config/app-version.json'
 
 type VersionInfo = {
     release_version?: string
