@@ -859,9 +859,13 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($generateReleaseNotesScript)->toContain("printf '### %s %s\\n' \"\${SECTION_ICONS[\"Other Changes\"]}\" 'Other Changes'")
         ->and($changelog)->toContain('# Changelog')
         ->and($changelog)->toContain('## [Unreleased]')
-        ->and($composer['version'])->toBe('1.0.0')
-        ->and($addonComposer['version'])->toBe('1.0.0')
-        ->and($addonComposer['require']['mapo-89/core-panel'])->toBe('^1.0 || dev-main')
+        ->and($composer['version'])->toBe($appVersionJson['release_version'])
+        ->and($addonComposer['version'])->toBe($appVersionJson['release_version'])
+        ->and($addonComposer['require']['mapo-89/core-panel'])->toBe(sprintf(
+            '^%s.%s || dev-main',
+            explode('.', $appVersionJson['release_version'])[0],
+            explode('.', $appVersionJson['release_version'])[1],
+        ))
         ->and($setReleaseVersionScript)->toContain("/packages/core-panel/composer.json'")
         ->and($setReleaseVersionScript)->toContain("/packages/core-panel-tenancy/composer.json'")
         ->and($setReleaseVersionScript)->toContain("\$manifest['version'] = \$version;")
@@ -878,6 +882,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($versionSupport)->toContain('export const APP_RELEASE_VERSION')
         ->and($versionSupport)->toContain('export function formatCommitDate')
         ->and($middleware)->toContain('AppVersionRepository::class')
+        ->and($middleware)->toContain('->releaseVersion()')
         ->and($workflow)->toContain('vendor/bin/phpstan analyse')
         ->and($workflow)->toContain('vendor/bin/pint --test')
         ->and($workflow)->toContain('composer test')
@@ -934,7 +939,11 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('php artisan route:list --name=tenant.core-panel.users.index --except-vendor')
         ->and($composer['require-dev'])->toHaveKey('larastan/larastan')
         ->and($addonComposer['require-dev'])->toHaveKey('larastan/larastan')
-        ->and($addonComposer['require']['mapo-89/core-panel'])->toBe('^1.0 || dev-main')
+        ->and($addonComposer['require']['mapo-89/core-panel'])->toBe(sprintf(
+            '^%s.%s || dev-main',
+            explode('.', $appVersionJson['release_version'])[0],
+            explode('.', $appVersionJson['release_version'])[1],
+        ))
         ->and($addonComposer['scripts'])->toHaveKey('analyse')
         ->and($composer['scripts'])->toHaveKeys([
             'analyse',

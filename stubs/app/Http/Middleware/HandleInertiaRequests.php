@@ -51,7 +51,7 @@ final class HandleInertiaRequests extends Middleware
         $logoFormatBadges = $this->formatBadges($logoMimeTypes);
         $users = app(UserModelManager::class);
         $presence = app(PresenceManager::class);
-        $appVersion = app(AppVersionRepository::class)->displayVersion();
+        $appVersion = app(AppVersionRepository::class)->releaseVersion();
         $roleNames = $user === null ? [] : $users->roleNames($user);
         $permissionNames = $users->permissionNames($user);
         $settingsLogo = app(SettingsLogoManager::class);

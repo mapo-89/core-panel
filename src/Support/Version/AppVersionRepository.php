@@ -58,6 +58,11 @@ final readonly class AppVersionRepository
         return $this->current()['display_version'];
     }
 
+    public function releaseVersion(): ?string
+    {
+        return $this->current()['release_version'];
+    }
+
     /**
      * @return list<string>
      */

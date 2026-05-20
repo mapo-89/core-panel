@@ -5,7 +5,7 @@ import { computed, provide, ref } from 'vue'
 import CorePanelLogo from '@/components/CorePanelLogo.vue'
 import { useAdminMenu } from '@/composables/useAdminMenu'
 import SidebarMenuItem from '@/layouts/components/SidebarMenuItem.vue'
-import { APP_VERSION } from '@/support/version'
+import { APP_RELEASE_VERSION } from '@/support/version'
 
 const props = defineProps<{
     collapsed: boolean
@@ -41,7 +41,7 @@ const appDebug = computed(() => page.props.corePanel?.debug === true)
 const appEnvironment = computed(() => page.props.corePanel?.environment ?? null)
 const appIsLocal = computed(() => page.props.corePanel?.isLocal === true)
 const appVersion = computed(() => {
-    return page.props.corePanel?.version ?? APP_VERSION ?? null
+    return page.props.corePanel?.version ?? APP_RELEASE_VERSION ?? null
 })
 const { isGroupOpen, isItemActive, items: menuItems } = useAdminMenu()
 provide('adminMenu', { isGroupOpen, isItemActive })
