@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Translation\Translator;
 use Spatie\Permission\Models\Role;
 
 final class VerifiableLocalizedFakeUser extends Authenticatable implements HasLocalePreference, MustVerifyEmail
@@ -47,6 +48,16 @@ beforeEach(function (): void {
 
     Gate::before(static fn (...$arguments): bool => true);
 });
+
+function useGermanScaffoldJsonTranslations(): void
+{
+    /** @var Translator $translator */
+    $translator = app('translator');
+    $translator->addJsonPath(__DIR__.'/../../stubs/lang');
+    $translator->setLoaded([]);
+    $translator->setLocale('de');
+    config()->set('app.locale', 'de');
+}
 
 it('sends a password reset link for a managed user from the admin area', function (): void {
     Notification::fake();
@@ -87,11 +98,11 @@ it('exposes the user locale as the preferred notification locale', function (): 
 });
 
 it('translates password reset mail content through the scaffold json locale files', function (): void {
-    app('translator')->addJsonPath(__DIR__.'/../../stubs/lang');
-    app()->setLocale('de');
+    useGermanScaffoldJsonTranslations();
 
     $mailMessage = (new ResetPassword('reset-token'))->toMail(new FakeUser([
         'email' => 'target-password-locale@example.test',
+        'locale' => 'de',
     ]));
 
     expect($mailMessage->subject)->toBe('Passwort zurücksetzen')
@@ -107,8 +118,7 @@ it('translates password reset mail content through the scaffold json locale file
 });
 
 it('translates verification mail content through the scaffold json locale files', function (): void {
-    app('translator')->addJsonPath(__DIR__.'/../../stubs/lang');
-    app()->setLocale('de');
+    useGermanScaffoldJsonTranslations();
 
     if (! Route::has('verification.verify')) {
         Route::get('/email/verify/{id}/{hash}', static fn () => 'ok')->name('verification.verify');

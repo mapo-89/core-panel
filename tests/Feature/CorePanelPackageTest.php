@@ -626,7 +626,7 @@ it('ships split user name scaffolding without legacy user name migration fallbac
         ->and($presenceMiddleware)->toContain('use CorePanel\\Support\\Presence\\PresenceManager;')
         ->and($presenceMiddleware)->toContain('private PresenceManager $presence,')
         ->and($presenceMiddleware)->toContain('$this->presence->touch($user);')
-        ->and($stubUser)->toContain('implements HasMedia, MustVerifyEmail')
+        ->and($stubUser)->toContain('implements HasLocalePreference, HasMedia, MustVerifyEmail')
         ->and($stubUser)->toContain('use HasUuids;')
         ->and($stubUser)->toContain('use InteractsWithMedia;')
         ->and($stubUser)->not->toContain('protected function mediaKey(): Attribute')
@@ -702,6 +702,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $tsconfig = json_decode((string) file_get_contents(__DIR__.'/../../stubs/tsconfig.json'), true, 512, JSON_THROW_ON_ERROR);
     $eslint = file_get_contents(__DIR__.'/../../stubs/eslint.config.mjs');
     $prettier = file_get_contents(__DIR__.'/../../stubs/prettier.config.mjs');
+    $coreReadme = file_get_contents(__DIR__.'/../../README.md');
     $workflow = file_get_contents(__DIR__.'/../../../../.github/workflows/ci.yml');
     $releaseWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/release.yml');
     $splitWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/split.yml');
@@ -731,6 +732,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($eslint)->toContain('typescript-eslint')
         ->and($prettier)->toContain('singleQuote: true')
         ->and($workflow)->toContain('name: CI')
+        ->and($coreReadme)->toContain('Read-only split repository')
+        ->and($coreReadme)->toContain('mapo-89/core-panel-monorepo')
         ->and($releaseWorkflow)->toContain('name: Release')
         ->and($splitWorkflow)->toContain('name: Split Packages')
         ->and($updateChangelogWorkflow)->toContain('name: Update Changelog')
@@ -848,6 +851,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('php artisan core-panel:install')
         ->and($installSmokeScript)->toContain('mkdir -p "${repo_root}/apps"')
         ->and($installSmokeScript)->toContain('app_dir="${repo_root}/apps/ci-${variant}"')
+        ->and($installSmokeScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel\\":\\"dev-main\\"}')
         ->and($installSmokeScript)->toContain('install_tenancy="false"')
         ->and($installSmokeScript)->toContain('install_tenancy="true"')
         ->and($installSmokeScript)->toContain('php artisan serve --host=127.0.0.1')
@@ -856,6 +860,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('--header "Host: ${app_host}"')
         ->and($provisionPlaygroundsScript)->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0" --no-scripts --no-interaction --prefer-dist')
         ->and($provisionPlaygroundsScript)->toContain('composer config repositories.core-panel')
+        ->and($provisionPlaygroundsScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel\\":\\"dev-main\\"}')
+        ->and($provisionPlaygroundsScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel-tenancy\\":\\"dev-main\\"}')
         ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel:dev-main --no-interaction --prefer-dist')
         ->and($provisionPlaygroundsScript)->toContain('php artisan core-panel:install')
         ->and($provisionPlaygroundsScript)->toContain('--install-tenancy="${install_tenancy}"')
