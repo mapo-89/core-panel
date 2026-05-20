@@ -223,7 +223,9 @@ it('preloads the active locale before mounting the publishable inertia app', fun
         ->and($contents)->toContain('title: (title) => {')
         ->and($contents)->toContain('document.documentElement.dataset.appName?.trim() || currentAppName')
         ->and($contents)->toContain('async setup({ el, App, props, plugin })')
-        ->and($contents)->toContain('const initialPageProps = props.initialPage.props as Record<string, unknown>')
+        ->and($contents)->toContain('const initialPageProps = props.initialPage.props as Record<')
+        ->and($contents)->toContain('string,')
+        ->and($contents)->toContain('unknown')
         ->and($contents)->toContain('currentAppName = resolveAppName(initialPageProps)')
         ->and($contents)->toContain('const i18nOptions = {')
         ->and($contents)->toContain('await I18n.getSharedInstance(i18nOptions).loadLanguageAsync(')
@@ -419,11 +421,11 @@ it('renders the publishable logs page with the vertical side-tab layout', functi
         ->and($contents)->toContain(":subtitle=\"trans('page-logs.description')\"")
         ->and($contents)->not->toContain('<header class="cp-section__header">')
         ->and($contents)->not->toContain('<section class="cp-section">')
-        ->and($contents)->toContain('<div class="cp-log-management">')
+        ->and($contents)->toContain("panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded'")
         ->and($contents)->toContain("panelSurfaceVariant: 'card'")
         ->and($contents)->toContain('class="cp-side-tabs"')
         ->and($contents)->toContain('layout="vertical"')
-        ->and($tabsTheme)->toContain('.cp-log-management .cp-side-tabs__panel-surface {');
+        ->and($tabsTheme)->toContain('.cp-side-tabs__panel-surface--unpadded {');
 });
 
 it('registers the primevue bootstrap and services in the publishable app entry', function (): void {
@@ -2852,7 +2854,7 @@ it('ships a dedicated developer workspace with route inspection and swagger-back
         ->and($page)->toContain("icon: 'globe'")
         ->and($page)->toContain("icon: 'bolt'")
         ->and($page)->toContain("panelSurfaceVariant: 'card'")
-        ->and($page)->toContain('<div class="cp-route-management">')
+        ->and($page)->toContain("panelSurfaceClass: 'cp-side-tabs__panel-surface--unpadded'")
         ->and($page)->not->toContain("label: 'page-developer.tabs.docs'")
         ->and($routeTab)->toContain("meta: { labelKey: 'page-developer.columns.method' }")
         ->and($routeTab)->toContain('<div class="cp-section__header">')
@@ -2877,7 +2879,7 @@ it('ships a dedicated developer workspace with route inspection and swagger-back
         ->and($openApiUsers)->toContain("path: '/api/v1/users'")
         ->and($openApiUsers)->toContain("path: '/api/v1/users/{user}'")
         ->and($openApiInfo)->not->toContain('#[OA\\PathItem(path: \'/\')]')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_tabs.css'))->toContain('.cp-route-management .cp-side-tabs__panel-surface {')
+        ->and(file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_tabs.css'))->toContain('.cp-side-tabs__panel-surface--unpadded {')
         ->and($composer)->toContain('"darkaonline/l5-swagger": "^11.0"');
 });
 

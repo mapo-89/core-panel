@@ -38,7 +38,10 @@ createInertiaApp({
     },
     async setup({ el, App, props, plugin }) {
         const app = createApp({ render: () => h(App, props) })
-        const initialPageProps = props.initialPage.props as Record<string, unknown>
+        const initialPageProps = props.initialPage.props as Record<
+            string,
+            unknown
+        >
         currentAppName = resolveAppName(initialPageProps)
         const locale = (props.initialPage.props as Record<string, unknown>)
             .locale as
