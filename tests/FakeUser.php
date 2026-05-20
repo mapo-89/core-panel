@@ -6,13 +6,14 @@ namespace CorePanel\Tests;
 
 use CorePanel\Support\Presence\PresenceManager;
 use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-final class FakeUser extends Authenticatable
+final class FakeUser extends Authenticatable implements HasLocalePreference
 {
     use CanResetPassword;
     use HasApiTokens;
@@ -54,6 +55,13 @@ final class FakeUser extends Authenticatable
     public function requiresPasswordSetup(): bool
     {
         return (bool) ($this->getAttribute('requires_password_setup') ?? false);
+    }
+
+    public function preferredLocale(): ?string
+    {
+        $locale = $this->getAttribute('locale');
+
+        return is_string($locale) && $locale !== '' ? $locale : null;
     }
 
     public function supportsCorePanelStatus(): bool

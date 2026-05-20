@@ -33,6 +33,7 @@ final class CreateNewUser implements CreatesNewUsers
             'first_name' => $input['first_name'],
             'last_name' => $input['last_name'],
             'email' => $input['email'],
+            'locale' => app()->getLocale(),
             'password' => Hash::make((string) $input['password']),
         ]);
     }

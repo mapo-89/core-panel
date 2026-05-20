@@ -7,6 +7,7 @@ namespace App\Models;
 use CorePanel\Models\SocialAccount;
 use CorePanel\Support\Presence\PresenceManager;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,7 +23,7 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
 
-final class User extends Authenticatable implements HasMedia, MustVerifyEmail
+final class User extends Authenticatable implements HasLocalePreference, HasMedia, MustVerifyEmail
 {
     public const STATUS_ACTIVE = 'active';
 
@@ -121,6 +122,13 @@ final class User extends Authenticatable implements HasMedia, MustVerifyEmail
     public function requiresPasswordSetup(): bool
     {
         return (bool) ($this->getAttribute('requires_password_setup') ?? false);
+    }
+
+    public function preferredLocale(): ?string
+    {
+        $locale = $this->getAttribute('locale');
+
+        return is_string($locale) && $locale !== '' ? $locale : null;
     }
 
     public function oauthApps(): mixed
