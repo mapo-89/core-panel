@@ -72,6 +72,32 @@ This project has domain-specific skills available. You MUST activate the relevan
 - Stick to existing directory structure; don't create new base folders without approval.
 - Do not change the application's dependencies without approval.
 
+It is a DDD-style organization centered around domains instead of controllers.
+
+### Goal
+
+The main goal is to keep business rules out of large controllers and move them into predictable domain folders.
+Inside a domain you will usually see these layers:
+
+- Actions for write operations and use-case orchestration
+- DTOs for carrying validated data
+- Queries for list and datatable query logic
+- Events for domain events
+- Listeners for side effects such as logging
+- Repositories or Contracts when the domain needs abstraction
+
+### Request Flow
+
+Typical flow:
+
+- Controller receives the request.
+- Form Request validates it.
+- DTO normalizes the payload.
+- Action performs the business operation.
+- Event is fired if side effects are needed.
+- Listener reacts without bloating the controller.
+- Response returns through to_api() or an Inertia redirect.
+
 ## Frontend Bundling
 
 - If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
@@ -200,7 +226,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 - When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
 - Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
 - When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
-- In this project, always run automated tests in the `app-test` container via `docker compose -f docker-compose.dev.yml exec app-test ...`, never in the `app` container, so the developer database in the dev container is not reset.
+- In this project, run automated tests locally with the project PHP/Pest commands, not in Docker containers. Use `php artisan test --compact`, `php artisan test --compact --filter=...`, or `vendor/bin/pest --compact ...` as appropriate. If local test execution needs access outside the sandbox, request escalation and run it outside the sandbox.
 
 ## Vite Error
 

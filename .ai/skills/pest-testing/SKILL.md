@@ -38,12 +38,14 @@ it('is true', function () {
 ### Running Tests
 
 - Run all tests:
-  `docker compose -f docker-compose.dev.yml exec app-test php artisan test --compact`
+  `php artisan test --compact`
 - Run one file:
-  `docker compose -f docker-compose.dev.yml exec app-test php artisan test --compact tests/Feature/ExampleTest.php`
+  `php artisan test --compact tests/Feature/ExampleTest.php`
 - Run with a filter:
-  `docker compose -f docker-compose.dev.yml exec app-test php artisan test --compact --filter=testName`
-
+  `php artisan test --compact --filter=testName`
+- In package workspace tests, use the local package binary when it is more direct:
+  `vendor/bin/pest --compact packages/core-panel/tests packages/core-panel-tenancy/tests`
+- Do not run tests in Docker containers for this project. If local test execution is blocked by sandbox restrictions, request escalation and rerun the local command outside the sandbox.
 
 ## Assertions
 
