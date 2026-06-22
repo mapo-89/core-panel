@@ -7,14 +7,18 @@ use CorePanel\Http\Requests\ResolveSocialiteConflictRequest;
 use CorePanel\Models\SocialAccount;
 use CorePanel\Support\Presence\PresenceManager;
 use CorePanel\Support\Settings\SettingsRepository;
+use CorePanel\Support\Socialite\SocialAccountStore;
 use CorePanel\Tests\FakeUser;
 use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Foundation\Auth\User as AuthenticatableUser;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Laravel\Passport\HasApiTokens;
 use Laravel\Socialite\Contracts\Factory as SocialiteFactoryContract;
 use Laravel\Socialite\Two\User as SocialiteUser;
@@ -1234,4 +1238,76 @@ it('switches to the matching existing user when the master provider email alread
             ->where('user_id', (string) $existingUser->getKey())
             ->exists(),
     )->toBeTrue();
+});
+
+it('removes a broken microsoft connection and redirects back to login with a reconnect hint', function (): void {
+    app(SettingsRepository::class)->set('auth', 'social_master_provider', 'microsoft', 'text', false);
+
+    $user = FakeUser::query()->create([
+        'email' => 'broken@example.test',
+        'email_verified_at' => now(),
+        'first_name' => 'Broken',
+        'last_name' => 'Account',
+        'password' => Hash::make('secret-password'),
+        'status' => 'active',
+    ]);
+
+    collect(range(1, 1001))
+        ->map(fn (int $index): array => [
+            'id' => (string) Str::uuid(),
+            'user_id' => (string) $user->getKey(),
+            'provider' => 'microsoft',
+            'provider_user_id' => $index === 1 ? 'broken-provider-user-id' : 'broken-provider-user-id-'.$index,
+            'provider_email' => 'broken@example.test',
+            'token_encrypted' => 'broken-token',
+            'refresh_token_encrypted' => 'broken-refresh-token',
+            'expires_at' => now()->addHour(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ])
+        ->chunk(250)
+        ->each(fn ($accounts): bool => DB::table('social_accounts')->insert($accounts->all()));
+
+    app()->instance(SocialAccountStore::class, new class extends SocialAccountStore
+    {
+        public function findByProviderUser(string $provider, string $providerUserId): ?SocialAccount
+        {
+            throw new DecryptException('The MAC is invalid.');
+        }
+    });
+
+    app()->instance(SocialiteFactoryContract::class, new class((new SocialiteUser)->map(['avatar' => null, 'email' => 'broken@example.test', 'id' => 'broken-provider-user-id', 'name' => 'Broken Account'])) implements SocialiteFactoryContract
+    {
+        public function __construct(private readonly SocialiteUser $user) {}
+
+        public function driver($driver = null)
+        {
+            return new class($this->user)
+            {
+                public function __construct(private readonly SocialiteUser $user) {}
+
+                public function user(): SocialiteUser
+                {
+                    return $this->user;
+                }
+            };
+        }
+    });
+
+    $session = app('session.store');
+    $session->start();
+
+    $request = Request::create(route('socialite.callback', ['provider' => 'microsoft']), 'GET');
+    $request->setLaravelSession($session);
+
+    $response = app(SocialiteCallbackController::class)->__invoke($request, 'microsoft');
+
+    expect($response->getTargetUrl())->toBe(url('/login'))
+        ->and($session->get('errors')->first('socialite'))
+        ->toBe(__('core-panel::page-settings.microsoft_reconnect_required'))
+        ->and(
+            SocialAccount::query()
+                ->where('provider', 'microsoft')
+                ->count(),
+        )->toBe(0);
 });

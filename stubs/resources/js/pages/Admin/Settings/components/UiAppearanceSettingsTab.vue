@@ -217,7 +217,7 @@ const paletteOptions: Array<{
             sidebar: '#ffffff',
             text: 'rgba(15, 23, 42, 0.12)',
         },
-        titleKey: 'core-panel::settings.options.theme_palette.paper',
+        titleKey: 'settings.options.theme_palette.paper',
     },
     {
         dark: {
@@ -236,7 +236,7 @@ const paletteOptions: Array<{
             sidebar: '#efe3d1',
             text: 'rgba(120, 90, 58, 0.18)',
         },
-        titleKey: 'core-panel::settings.options.theme_palette.soft',
+        titleKey: 'settings.options.theme_palette.soft',
     },
     {
         dark: {
@@ -255,7 +255,7 @@ const paletteOptions: Array<{
             sidebar: '#d8eef8',
             text: 'rgba(10, 91, 126, 0.16)',
         },
-        titleKey: 'core-panel::settings.options.theme_palette.ocean',
+        titleKey: 'settings.options.theme_palette.ocean',
     },
     {
         dark: {
@@ -274,7 +274,7 @@ const paletteOptions: Array<{
             sidebar: '#dce3ec',
             text: 'rgba(15, 23, 42, 0.18)',
         },
-        titleKey: 'core-panel::settings.options.theme_palette.contrast',
+        titleKey: 'settings.options.theme_palette.contrast',
     },
 ]
 

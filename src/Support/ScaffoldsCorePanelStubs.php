@@ -35,6 +35,7 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/layouts/components/AppHeader.vue',
         'resources/js/pages/Admin/Forms/Preview.vue',
         'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
+        'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',
         'resources/js/pages/Admin/Users/Index.vue',
         'resources/js/pages/Admin/Users/components/UserFormFields.vue',
         'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
@@ -152,7 +153,7 @@ final readonly class ScaffoldsCorePanelStubs
             }
 
             if (! $force && $destinationExists && ! $this->shouldAlwaysSynchronize($relativePath)) {
-                if ($onlyManagedChanges && $this->shouldSynchronizeVersionedScaffold($relativePath, $currentVersion, $installedVersion)) {
+                if ($onlyManagedChanges && $this->shouldSynchronizeVersionedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
                     $this->synchronizeVersionedScaffold($relativePath, $sourcePath, $destinationPath, $root);
 
                     continue;
@@ -502,7 +503,7 @@ final readonly class ScaffoldsCorePanelStubs
         ?string $currentVersion,
         ?string $installedVersion,
     ): bool {
-        if ($this->shouldSynchronizeVersionedScaffold($relativePath, $currentVersion, $installedVersion)) {
+        if ($this->shouldSynchronizeVersionedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
             return true;
         }
 
@@ -525,11 +526,12 @@ final readonly class ScaffoldsCorePanelStubs
         ?string $installedVersion,
     ): bool {
         return $this->hasScaffoldBaseline($relativePath, $root)
-            || $this->shouldSynchronizeVersionedScaffold($relativePath, $currentVersion, $installedVersion);
+            || $this->shouldSynchronizeVersionedScaffold($relativePath, $root, $currentVersion, $installedVersion);
     }
 
     private function shouldSynchronizeVersionedScaffold(
         string $relativePath,
+        string $root,
         ?string $currentVersion,
         ?string $installedVersion,
     ): bool {
@@ -541,7 +543,13 @@ final readonly class ScaffoldsCorePanelStubs
             return false;
         }
 
-        return $installedVersion === null || $installedVersion === '' || $installedVersion !== $currentVersion;
+        if ($installedVersion === null || $installedVersion === '' || $installedVersion !== $currentVersion) {
+            return true;
+        }
+
+        $manifestEntry = $this->readScaffoldManifestFiles($root)[$relativePath] ?? null;
+
+        return ! is_array($manifestEntry) || ($manifestEntry['package_version'] ?? null) !== $currentVersion;
     }
 
     private function installedScaffoldPackageVersion(string $root): ?string

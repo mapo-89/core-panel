@@ -15,6 +15,7 @@ use CorePanel\Support\Socialite\SocialiteProviderRegistry;
 use CorePanel\Support\Socialite\SocialUserManager;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,10 +76,18 @@ final class SocialiteCallbackController extends Controller
         }
 
         if ($this->providers->isMasterProvider($provider, true)) {
-            return $this->startMasterProviderLogin($request, $provider, $providerUser);
+            try {
+                return $this->startMasterProviderLogin($request, $provider, $providerUser);
+            } catch (DecryptException $exception) {
+                return $this->handleBrokenMicrosoftConnectionDuringAuthentication($request, $provider, $exception);
+            }
         }
 
-        return $this->loginWithSocialAccount($request, $provider, $providerUser);
+        try {
+            return $this->loginWithSocialAccount($request, $provider, $providerUser);
+        } catch (DecryptException $exception) {
+            return $this->handleBrokenMicrosoftConnectionDuringAuthentication($request, $provider, $exception);
+        }
     }
 
     public function showConflict(Request $request, string $provider): Response|RedirectResponse
@@ -1225,6 +1235,49 @@ final class SocialiteCallbackController extends Controller
     private function redirectToConnections(): RedirectResponse
     {
         return redirect()->route($this->tenantAwareRouteName('profile.show'), ['tab' => 'connections']);
+    }
+
+    private function handleBrokenMicrosoftConnectionDuringAuthentication(
+        Request $request,
+        string $provider,
+        DecryptException $exception,
+    ): RedirectResponse {
+        if ($provider === 'microsoft') {
+            $this->purgeBrokenMicrosoftAccounts();
+
+            Log::warning('Microsoft sign-in failed because a stored social account token could not be decrypted.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            return $this->redirectToLogin()
+                ->withErrors([
+                    'socialite' => __('core-panel::page-settings.microsoft_reconnect_required'),
+                ]);
+        }
+
+        throw $exception;
+    }
+
+    private function purgeBrokenMicrosoftAccounts(): void
+    {
+        SocialAccount::query()
+            ->where('provider', 'microsoft')
+            ->lazyById(column: 'id')
+            ->each(function (SocialAccount $account): void {
+                try {
+                    $account->getAttribute('token_encrypted');
+                    $account->getAttribute('refresh_token_encrypted');
+                } catch (DecryptException $exception) {
+                    $deleted = $account->delete();
+
+                    Log::warning('Broken Microsoft social account was removed during social login cleanup.', [
+                        'deleted' => $deleted,
+                        'social_account_id' => (string) $account->getKey(),
+                        'user_id' => (string) $account->getAttribute('user_id'),
+                        'message' => $exception->getMessage(),
+                    ]);
+                }
+            });
     }
 
     private function tenantAwareRouteName(string $routeName): string

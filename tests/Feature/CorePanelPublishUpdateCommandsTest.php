@@ -14,23 +14,38 @@ function readManifest(string $basePath): string
 
 function seedScaffoldManifest(string $basePath, string $relativePath, string $contents, string $packageVersion = '1.0.0'): void
 {
-    $sourceHash = hash('sha256', $contents);
-    $snapshotPath = 'storage/app/core-panel/scaffolds/'.$sourceHash;
+    seedScaffoldManifestFiles($basePath, [$relativePath => $contents], $packageVersion);
+}
 
-    mkdir(dirname($basePath.'/'.$snapshotPath), 0777, true);
-    file_put_contents($basePath.'/'.$snapshotPath, $contents);
+/**
+ * @param  array<string, string>  $files
+ */
+function seedScaffoldManifestFiles(string $basePath, array $files, string $packageVersion = '1.0.0'): void
+{
+    $manifestFiles = [];
+
+    foreach ($files as $relativePath => $contents) {
+        $sourceHash = hash('sha256', $contents);
+        $snapshotPath = 'storage/app/core-panel/scaffolds/'.$sourceHash;
+
+        if (! is_dir(dirname($basePath.'/'.$snapshotPath))) {
+            mkdir(dirname($basePath.'/'.$snapshotPath), 0777, true);
+        }
+        file_put_contents($basePath.'/'.$snapshotPath, $contents);
+
+        $manifestFiles[$relativePath] = [
+            'destination_hash' => $sourceHash,
+            'package_version' => $packageVersion,
+            'snapshot' => $snapshotPath,
+            'source_hash' => $sourceHash,
+        ];
+    }
+
     file_put_contents($basePath.'/storage/app/core-panel/scaffolds.json', json_encode([
         '_meta' => [
             'package_version' => $packageVersion,
         ],
-        'files' => [
-            $relativePath => [
-                'destination_hash' => $sourceHash,
-                'package_version' => $packageVersion,
-                'snapshot' => $snapshotPath,
-                'source_hash' => $sourceHash,
-            ],
-        ],
+        'files' => $manifestFiles,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
 }
 
@@ -67,6 +82,7 @@ function versionedUpdateScaffoldPaths(): array
         'resources/js/layouts/components/AppHeader.vue',
         'resources/js/pages/Admin/Forms/Preview.vue',
         'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
+        'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',
         'resources/js/pages/Admin/Users/Index.vue',
         'resources/js/pages/Admin/Users/components/UserFormFields.vue',
         'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
@@ -335,8 +351,8 @@ it('creates explicitly versioned missing application scaffolds during updates', 
     }
 });
 
-it('does not create explicitly versioned missing application scaffolds when the package version is unchanged', function (): void {
-    $basePath = makePublishBasePath('missing-versioned-scaffold-same-version');
+it('creates explicitly versioned missing application scaffolds without per-file current manifest entries', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-scaffold-no-file-entry');
     $managedContents = "<?php\n\n// current managed console scaffold\n";
 
     seedScaffoldManifest($basePath, 'routes/console.php', $managedContents, currentCorePanelPackageVersion());
@@ -347,7 +363,7 @@ it('does not create explicitly versioned missing application scaffolds when the 
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
         expect(file_exists($basePath.'/'.$relativePath))
-            ->toBeFalse("Expected {$relativePath} to stay missing when the package version is unchanged.");
+            ->toBeTrue("Expected {$relativePath} to be created when it has no current scaffold manifest entry.");
     }
 });
 
@@ -368,44 +384,39 @@ it('updates explicitly versioned existing application scaffolds without a previo
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
         $target = $basePath.'/'.$relativePath;
 
         expect(file_get_contents($target))
             ->not->toContain("old versioned scaffold: {$relativePath}")
             ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))
-            ->not->toBeEmpty("Expected {$relativePath} to be backed up before update.");
+            ->not->toBeEmpty("Expected {$relativePath} to be backed up before update.")
+            ->and($manifest['files'][$relativePath] ?? null)
+            ->toBeArray("Expected {$relativePath} to be recorded in the scaffold manifest.");
     }
 });
 
-it('does not update explicitly versioned existing application scaffolds when the package version is unchanged', function (): void {
-    $basePath = makePublishBasePath('existing-versioned-scaffold-same-version');
-    $managedContents = "<?php\n\n// current managed console scaffold\n";
+it('does not create extra backups for current versioned scaffolds that are already up to date', function (): void {
+    $basePath = makePublishBasePath('current-versioned-scaffold-repeat');
 
-    seedScaffoldManifest($basePath, 'routes/console.php', $managedContents, currentCorePanelPackageVersion());
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
 
-    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
-        $target = $basePath.'/'.$relativePath;
-
-        if (! is_dir(dirname($target))) {
-            mkdir(dirname($target), 0777, true);
-        }
-
-        file_put_contents($target, "local same-version scaffold: {$relativePath}\n");
-    }
+    $manifest = (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json');
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
-        $target = $basePath.'/'.$relativePath;
-
-        expect(file_get_contents($target))
-            ->toContain("local same-version scaffold: {$relativePath}")
-            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))
+        expect(glob($basePath.'/.core-panel-backups/*/'.$relativePath))
             ->toBeEmpty("Expected {$relativePath} not to be backed up when the package version is unchanged.");
     }
+
+    expect((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toBe($manifest);
 });
 
 it('synchronizes missing environment defaults during update', function (): void {

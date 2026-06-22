@@ -2560,6 +2560,8 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and($settingsGroupPanel)->toContain(':disabled="form.processing || !form.isDirty"')
         ->and($uiAppearanceSettings)->toContain('styleForm.defaults()')
         ->and($uiAppearanceSettings)->toContain(':disabled="styleForm.processing || !styleForm.isDirty"')
+        ->and($uiAppearanceSettings)->toContain("titleKey: 'settings.options.theme_palette.paper'")
+        ->and($uiAppearanceSettings)->not->toContain('core-panel::settings.options.theme_palette')
         ->and($generalSettings)->toContain('async function handleLogoDrop(event: DragEvent): Promise<void>')
         ->and($generalSettings)->toContain('@drop.prevent="handleLogoDrop"')
         ->and($generalSettings)->toContain(":class=\"{ 'is-drag-active': logoDragActive }\"")
