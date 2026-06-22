@@ -12,7 +12,7 @@ function readManifest(string $basePath): string
     return file_get_contents($basePath.'/storage/app/core-panel/published.json') ?: '';
 }
 
-function seedScaffoldManifest(string $basePath, string $relativePath, string $contents): void
+function seedScaffoldManifest(string $basePath, string $relativePath, string $contents, string $packageVersion = '1.0.0'): void
 {
     $sourceHash = hash('sha256', $contents);
     $snapshotPath = 'storage/app/core-panel/scaffolds/'.$sourceHash;
@@ -21,17 +21,58 @@ function seedScaffoldManifest(string $basePath, string $relativePath, string $co
     file_put_contents($basePath.'/'.$snapshotPath, $contents);
     file_put_contents($basePath.'/storage/app/core-panel/scaffolds.json', json_encode([
         '_meta' => [
-            'package_version' => '1.0.0',
+            'package_version' => $packageVersion,
         ],
         'files' => [
             $relativePath => [
                 'destination_hash' => $sourceHash,
-                'package_version' => '1.0.0',
+                'package_version' => $packageVersion,
                 'snapshot' => $snapshotPath,
                 'source_hash' => $sourceHash,
             ],
         ],
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+}
+
+function currentCorePanelPackageVersion(): string
+{
+    $contents = file_get_contents(__DIR__.'/../../config/app-version.json');
+    $decoded = json_decode((string) $contents, true, 512, JSON_THROW_ON_ERROR);
+
+    expect($decoded)->toBeArray()
+        ->and($decoded['release_version'] ?? null)->toBeString();
+
+    return $decoded['release_version'];
+}
+
+/**
+ * @return list<string>
+ */
+function versionedUpdateScaffoldPaths(): array
+{
+    return [
+        'lang/de/page-user-groups.php',
+        'lang/en/page-user-groups.php',
+        'resources/css/theme/_datatable.css',
+        'resources/js/components/AppIcon.vue',
+        'resources/js/components/AvatarUploadDropzone.vue',
+        'resources/js/components/BadgeRenderer.vue',
+        'resources/js/components/TableBuilder/DataTable.vue',
+        'resources/js/components/TableBuilder/TableFilterDropdown.vue',
+        'resources/js/components/TableBuilder/TableFilters.vue',
+        'resources/js/components/TableBuilder/useDataTable.ts',
+        'resources/js/components/UserAvatar.vue',
+        'resources/js/components/ui/BadgeRenderer.vue',
+        'resources/js/components/ui/UserAvatar.vue',
+        'resources/js/layouts/components/AppHeader.vue',
+        'resources/js/pages/Admin/Forms/Preview.vue',
+        'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
+        'resources/js/pages/Admin/Users/Index.vue',
+        'resources/js/pages/Admin/Users/components/UserFormFields.vue',
+        'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
+        'resources/js/pages/Admin/Users/components/UserOverviewTab.vue',
+        'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
+    ];
 }
 
 it('publishes a single config tag', function (): void {
@@ -123,7 +164,7 @@ it('creates a backup before force updates overwrite local files', function (): v
 
 it('does not overwrite application scaffolds during force updates', function (): void {
     $basePath = makePublishBasePath('force-scaffold-preserve');
-    $target = $basePath.'/resources/js/pages/Admin/Users/Index.vue';
+    $target = $basePath.'/resources/js/pages/Admin/Settings/Index.vue';
 
     mkdir(dirname($target), 0777, true);
     file_put_contents($target, "<script setup lang=\"ts\">\nconst customized = true\n</script>\n");
@@ -253,7 +294,7 @@ it('does not create missing application scaffolds during updates without a previ
 it('does not create unlisted missing application scaffolds just because another scaffold has an old baseline', function (): void {
     $basePath = makePublishBasePath('missing-unlisted-scaffold-with-baseline');
     $managedContents = "<?php\n\n// old managed console scaffold\n";
-    $unlistedTarget = $basePath.'/resources/js/pages/Admin/Users/components/UserOverviewTab.vue';
+    $unlistedTarget = $basePath.'/resources/js/pages/Admin/Settings/Index.vue';
 
     seedScaffoldManifest($basePath, 'routes/console.php', $managedContents);
 
@@ -281,8 +322,6 @@ it('restores missing manifest-managed application scaffolds during updates', fun
 
 it('creates explicitly versioned missing application scaffolds during updates', function (): void {
     $basePath = makePublishBasePath('missing-versioned-scaffold');
-    $userGroupsTab = $basePath.'/resources/js/pages/Admin/Users/components/UserGroupsTab.vue';
-    $usersTableTab = $basePath.'/resources/js/pages/Admin/Users/components/UsersTableTab.vue';
 
     mkdir($basePath, 0777, true);
 
@@ -290,27 +329,83 @@ it('creates explicitly versioned missing application scaffolds during updates', 
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($userGroupsTab))->toBeTrue()
-        ->and(file_exists($usersTableTab))->toBeTrue();
+    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        expect(file_exists($basePath.'/'.$relativePath))
+            ->toBeTrue("Expected {$relativePath} to be created during managed-only updates.");
+    }
 });
 
-it('updates explicitly versioned existing application scaffolds without a previous baseline', function (): void {
-    $basePath = makePublishBasePath('existing-versioned-scaffold');
-    $userGroupsTab = $basePath.'/resources/js/pages/Admin/Users/components/UserGroupsTab.vue';
-    $usersTableTab = $basePath.'/resources/js/pages/Admin/Users/components/UsersTableTab.vue';
+it('does not create explicitly versioned missing application scaffolds when the package version is unchanged', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-scaffold-same-version');
+    $managedContents = "<?php\n\n// current managed console scaffold\n";
 
-    mkdir(dirname($userGroupsTab), 0777, true);
-    file_put_contents($userGroupsTab, "<template>\n    <div>old groups</div>\n</template>\n");
-    file_put_contents($usersTableTab, "<template>\n    <div>old table</div>\n</template>\n");
+    seedScaffoldManifest($basePath, 'routes/console.php', $managedContents, currentCorePanelPackageVersion());
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_get_contents($userGroupsTab))->not->toContain('old groups')
-        ->and(file_get_contents($usersTableTab))->not->toContain('old table')
-        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Users/components/UserGroupsTab.vue'))->not->toBeEmpty()
-        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Users/components/UsersTableTab.vue'))->not->toBeEmpty();
+    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        expect(file_exists($basePath.'/'.$relativePath))
+            ->toBeFalse("Expected {$relativePath} to stay missing when the package version is unchanged.");
+    }
+});
+
+it('updates explicitly versioned existing application scaffolds without a previous baseline', function (): void {
+    $basePath = makePublishBasePath('existing-versioned-scaffold');
+
+    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, "old versioned scaffold: {$relativePath}\n");
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        $target = $basePath.'/'.$relativePath;
+
+        expect(file_get_contents($target))
+            ->not->toContain("old versioned scaffold: {$relativePath}")
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))
+            ->not->toBeEmpty("Expected {$relativePath} to be backed up before update.");
+    }
+});
+
+it('does not update explicitly versioned existing application scaffolds when the package version is unchanged', function (): void {
+    $basePath = makePublishBasePath('existing-versioned-scaffold-same-version');
+    $managedContents = "<?php\n\n// current managed console scaffold\n";
+
+    seedScaffoldManifest($basePath, 'routes/console.php', $managedContents, currentCorePanelPackageVersion());
+
+    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, "local same-version scaffold: {$relativePath}\n");
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        $target = $basePath.'/'.$relativePath;
+
+        expect(file_get_contents($target))
+            ->toContain("local same-version scaffold: {$relativePath}")
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))
+            ->toBeEmpty("Expected {$relativePath} not to be backed up when the package version is unchanged.");
+    }
 });
 
 it('synchronizes missing environment defaults during update', function (): void {

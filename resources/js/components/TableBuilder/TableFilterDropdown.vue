@@ -21,6 +21,10 @@ const hasFilters = computed(() => props.schema.length > 0)
 function toggleMenu(event: Event): void {
     menu.value?.toggle(event)
 }
+
+function forwardChange(key: string, value: unknown): void {
+    emit('change', key, value)
+}
 </script>
 
 <template>
@@ -36,13 +40,20 @@ function toggleMenu(event: Event): void {
             <span>{{ $t('table-builder.labels.filters') }}</span>
         </Button>
 
-        <Menu ref="menu" :model="[]" popup class="cp-datatable-filter__menu">
+        <Menu
+            ref="menu"
+            :model="[]"
+            popup
+            class="cp-datatable-filter__menu cp-users-tab__filter-menu"
+        >
             <template #start>
-                <div class="cp-datatable-filter__content">
+                <div
+                    class="cp-datatable-filter__content cp-users-tab__filter-content"
+                >
                     <TableFilters
                         :filters="filters"
                         :schema="schema"
-                        @change="emit('change', $event[0], $event[1])"
+                        @change="forwardChange"
                     />
                 </div>
             </template>

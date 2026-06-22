@@ -32,7 +32,9 @@ function normalizeUrl(url: string): string {
         return window.location.pathname
     }
 
-    return url.startsWith('/') ? url : `/${url}`
+    const [path = ''] = url.split('?')
+
+    return path.startsWith('/') ? path : `/${path}`
 }
 
 function currentTab(url: string): string | undefined {
@@ -83,13 +85,52 @@ export function useDataTable(
     )
     const bulkActions = computed(() => schema.bulkActions)
 
+    function isEmptyFilterValue(value: unknown): boolean {
+        if (value === null || value === undefined || value === '') {
+            return true
+        }
+
+        if (Array.isArray(value)) {
+            return (
+                value.length === 0 ||
+                value.every((entry) => isEmptyFilterValue(entry))
+            )
+        }
+
+        if (typeof value === 'object') {
+            const entries = Object.values(value as Record<string, unknown>)
+
+            return (
+                entries.length === 0 ||
+                entries.every((entry) => isEmptyFilterValue(entry))
+            )
+        }
+
+        return false
+    }
+
+    function normalizeFiltersRecord(
+        nextFilters: Record<string, unknown>,
+    ): Record<string, unknown> {
+        return Object.fromEntries(
+            Object.entries(nextFilters).filter(
+                ([, value]) => !isEmptyFilterValue(value),
+            ),
+        )
+    }
+
     function syncQuery(overrides: Partial<DataTableState> = {}): void {
         const nextState: DataTableState = {
-            filters: { ...filters.value, ...(overrides.filters ?? {}) },
+            filters: normalizeFiltersRecord({
+                ...filters.value,
+                ...(overrides.filters ?? {}),
+            }),
             search: overrides.search ?? search.value,
             sort: overrides.sort ?? sort.value,
             visibleColumns: overrides.visibleColumns ?? visibleColumns.value,
         }
+
+        filters.value = nextState.filters
 
         isLoading.value = true
 
@@ -119,13 +160,23 @@ export function useDataTable(
     }
 
     function setFilter(key: string, value: unknown): void {
-        filters.value = {
+        const nextFilters = {
             ...filters.value,
             [key]: value,
         }
 
+        filters.value = normalizeFiltersRecord(nextFilters)
+
         syncQuery({
             filters: filters.value,
+        })
+    }
+
+    function resetFilters(): void {
+        filters.value = {}
+
+        syncQuery({
+            filters: {},
         })
     }
 
@@ -290,6 +341,7 @@ export function useDataTable(
         filters,
         isLoading,
         rowActions,
+        resetFilters,
         search,
         selectedRows,
         setFilter,

@@ -560,7 +560,7 @@ it('ships host application templates as regular files inside the package sources
 it('keeps ai, agent and claude support files inside the core package tree', function (): void {
     expect(file_exists(__DIR__.'/../../.ai/skills/tenancy-development/SKILL.md'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../.agents/skills/changelog-generator/SKILL.md'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../.claude/settings.json'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../.claude/settings.json'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../AGENTS.md'))->toBeTrue();
 });
 
@@ -600,7 +600,6 @@ it('maps installer templates onto the host application paths by relative path', 
     expect(ScaffoldsCorePanelStubs::paths())->toContain(
         '.ai/skills/tenancy-development/SKILL.md',
         '.agents/skills/changelog-generator/SKILL.md',
-        '.claude/settings.json',
         '.gitignore',
         '.prettierignore',
         'AGENTS.md',
@@ -1509,7 +1508,7 @@ it('scaffolds ai, agent and claude support files into a host application', funct
     expect(file_exists($temporaryBasePath.'/.ai/skills/tenancy-development/SKILL.md'))->toBeTrue()
         ->and(file_exists($temporaryBasePath.'/AGENTS.md'))->toBeTrue()
         ->and(file_exists($temporaryBasePath.'/.agents/skills/changelog-generator/SKILL.md'))->toBeTrue()
-        ->and(file_exists($temporaryBasePath.'/.claude/settings.json'))->toBeTrue()
+        ->and(file_exists($temporaryBasePath.'/.claude/settings.json'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/.claude/agents/backend-architect.md'))->toBeTrue();
 });
 

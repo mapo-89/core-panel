@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { trans } from 'laravel-vue-i18n'
+
 import type { DataTableFilter } from './types'
 
 type DatePickerValue = Date | Date[] | Array<Date | null> | null | undefined
@@ -46,21 +48,35 @@ function resolveDateValue(value: unknown): DatePickerValue {
 
     return new Date(String(value))
 }
+
+function resolveFilterLabel(filter: DataTableFilter): string {
+    const labelKey = filter.meta?.labelKey
+
+    if (typeof labelKey === 'string' && labelKey !== '') {
+        return trans(labelKey)
+    }
+
+    if (filter.label === null) {
+        return filter.key
+    }
+
+    return filter.label || filter.key
+}
 </script>
 
 <template>
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-4">
         <template v-for="filter in schema" :key="filter.key">
             <label v-if="filter.type === 'text'" class="grid gap-2">
                 <span
                     class="text-sm font-medium text-[var(--cp-text-primary)]"
-                    >{{ filter.label }}</span
+                    >{{ resolveFilterLabel(filter) }}</span
                 >
                 <InputText
                     :model-value="String(filters[filter.key] ?? '')"
                     :placeholder="
                         $t('table-builder.placeholders.filter', {
-                            label: filter.label ?? filter.key,
+                            label: resolveFilterLabel(filter),
                         })
                     "
                     @update:model-value="emit('change', filter.key, $event)"
@@ -70,7 +86,7 @@ function resolveDateValue(value: unknown): DatePickerValue {
             <label v-else-if="filter.type === 'select'" class="grid gap-2">
                 <span
                     class="text-sm font-medium text-[var(--cp-text-primary)]"
-                    >{{ filter.label }}</span
+                    >{{ resolveFilterLabel(filter) }}</span
                 >
                 <Select
                     :model-value="filters[filter.key] ?? null"
@@ -87,7 +103,7 @@ function resolveDateValue(value: unknown): DatePickerValue {
                     show-clear
                     :placeholder="
                         $t('table-builder.placeholders.filter', {
-                            label: filter.label ?? filter.key,
+                            label: resolveFilterLabel(filter),
                         })
                     "
                     @update:model-value="emit('change', filter.key, $event)"
@@ -97,7 +113,7 @@ function resolveDateValue(value: unknown): DatePickerValue {
             <div v-else-if="filter.type === 'date-range'" class="grid gap-2">
                 <span
                     class="text-sm font-medium text-[var(--cp-text-primary)]"
-                    >{{ filter.label }}</span
+                    >{{ resolveFilterLabel(filter) }}</span
                 >
                 <div class="grid gap-2 md:grid-cols-2">
                     <DatePicker

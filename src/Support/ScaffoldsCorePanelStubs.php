@@ -19,8 +19,26 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VERSIONED_UPDATE_SCAFFOLDS = [
+        'lang/de/page-user-groups.php',
+        'lang/en/page-user-groups.php',
+        'resources/css/theme/_datatable.css',
+        'resources/js/components/AppIcon.vue',
+        'resources/js/components/AvatarUploadDropzone.vue',
+        'resources/js/components/BadgeRenderer.vue',
+        'resources/js/components/TableBuilder/DataTable.vue',
+        'resources/js/components/TableBuilder/TableFilterDropdown.vue',
+        'resources/js/components/TableBuilder/TableFilters.vue',
+        'resources/js/components/TableBuilder/useDataTable.ts',
+        'resources/js/components/UserAvatar.vue',
+        'resources/js/components/ui/BadgeRenderer.vue',
         'resources/js/components/ui/UserAvatar.vue',
+        'resources/js/layouts/components/AppHeader.vue',
+        'resources/js/pages/Admin/Forms/Preview.vue',
+        'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
+        'resources/js/pages/Admin/Users/Index.vue',
+        'resources/js/pages/Admin/Users/components/UserFormFields.vue',
         'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
+        'resources/js/pages/Admin/Users/components/UserOverviewTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
     ];
 
@@ -104,6 +122,7 @@ final readonly class ScaffoldsCorePanelStubs
 
         $this->deleteConflictingFiles($root, $pruneHostScaffolds);
         $currentVersion = $this->currentPackageVersion();
+        $installedVersion = $this->installedScaffoldPackageVersion($root);
 
         foreach (self::paths() as $relativePath) {
             $sourcePath = $this->sourcePath($relativePath);
@@ -111,7 +130,7 @@ final readonly class ScaffoldsCorePanelStubs
             $destinationExists = $this->files->exists($destinationPath);
 
             if ($relativePath === 'package.json' && $destinationExists) {
-                if ($onlyManagedChanges && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root)) {
+                if ($onlyManagedChanges && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
                     continue;
                 }
 
@@ -124,16 +143,16 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
-            if ($onlyManagedChanges && ! $destinationExists && ! $this->shouldCreateMissingManagedScaffold($relativePath, $root, $currentVersion)) {
+            if ($onlyManagedChanges && ! $destinationExists && ! $this->shouldCreateMissingManagedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
                 continue;
             }
 
-            if ($onlyManagedChanges && $destinationExists && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root)) {
+            if ($onlyManagedChanges && $destinationExists && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
                 continue;
             }
 
             if (! $force && $destinationExists && ! $this->shouldAlwaysSynchronize($relativePath)) {
-                if ($onlyManagedChanges && $this->shouldSynchronizeVersionedScaffold($relativePath)) {
+                if ($onlyManagedChanges && $this->shouldSynchronizeVersionedScaffold($relativePath, $currentVersion, $installedVersion)) {
                     $this->synchronizeVersionedScaffold($relativePath, $sourcePath, $destinationPath, $root);
 
                     continue;
@@ -477,9 +496,13 @@ final readonly class ScaffoldsCorePanelStubs
         return $this->scaffoldBaselineContents($relativePath, $root) !== null;
     }
 
-    private function shouldCreateMissingManagedScaffold(string $relativePath, string $root, ?string $currentVersion): bool
-    {
-        if ($this->shouldSynchronizeVersionedScaffold($relativePath)) {
+    private function shouldCreateMissingManagedScaffold(
+        string $relativePath,
+        string $root,
+        ?string $currentVersion,
+        ?string $installedVersion,
+    ): bool {
+        if ($this->shouldSynchronizeVersionedScaffold($relativePath, $currentVersion, $installedVersion)) {
             return true;
         }
 
@@ -495,15 +518,48 @@ final readonly class ScaffoldsCorePanelStubs
             && $currentVersion !== '';
     }
 
-    private function shouldUpdateExistingManagedScaffold(string $relativePath, string $root): bool
-    {
+    private function shouldUpdateExistingManagedScaffold(
+        string $relativePath,
+        string $root,
+        ?string $currentVersion,
+        ?string $installedVersion,
+    ): bool {
         return $this->hasScaffoldBaseline($relativePath, $root)
-            || $this->shouldSynchronizeVersionedScaffold($relativePath);
+            || $this->shouldSynchronizeVersionedScaffold($relativePath, $currentVersion, $installedVersion);
     }
 
-    private function shouldSynchronizeVersionedScaffold(string $relativePath): bool
+    private function shouldSynchronizeVersionedScaffold(
+        string $relativePath,
+        ?string $currentVersion,
+        ?string $installedVersion,
+    ): bool {
+        if (! in_array($relativePath, self::VERSIONED_UPDATE_SCAFFOLDS, true)) {
+            return false;
+        }
+
+        if (! is_string($currentVersion) || $currentVersion === '') {
+            return false;
+        }
+
+        return $installedVersion === null || $installedVersion === '' || $installedVersion !== $currentVersion;
+    }
+
+    private function installedScaffoldPackageVersion(string $root): ?string
     {
-        return in_array($relativePath, self::VERSIONED_UPDATE_SCAFFOLDS, true);
+        $manifest = $this->readScaffoldManifest($root);
+        $meta = $manifest['_meta'] ?? null;
+
+        if (is_array($meta) && is_string($meta['package_version'] ?? null)) {
+            return $meta['package_version'];
+        }
+
+        foreach ($this->readScaffoldManifestFiles($root) as $entry) {
+            if (is_string($entry['package_version'] ?? null)) {
+                return $entry['package_version'];
+            }
+        }
+
+        return null;
     }
 
     private function synchronizeVersionedScaffold(
