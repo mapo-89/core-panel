@@ -436,7 +436,7 @@ function openRowActionsMenu(event: Event, user: UserRecord): void {
 </script>
 
 <template>
-    <div class="cp-users-tab">
+    <div class="cp-users-tab cp-datatable">
         <ConfirmActionDialog
             v-if="deleteDialogConfig"
             visible

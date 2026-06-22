@@ -224,7 +224,7 @@ function updatePage(event: { page: number; rows: number }): void {
 </script>
 
 <template>
-    <section class="cp-user-groups-tab grid gap-4">
+    <section class="cp-user-groups-tab cp-datatable">
         <ConfirmActionDialog
             v-model:visible="deleteDialogVisible"
             :cancel-label="$t('common.ui.cancel')"
