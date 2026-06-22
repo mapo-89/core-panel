@@ -12,6 +12,28 @@ function readManifest(string $basePath): string
     return file_get_contents($basePath.'/storage/app/core-panel/published.json') ?: '';
 }
 
+function seedScaffoldManifest(string $basePath, string $relativePath, string $contents): void
+{
+    $sourceHash = hash('sha256', $contents);
+    $snapshotPath = 'storage/app/core-panel/scaffolds/'.$sourceHash;
+
+    mkdir(dirname($basePath.'/'.$snapshotPath), 0777, true);
+    file_put_contents($basePath.'/'.$snapshotPath, $contents);
+    file_put_contents($basePath.'/storage/app/core-panel/scaffolds.json', json_encode([
+        '_meta' => [
+            'package_version' => '1.0.0',
+        ],
+        'files' => [
+            $relativePath => [
+                'destination_hash' => $sourceHash,
+                'package_version' => '1.0.0',
+                'snapshot' => $snapshotPath,
+                'source_hash' => $sourceHash,
+            ],
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+}
+
 it('publishes a single config tag', function (): void {
     $basePath = makePublishBasePath('config');
 
@@ -99,6 +121,96 @@ it('creates a backup before force updates overwrite local files', function (): v
         ->and(file_get_contents($target))->not->toContain('// local change');
 });
 
+it('does not overwrite application scaffolds during force updates', function (): void {
+    $basePath = makePublishBasePath('force-scaffold-preserve');
+    $target = $basePath.'/resources/js/pages/Admin/Users/Index.vue';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, "<script setup lang=\"ts\">\nconst customized = true\n</script>\n");
+
+    $this->artisan('core-panel:update', [
+        '--force' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($target))->toContain('const customized = true');
+});
+
+it('updates clean manifest-managed application scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('managed-scaffold-update');
+    $target = $basePath.'/routes/console.php';
+
+    $legacyContents = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+PHP;
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $legacyContents);
+    seedScaffoldManifest($basePath, 'routes/console.php', $legacyContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($target))->toContain("Schedule::command('horizon:snapshot')->everyFiveMinutes();");
+});
+
+it('does not create missing application scaffolds during updates without a previous version baseline', function (): void {
+    $basePath = makePublishBasePath('missing-scaffold-no-baseline');
+    $target = $basePath.'/routes/console.php';
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeFalse();
+});
+
+it('creates explicitly versioned missing application scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-scaffold');
+    $userGroupsTab = $basePath.'/resources/js/pages/Admin/Users/components/UserGroupsTab.vue';
+    $usersTableTab = $basePath.'/resources/js/pages/Admin/Users/components/UsersTableTab.vue';
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($userGroupsTab))->toBeTrue()
+        ->and(file_exists($usersTableTab))->toBeTrue();
+});
+
+it('updates explicitly versioned existing application scaffolds without a previous baseline', function (): void {
+    $basePath = makePublishBasePath('existing-versioned-scaffold');
+    $userGroupsTab = $basePath.'/resources/js/pages/Admin/Users/components/UserGroupsTab.vue';
+    $usersTableTab = $basePath.'/resources/js/pages/Admin/Users/components/UsersTableTab.vue';
+
+    mkdir(dirname($userGroupsTab), 0777, true);
+    file_put_contents($userGroupsTab, "<template>\n    <div>old groups</div>\n</template>\n");
+    file_put_contents($usersTableTab, "<template>\n    <div>old table</div>\n</template>\n");
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($userGroupsTab))->not->toContain('old groups')
+        ->and(file_get_contents($usersTableTab))->not->toContain('old table')
+        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Users/components/UserGroupsTab.vue'))->not->toBeEmpty()
+        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Users/components/UsersTableTab.vue'))->not->toBeEmpty();
+});
+
 it('synchronizes missing environment defaults during update', function (): void {
     $basePath = makePublishBasePath('env-sync');
 
@@ -141,7 +253,7 @@ it('preserves a customized published app version metadata file during update', f
     expect($publishedVersion)->toBe($customizedVersion);
 });
 
-it('refreshes the published app version metadata during force update when the host does not mark it as application-managed', function (): void {
+it('preserves a customized published app version metadata file during force update', function (): void {
     $basePath = makePublishBasePath('app-version-force-update');
 
     mkdir($basePath.'/config', 0777, true);
@@ -166,9 +278,7 @@ it('refreshes the published app version metadata during force update when the ho
     ])->assertExitCode(0);
 
     $publishedVersion = json_decode((string) file_get_contents($basePath.'/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
-    $packageVersion = json_decode((string) file_get_contents(__DIR__.'/../../stubs/config/app-version.json'), true, 512, JSON_THROW_ON_ERROR);
-
-    expect($publishedVersion)->toBe($packageVersion);
+    expect($publishedVersion)->toBe($customizedVersion);
 });
 
 it('preserves a customized published app version metadata file during force update when the host marks it as application-managed', function (): void {
@@ -199,7 +309,7 @@ it('preserves a customized published app version metadata file during force upda
     expect($publishedVersion)->toBe($customizedVersion);
 });
 
-it('publishes domain-grouped migration directories during update scaffolding', function (): void {
+it('does not create domain-grouped migration directories during update scaffolding without a previous version baseline', function (): void {
     $basePath = makePublishBasePath('domain-migrations');
 
     mkdir($basePath.'/database/migrations', 0777, true);
@@ -210,9 +320,9 @@ it('publishes domain-grouped migration directories during update scaffolding', f
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($basePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php'))->toBeTrue()
-        ->and(file_exists($basePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php'))->toBeTrue()
-        ->and(file_exists($basePath.'/database/migrations/0001_01_01_000000_create_users_table.php'))->toBeFalse();
+    expect(file_exists($basePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php'))->toBeFalse()
+        ->and(file_exists($basePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php'))->toBeFalse()
+        ->and(file_exists($basePath.'/database/migrations/0001_01_01_000000_create_users_table.php'))->toBeTrue();
 });
 
 it('skips automatic migrations for external base-path updates', function (): void {

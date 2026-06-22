@@ -8,9 +8,21 @@ use CorePanel\Support\Install\BackupManager;
 use Illuminate\Filesystem\Filesystem;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use Symfony\Component\Process\Process;
 
 final readonly class ScaffoldsCorePanelStubs
 {
+    /**
+     * Scaffold files that were introduced after existing applications may already
+     * have installed CorePanel without a scaffold baseline manifest.
+     *
+     * @var list<string>
+     */
+    private const VERSIONED_UPDATE_SCAFFOLDS = [
+        'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
+        'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
+    ];
+
     public function __construct(private Filesystem $files, private BackupManager $backups) {}
 
     /**
@@ -80,36 +92,62 @@ final readonly class ScaffoldsCorePanelStubs
         return array_values(array_unique($paths));
     }
 
-    public function scaffold(bool $force = false, ?string $basePath = null): void
-    {
+    public function scaffold(
+        bool $force = false,
+        ?string $basePath = null,
+        bool $pruneHostScaffolds = true,
+        bool $mergeExisting = false,
+        bool $onlyManagedChanges = false,
+    ): void {
         $root = $basePath ?? base_path();
 
-        $this->deleteConflictingFiles($root);
+        $this->deleteConflictingFiles($root, $pruneHostScaffolds);
+        $currentVersion = $this->currentPackageVersion();
 
         foreach (self::paths() as $relativePath) {
             $sourcePath = $this->sourcePath($relativePath);
             $destinationPath = $root.'/'.$relativePath;
+            $destinationExists = $this->files->exists($destinationPath);
 
-            if ($relativePath === 'package.json' && $this->files->exists($destinationPath)) {
+            if ($relativePath === 'package.json' && $destinationExists) {
                 $this->mergePackageJson($sourcePath, $destinationPath, $root);
 
                 continue;
             }
 
-            if ($this->files->exists($destinationPath) && $this->shouldNeverOverwrite($relativePath, $destinationPath)) {
+            if ($destinationExists && $this->shouldNeverOverwrite($relativePath, $destinationPath)) {
                 continue;
             }
 
-            if (! $force && $this->files->exists($destinationPath) && ! $this->shouldAlwaysSynchronize($relativePath)) {
+            if ($onlyManagedChanges && ! $destinationExists && ! $this->shouldCreateMissingManagedScaffold($relativePath, $root, $currentVersion)) {
                 continue;
             }
 
-            if ($force && $this->files->exists($destinationPath)) {
+            if ($onlyManagedChanges && $destinationExists && ! $this->hasScaffoldBaseline($relativePath, $root) && ! $this->shouldSynchronizeVersionedScaffold($relativePath)) {
+                continue;
+            }
+
+            if (! $force && $destinationExists && ! $this->shouldAlwaysSynchronize($relativePath)) {
+                if ($onlyManagedChanges && $this->shouldSynchronizeVersionedScaffold($relativePath)) {
+                    $this->synchronizeVersionedScaffold($relativePath, $sourcePath, $destinationPath, $root);
+
+                    continue;
+                }
+
+                if ($mergeExisting && $this->mergeExistingScaffold($relativePath, $sourcePath, $destinationPath, $root)) {
+                    continue;
+                }
+
+                continue;
+            }
+
+            if ($force && $destinationExists) {
                 $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
             }
 
             $this->files->ensureDirectoryExists(dirname($destinationPath));
             $this->files->copy($sourcePath, $destinationPath);
+            $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
         }
     }
 
@@ -262,9 +300,278 @@ final readonly class ScaffoldsCorePanelStubs
         }
     }
 
-    private function deleteConflictingFiles(string $root): void
+    private function mergeExistingScaffold(
+        string $relativePath,
+        string $sourcePath,
+        string $destinationPath,
+        string $root,
+    ): bool {
+        if (! $this->files->isFile($sourcePath) || ! $this->files->isFile($destinationPath)) {
+            return false;
+        }
+
+        $sourceContents = (string) $this->files->get($sourcePath);
+        $destinationContents = (string) $this->files->get($destinationPath);
+
+        if ($sourceContents === $destinationContents) {
+            return true;
+        }
+
+        $baseContents = $this->scaffoldBaselineContents($relativePath, $root);
+
+        if ($baseContents === null) {
+            return false;
+        }
+
+        if ($baseContents === $destinationContents) {
+            $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
+            $this->files->put($destinationPath, $sourceContents);
+            $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+
+            return true;
+        }
+
+        $mergedContents = $this->mergeFileContents($baseContents, $destinationContents, $sourceContents);
+
+        if ($mergedContents === null || $mergedContents === $destinationContents) {
+            return $mergedContents !== null;
+        }
+
+        $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
+        $this->files->put($destinationPath, $mergedContents);
+        $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+
+        return true;
+    }
+
+    private function scaffoldBaselineContents(string $relativePath, string $root): ?string
     {
-        foreach ([
+        $manifest = $this->readScaffoldManifestFiles($root);
+        $entry = $manifest[$relativePath] ?? null;
+
+        if (! is_array($entry) || ! is_string($entry['snapshot'] ?? null)) {
+            return null;
+        }
+
+        $snapshotPath = $root.'/'.$entry['snapshot'];
+
+        if (! $this->files->isFile($snapshotPath)) {
+            return null;
+        }
+
+        return (string) $this->files->get($snapshotPath);
+    }
+
+    private function storeScaffoldManifestEntry(
+        string $relativePath,
+        string $sourcePath,
+        string $destinationPath,
+        string $root,
+    ): void {
+        if (! $this->files->isFile($sourcePath) || ! $this->files->isFile($destinationPath)) {
+            return;
+        }
+
+        $sourceContents = (string) $this->files->get($sourcePath);
+        $destinationContents = (string) $this->files->get($destinationPath);
+        $sourceHash = hash('sha256', $sourceContents);
+        $snapshotPath = $this->scaffoldSnapshotPath($sourceHash);
+        $absoluteSnapshotPath = $root.'/'.$snapshotPath;
+
+        $this->files->ensureDirectoryExists(dirname($absoluteSnapshotPath));
+
+        if (! $this->files->exists($absoluteSnapshotPath)) {
+            $this->files->put($absoluteSnapshotPath, $sourceContents);
+        }
+
+        $manifest = $this->readScaffoldManifestFiles($root);
+        $manifest[$relativePath] = [
+            'destination_hash' => hash('sha256', $destinationContents),
+            'package_version' => $this->currentPackageVersion() ?? '',
+            'snapshot' => $snapshotPath,
+            'source_hash' => $sourceHash,
+        ];
+
+        ksort($manifest);
+
+        $this->writeScaffoldManifest($root, $manifest, $this->currentPackageVersion());
+    }
+
+    /**
+     * @return array<string, array<string, string>>
+     */
+    private function readScaffoldManifestFiles(string $root): array
+    {
+        $decoded = $this->readScaffoldManifest($root);
+
+        if (isset($decoded['files']) && is_array($decoded['files'])) {
+            /** @var array<string, array<string, string>> $files */
+            $files = $decoded['files'];
+
+            return $files;
+        }
+
+        unset($decoded['_meta']);
+
+        /** @var array<string, array<string, string>> $decoded */
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readScaffoldManifest(string $root): array
+    {
+        $manifestPath = $this->scaffoldManifestPath($root);
+
+        if (! $this->files->isFile($manifestPath)) {
+            return [];
+        }
+
+        $decoded = json_decode((string) $this->files->get($manifestPath), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param  array<string, array<string, string>>  $manifest
+     */
+    private function writeScaffoldManifest(string $root, array $manifest, ?string $packageVersion): void
+    {
+        $manifestPath = $this->scaffoldManifestPath($root);
+        $this->files->ensureDirectoryExists(dirname($manifestPath));
+
+        $encoded = json_encode([
+            '_meta' => [
+                'package_version' => $packageVersion,
+            ],
+            'files' => $manifest,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        if (! is_string($encoded)) {
+            return;
+        }
+
+        $this->files->put($manifestPath, $encoded.PHP_EOL);
+    }
+
+    private function hasScaffoldBaseline(string $relativePath, string $root): bool
+    {
+        return $this->scaffoldBaselineContents($relativePath, $root) !== null;
+    }
+
+    private function shouldCreateMissingManagedScaffold(string $relativePath, string $root, ?string $currentVersion): bool
+    {
+        if ($this->shouldSynchronizeVersionedScaffold($relativePath)) {
+            return true;
+        }
+
+        $manifest = $this->readScaffoldManifest($root);
+
+        if (! isset($manifest['files']) || ! is_array($manifest['files']) || $manifest['files'] === []) {
+            return false;
+        }
+
+        $manifestVersion = $manifest['_meta']['package_version'] ?? null;
+
+        return is_string($manifestVersion)
+            && $manifestVersion !== ''
+            && is_string($currentVersion)
+            && $currentVersion !== ''
+            && $manifestVersion !== $currentVersion;
+    }
+
+    private function shouldSynchronizeVersionedScaffold(string $relativePath): bool
+    {
+        return in_array($relativePath, self::VERSIONED_UPDATE_SCAFFOLDS, true);
+    }
+
+    private function synchronizeVersionedScaffold(
+        string $relativePath,
+        string $sourcePath,
+        string $destinationPath,
+        string $root,
+    ): void {
+        if (! $this->files->isFile($sourcePath)) {
+            return;
+        }
+
+        if ($this->files->isFile($destinationPath) && $this->files->get($sourcePath) !== $this->files->get($destinationPath)) {
+            $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
+        }
+
+        $this->files->ensureDirectoryExists(dirname($destinationPath));
+        $this->files->copy($sourcePath, $destinationPath);
+        $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+    }
+
+    private function currentPackageVersion(): ?string
+    {
+        $versionPath = __DIR__.'/../../config/app-version.json';
+
+        if (! $this->files->isFile($versionPath)) {
+            return null;
+        }
+
+        $decoded = json_decode((string) $this->files->get($versionPath), true);
+
+        if (! is_array($decoded) || ! is_string($decoded['release_version'] ?? null)) {
+            return null;
+        }
+
+        return $decoded['release_version'];
+    }
+
+    private function scaffoldManifestPath(string $root): string
+    {
+        return $root.'/storage/app/core-panel/scaffolds.json';
+    }
+
+    private function scaffoldSnapshotPath(string $sourceHash): string
+    {
+        return 'storage/app/core-panel/scaffolds/'.$sourceHash;
+    }
+
+    private function mergeFileContents(string $baseContents, string $destinationContents, string $sourceContents): ?string
+    {
+        $temporaryDirectory = sys_get_temp_dir().'/core-panel-merge-'.bin2hex(random_bytes(8));
+
+        $this->files->ensureDirectoryExists($temporaryDirectory);
+
+        $basePath = $temporaryDirectory.'/base';
+        $destinationPath = $temporaryDirectory.'/destination';
+        $sourcePath = $temporaryDirectory.'/source';
+
+        $this->files->put($basePath, $baseContents);
+        $this->files->put($destinationPath, $destinationContents);
+        $this->files->put($sourcePath, $sourceContents);
+
+        $process = new Process(['git', 'merge-file', '-p', $destinationPath, $basePath, $sourcePath]);
+        $process->run();
+
+        $this->files->deleteDirectory($temporaryDirectory);
+
+        if ($process->getExitCode() !== 0) {
+            return null;
+        }
+
+        return $process->getOutput();
+    }
+
+    private function deleteConflictingFiles(string $root, bool $deleteHostScaffolds): void
+    {
+        if (! $deleteHostScaffolds) {
+            return;
+        }
+
+        $conflictingFiles = [
+            'resources/js/routes/_wayfinder.ts',
+            'resources/js/routes/locale.ts',
+            'resources/js/routes/core-panel/forms/public.ts',
+        ];
+
+        $conflictingFiles = [
+            ...$conflictingFiles,
             'vite.config.js',
             'bootstrap/app.php',
             'bootstrap/providers.php',
@@ -284,10 +591,9 @@ final readonly class ScaffoldsCorePanelStubs
             'tests/Feature/ExampleTest.php',
             'tests/Unit/ExampleTest.php',
             'tests/Pest.php',
-            'resources/js/routes/_wayfinder.ts',
-            'resources/js/routes/locale.ts',
-            'resources/js/routes/core-panel/forms/public.ts',
-        ] as $relativePath) {
+        ];
+
+        foreach ($conflictingFiles as $relativePath) {
             $path = $root.'/'.$relativePath;
 
             if ($this->files->exists($path)) {

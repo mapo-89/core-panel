@@ -81,7 +81,13 @@ final class UpdateCommand extends Command
         }
 
         if (! $dryRun) {
-            $this->stubs->scaffold($force, $basePath);
+            $this->stubs->scaffold(
+                force: false,
+                basePath: $basePath,
+                pruneHostScaffolds: false,
+                mergeExisting: true,
+                onlyManagedChanges: true,
+            );
             $this->syncEnvironmentDefaults($basePath);
 
             if ($withAddonUpdates) {

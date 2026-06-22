@@ -72,6 +72,13 @@ This project has domain-specific skills available. You MUST activate the relevan
 - Stick to existing directory structure; don't create new base folders without approval.
 - Do not change the application's dependencies without approval.
 
+## CorePanel Update Scaffolds
+
+- The `core-panel:update` command must only publish scaffold changes that are safe for existing applications.
+- New scaffold files that existing applications must receive during a package update must be added to `ScaffoldsCorePanelStubs::VERSIONED_UPDATE_SCAFFOLDS` and covered by a feature test in `CorePanelPublishUpdateCommandsTest`.
+- Do not broadly overwrite existing host scaffolds during update commands. Existing untracked host files must remain untouched unless they are explicitly listed as versioned update scaffolds or already have a CorePanel scaffold baseline in `storage/app/core-panel/scaffolds.json`.
+- When adding a versioned update scaffold, verify both cases: missing target file is created, and existing untracked target file is updated with a backup plus scaffold manifest entry.
+
 It is a DDD-style organization centered around domains instead of controllers.
 
 ### Goal
