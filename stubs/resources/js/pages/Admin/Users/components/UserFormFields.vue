@@ -26,7 +26,8 @@ type UserFormShape = {
             | 'password'
             | 'password_confirmation'
             | 'role_names'
-            | 'status',
+            | 'status'
+            | 'user_group_ids',
             string
         >
     >
@@ -122,17 +123,6 @@ const formSchema = computed<FormSchema>(() => {
         })
     }
 
-    if (props.userGroupOptions.length > 0) {
-        schema.push({
-            columnSpan: 2,
-            label: trans('navigation.user_groups'),
-            name: 'user_group_ids',
-            options: props.userGroupOptions,
-            placeholder: trans('page-user-groups.select_placeholder'),
-            type: 'multiselect',
-        })
-    }
-
     if (props.showPasswordFields === true) {
         schema.push(
             {
@@ -159,6 +149,14 @@ const initials = computed(() => {
         .map((value) => value.trim().charAt(0).toUpperCase())
         .join('')
         .slice(0, 2)
+})
+
+const selectedUserGroups = computed(() => {
+    const selectedIds = new Set(props.form.user_group_ids)
+
+    return props.userGroupOptions.filter((option) =>
+        selectedIds.has(option.value),
+    )
 })
 
 function updateFormFields(value: Record<string, unknown>): void {
@@ -215,6 +213,80 @@ function updateFormFields(value: Record<string, unknown>): void {
                 :wrap-in-form="false"
                 @update:model-value="updateFormFields"
             />
+
+            <div
+                v-if="userGroupOptions.length > 0"
+                class="grid gap-4 rounded-[var(--cp-radius-lg)] border border-[var(--cp-surface-border)] bg-[var(--cp-surface-muted)] p-4"
+            >
+                <div class="grid gap-[0.35rem]">
+                    <h3
+                        class="m-0 text-sm font-semibold text-[var(--cp-text-primary)]"
+                    >
+                        {{ $t('page-users.access_description') }}
+                    </h3>
+                    <p class="m-0 text-sm text-[var(--cp-text-muted)]">
+                        {{ $t('navigation.user_groups') }}
+                    </p>
+                </div>
+
+                <div class="grid content-start gap-2 self-start">
+                    <label
+                        class="text-sm font-medium text-[var(--cp-text-primary)]"
+                        for="user-group-ids"
+                    >
+                        {{ $t('navigation.user_groups') }}
+                    </label>
+                    <MultiSelect
+                        id="user-group-ids"
+                        v-model="form.user_group_ids"
+                        :filter="true"
+                        :max-selected-labels="1"
+                        :options="userGroupOptions"
+                        :placeholder="$t('page-user-groups.select_placeholder')"
+                        class="w-full"
+                        display="chip"
+                        option-label="label"
+                        option-value="value"
+                        :selected-items-label="
+                            $t('page-user-groups.selected_count')
+                        "
+                    >
+                        <template #option="{ option }">
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="h-2.5 w-2.5 rounded-full"
+                                    :style="{
+                                        backgroundColor:
+                                            option.color || '#6366F1',
+                                    }"
+                                />
+                                <span>{{ option.label }}</span>
+                            </div>
+                        </template>
+                    </MultiSelect>
+                    <div
+                        v-if="selectedUserGroups.length > 0"
+                        class="flex max-h-24 flex-wrap gap-2 overflow-y-auto pt-1"
+                    >
+                        <span
+                            v-for="userGroup in selectedUserGroups"
+                            :key="userGroup.value"
+                            class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium text-white"
+                            :style="{
+                                backgroundColor: userGroup.color || '#6366F1',
+                            }"
+                        >
+                            {{ userGroup.label }}
+                        </span>
+                    </div>
+                    <small
+                        v-if="form.errors.user_group_ids"
+                        class="text-sm text-red-600"
+                    >
+                        {{ form.errors.user_group_ids }}
+                    </small>
+                </div>
+            </div>
         </div>
     </div>
 </template>

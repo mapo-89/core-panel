@@ -31,4 +31,5 @@ return [
     'preview_update' => 'Wird aktualisiert',
     'preview_update_count' => ':count Update',
     'select_placeholder' => 'Benutzergruppen auswählen',
+    'selected_count' => '{0} ausgewählt',
 ];

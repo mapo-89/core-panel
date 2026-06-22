@@ -31,4 +31,5 @@ return [
     'preview_update' => 'Will be updated',
     'preview_update_count' => ':count update',
     'select_placeholder' => 'Select user groups',
+    'selected_count' => '{0} selected',
 ];

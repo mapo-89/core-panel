@@ -40,6 +40,25 @@ final readonly class CorePanelPublisher
      *     themeMigrationHint:bool
      * }
      */
+    public function publishForProvider(
+        string $provider,
+        array $tags,
+        bool $force = false,
+        bool $dryRun = false,
+        ?string $basePath = null,
+    ): array {
+        return $this->apply($tags, $force, $dryRun, false, $basePath, $provider);
+    }
+
+    /**
+     * @param  list<string>  $tags
+     * @return array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }
+     */
     public function update(array $tags, bool $force = false, bool $dryRun = false, ?string $basePath = null): array
     {
         return $this->apply($tags, $force, $dryRun, true, $basePath);
@@ -60,8 +79,9 @@ final readonly class CorePanelPublisher
         bool $force = false,
         bool $dryRun = false,
         ?string $basePath = null,
+        bool $adoptUnmanagedExisting = false,
     ): array {
-        return $this->apply($tags, $force, $dryRun, true, $basePath, $provider);
+        return $this->apply($tags, $force, $dryRun, true, $basePath, $provider, $adoptUnmanagedExisting);
     }
 
     /**
@@ -80,11 +100,12 @@ final readonly class CorePanelPublisher
         bool $manifestAware,
         ?string $basePath,
         ?string $provider = null,
+        bool $adoptUnmanagedExisting = false,
     ): array {
         $root = $basePath ?? base_path();
         $manifest = $this->manifest->read($root);
         $changes = [];
-        $backupPaths = [];
+        $backupsCreated = false;
         $updatedManifest = $manifest;
         $themeMigrationHint = false;
 
@@ -97,7 +118,44 @@ final readonly class CorePanelPublisher
 
                 if ($manifestAware && ! is_array($manifestEntry)) {
                     if ($destinationExists) {
-                        $changes[] = $this->change($tag, 'skipped', $source, $destination, 'destination is not managed by the publish manifest');
+                        if (! $adoptUnmanagedExisting) {
+                            $changes[] = $this->change($tag, 'skipped', $source, $destination, 'destination is not managed by the publish manifest');
+
+                            continue;
+                        }
+
+                        if ($destinationHash === $sourceHash) {
+                            $changes[] = $this->change($tag, 'unchanged', $source, $destination, 'legacy published file adopted into the publish manifest');
+                            $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+
+                            continue;
+                        }
+
+                        if (! $force) {
+                            $changes[] = $this->change($tag, 'conflict', $source, $destination, 'legacy published file is not managed by the publish manifest');
+
+                            continue;
+                        }
+
+                        $status = 'overwrite';
+                        $reason = 'legacy published file adopted into the publish manifest';
+
+                        if ($dryRun) {
+                            $changes[] = $this->change($tag, $status, $source, $destination, $reason);
+
+                            continue;
+                        }
+
+                        $this->backups->backupPaths([$source => $destination], $root);
+                        $backupsCreated = true;
+                        $this->copyPublishable($source, $destination);
+                        $destinationHash = $this->hash($destination);
+                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                        $changes[] = $this->change($tag, $status, $source, $destination, $reason);
+
+                        if ($tag === PublishTag::Theme->value) {
+                            $themeMigrationHint = true;
+                        }
 
                         continue;
                     }
@@ -145,7 +203,8 @@ final readonly class CorePanelPublisher
                 }
 
                 if (in_array($status, ['overwrite', 'update'], true) && $destinationExists) {
-                    $backupPaths[$source] = $destination;
+                    $this->backups->backupPaths([$source => $destination], $root);
+                    $backupsCreated = true;
                 }
 
                 $this->copyPublishable($source, $destination);
@@ -159,10 +218,6 @@ final readonly class CorePanelPublisher
             }
         }
 
-        if ($backupPaths !== []) {
-            $this->backups->backupPaths($backupPaths, $root);
-        }
-
         if (! $dryRun) {
             $this->manifest->write($root, $updatedManifest);
         }
@@ -170,7 +225,7 @@ final readonly class CorePanelPublisher
         return [
             'changes' => $changes,
             'manifestPath' => $this->manifest->path($root),
-            'backupsCreated' => $backupPaths !== [] && ! $dryRun,
+            'backupsCreated' => $backupsCreated && ! $dryRun,
             'themeMigrationHint' => $themeMigrationHint,
         ];
     }

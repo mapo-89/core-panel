@@ -29,7 +29,7 @@ function submit(payload: FormModel): void {
     }
 
     router.post(
-        publicForms.store(props.form.slug).url(),
+        publicForms.store.url(props.form.slug),
         payload as RequestPayload,
         {
             preserveScroll: true,

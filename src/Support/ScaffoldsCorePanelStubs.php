@@ -110,6 +110,10 @@ final readonly class ScaffoldsCorePanelStubs
             $destinationExists = $this->files->exists($destinationPath);
 
             if ($relativePath === 'package.json' && $destinationExists) {
+                if ($onlyManagedChanges && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root)) {
+                    continue;
+                }
+
                 $this->mergePackageJson($sourcePath, $destinationPath, $root);
 
                 continue;
@@ -123,7 +127,7 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
-            if ($onlyManagedChanges && $destinationExists && ! $this->hasScaffoldBaseline($relativePath, $root) && ! $this->shouldSynchronizeVersionedScaffold($relativePath)) {
+            if ($onlyManagedChanges && $destinationExists && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root)) {
                 continue;
             }
 
@@ -413,8 +417,20 @@ final readonly class ScaffoldsCorePanelStubs
 
         unset($decoded['_meta']);
 
-        /** @var array<string, array<string, string>> $decoded */
-        return is_array($decoded) ? $decoded : [];
+        $files = [];
+
+        foreach ($decoded as $path => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $files[$path] = array_filter(
+                $entry,
+                static fn (mixed $value): bool => is_string($value),
+            );
+        }
+
+        return $files;
     }
 
     /**
@@ -466,19 +482,22 @@ final readonly class ScaffoldsCorePanelStubs
             return true;
         }
 
-        $manifest = $this->readScaffoldManifest($root);
+        $manifestFiles = $this->readScaffoldManifestFiles($root);
+        $entry = $manifestFiles[$relativePath] ?? null;
 
-        if (! isset($manifest['files']) || ! is_array($manifest['files']) || $manifest['files'] === []) {
+        if (! is_array($entry) || ! is_string($entry['snapshot'] ?? null)) {
             return false;
         }
 
-        $manifestVersion = $manifest['_meta']['package_version'] ?? null;
-
-        return is_string($manifestVersion)
-            && $manifestVersion !== ''
+        return $this->files->isFile($root.'/'.$entry['snapshot'])
             && is_string($currentVersion)
-            && $currentVersion !== ''
-            && $manifestVersion !== $currentVersion;
+            && $currentVersion !== '';
+    }
+
+    private function shouldUpdateExistingManagedScaffold(string $relativePath, string $root): bool
+    {
+        return $this->hasScaffoldBaseline($relativePath, $root)
+            || $this->shouldSynchronizeVersionedScaffold($relativePath);
     }
 
     private function shouldSynchronizeVersionedScaffold(string $relativePath): bool

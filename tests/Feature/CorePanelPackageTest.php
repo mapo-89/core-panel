@@ -2133,6 +2133,7 @@ it('renders user management with a reference-style datatable shell and a table-o
     $corePanelPluginContents = file_get_contents(__DIR__.'/../../stubs/resources/js/plugins/core-panel.ts');
     $tabsThemeContents = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_tabs.css');
     $tableBuilderGerman = file_get_contents(__DIR__.'/../../resources/lang/de/table-builder.php');
+    $appIconContents = file_get_contents(__DIR__.'/../../stubs/resources/js/components/AppIcon.vue');
 
     expect($usersTableContents)->not->toContain("key: 'avatar'")
         ->and($usersTableContents)->toContain("key: 'first_name'")
@@ -2145,6 +2146,7 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($usersIndexContents)->toContain("component: 'UserGroupsTab'")
         ->and($usersIndexContents)->toContain("key: 'user_groups'")
         ->and($usersIndexContents)->toContain("label: 'navigation.user_groups'")
+        ->and($usersIndexContents)->toContain("icon: 'sitemap'")
         ->and($usersIndexContents)->toContain("panelSurfaceVariant: 'card'")
         ->and($usersTableContents)->toContain("import UserAvatar from '@/components/UserAvatar.vue'")
         ->and($usersTableContents)->toContain("labelKey: 'navigation.users'")
@@ -2206,7 +2208,9 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($tableActionsContents)->toContain('class="cp-datatable-actions__trigger"')
         ->and($tableActionsContents)->toContain('cp-datatable-actions__item--danger')
         ->and($columnVisibilityContents)->toContain('class="cp-datatable-columns__trigger"')
-        ->and($columnVisibilityContents)->toContain('function resolveColumnLabel(column: DataTableColumn): string {')
+        ->and($columnVisibilityContents)->toContain('<AppIcon name="columns" />')
+        ->and($appIconContents)->toContain('Columns3')
+        ->and($appIconContents)->toContain('columns: Columns3')
         ->and($paginationContents)->toContain('class="cp-datatable-pagination"')
         ->and($paginationContents)->toContain(':rows-per-page-options="[10, 20, 50, 100]"')
         ->and($corePanelPluginContents)->toContain("import Tooltip from 'primevue/tooltip'")
@@ -2240,6 +2244,8 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($usersIndexContents)->toContain('openImportUserGroupsDialog')
         ->and($usersIndexContents)->toContain('openCreateRoleDialog')
         ->and($usersIndexContents)->toContain('resyncManagedRoles')
+        ->and($usersIndexContents)->toContain("'assignableRoles'")
+        ->and($usersIndexContents)->toContain("'canAssignRoles'")
         ->and($usersIndexContents)->toContain("const canImportUserGroups = computed(() => can('user-groups.import'))")
         ->and($usersIndexContents)->toContain('const canResyncManagedRoles = computed(')
         ->and($usersIndexContents)->toContain('page-user-groups.import_action')
@@ -2320,7 +2326,7 @@ it('uses the shared danger confirmation dialog for destructive admin table actio
 it('renders the datatable empty state without a subtitle line', function (): void {
     $dataTableContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/DataTable.vue');
 
-    expect($dataTableContents)->toContain("{{ \$t('table-builder.states.empty_title') }}")
+    expect($dataTableContents)->toContain('table-builder.states.empty_title')
         ->and($dataTableContents)->not->toContain('table-builder.states.empty_description');
 });
 
@@ -2649,7 +2655,7 @@ it('uses wayfinder-driven form management endpoints in the form pages', function
         ->and($edit)->not->toContain('Forms/FormController')
         ->and($edit)->not->toContain('Forms/FormSubmissionController')
         ->and($preview)->toContain("import publicForms from '@/routes/core-panel/forms/public'")
-        ->and($preview)->toContain('publicForms.store(props.form.slug)')
+        ->and($preview)->toContain('publicForms.store.url(props.form.slug)')
         ->and($preview)->not->toContain('Forms/PublicFormController')
         ->and($submissions)->toContain('forms.submissions.export.url(form.id)')
         ->and($submissions)->toContain('forms.edit.url(form.id)')

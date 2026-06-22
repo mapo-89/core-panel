@@ -106,7 +106,7 @@ const tabSchema = computed<TabsSchema>(() => ({
                   componentProps: {
                       userGroups: props.userGroups,
                   },
-                  icon: 'columns',
+                  icon: 'sitemap',
                   key: 'user_groups',
                   label: 'navigation.user_groups',
               }
@@ -223,6 +223,8 @@ function openImportUserGroupsDialog(): void {
 function reloadRoles(): void {
     router.reload({
         only: [
+            'assignableRoles',
+            'canAssignRoles',
             'defaultRoles',
             'permissionDefaults',
             'permissionGroups',

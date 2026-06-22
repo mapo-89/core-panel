@@ -10,6 +10,7 @@ import {
     Camera,
     Check,
     ChevronDown,
+    Columns3,
     Eye,
     EllipsisVertical,
     Funnel,
@@ -81,7 +82,7 @@ const icons: Record<string, Component> = {
     inbox: Inbox,
     key: KeyRound,
     lock: Lock,
-    columns: Grid2x2,
+    columns: Columns3,
     logo: Grid2x2,
     logout: LogOut,
     menu: Menu,
@@ -117,7 +118,9 @@ function normalizeIconName(value: string): string {
         .replace(/\s+/g, '-')
 }
 
-const iconComponent = computed(() => icons[normalizeIconName(props.name)] ?? Grid2x2)
+const iconComponent = computed(
+    () => icons[normalizeIconName(props.name)] ?? Grid2x2,
+)
 </script>
 
 <template>

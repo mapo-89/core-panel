@@ -164,6 +164,79 @@ PHP;
     expect(file_get_contents($target))->toContain("Schedule::command('horizon:snapshot')->everyFiveMinutes();");
 });
 
+it('does not merge untracked existing package json during updates', function (): void {
+    $basePath = makePublishBasePath('untracked-package-json-update');
+    $target = $basePath.'/package.json';
+    $hostPackage = [
+        'name' => 'host-app',
+        'private' => true,
+        'scripts' => [
+            'custom' => 'echo host',
+        ],
+        'dependencies' => [
+            'axios' => '^1.7.0',
+        ],
+        'devDependencies' => [
+            'sass' => '^1.93.2',
+            'vitest' => '^3.0.0',
+        ],
+    ];
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($target, json_encode($hostPackage, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--force' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $packageJson = json_decode((string) file_get_contents($target), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($packageJson)->toBe($hostPackage)
+        ->and(glob($basePath.'/.core-panel-backups/*/package.json'))->toBe([]);
+});
+
+it('merges manifest-managed existing package json during updates', function (): void {
+    $basePath = makePublishBasePath('managed-package-json-update');
+    $target = $basePath.'/package.json';
+    $hostPackage = [
+        'name' => 'host-app',
+        'private' => true,
+        'scripts' => [
+            'custom' => 'echo host',
+        ],
+        'dependencies' => [
+            'axios' => '^1.7.0',
+        ],
+        'devDependencies' => [
+            'sass' => '^1.93.2',
+            'vitest' => '^3.0.0',
+        ],
+    ];
+    $hostContents = json_encode($hostPackage, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($target, $hostContents);
+    seedScaffoldManifest($basePath, 'package.json', $hostContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $packageJson = json_decode((string) file_get_contents($target), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($packageJson)->toBeArray()
+        ->and($packageJson['name'])->toBe('host-app')
+        ->and($packageJson['scripts'])->toHaveKey('custom')
+        ->and($packageJson['scripts'])->toHaveKey('build')
+        ->and($packageJson['dependencies'])->toHaveKey('axios')
+        ->and($packageJson['dependencies'])->toHaveKey('vue')
+        ->and($packageJson['devDependencies'])->toHaveKey('vitest')
+        ->and($packageJson['devDependencies'])->toHaveKey('@vitejs/plugin-vue')
+        ->and($packageJson['devDependencies'])->not->toHaveKey('sass')
+        ->and(glob($basePath.'/.core-panel-backups/*/package.json'))->not->toBe([]);
+});
+
 it('does not create missing application scaffolds during updates without a previous version baseline', function (): void {
     $basePath = makePublishBasePath('missing-scaffold-no-baseline');
     $target = $basePath.'/routes/console.php';
@@ -175,6 +248,35 @@ it('does not create missing application scaffolds during updates without a previ
     ])->assertExitCode(0);
 
     expect(file_exists($target))->toBeFalse();
+});
+
+it('does not create unlisted missing application scaffolds just because another scaffold has an old baseline', function (): void {
+    $basePath = makePublishBasePath('missing-unlisted-scaffold-with-baseline');
+    $managedContents = "<?php\n\n// old managed console scaffold\n";
+    $unlistedTarget = $basePath.'/resources/js/pages/Admin/Users/components/UserOverviewTab.vue';
+
+    seedScaffoldManifest($basePath, 'routes/console.php', $managedContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($unlistedTarget))->toBeFalse();
+});
+
+it('restores missing manifest-managed application scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('missing-managed-scaffold');
+    $target = $basePath.'/routes/console.php';
+    $legacyContents = "<?php\n\n// old managed console scaffold\n";
+
+    seedScaffoldManifest($basePath, 'routes/console.php', $legacyContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(file_get_contents($target))->toContain("Schedule::command('horizon:snapshot')->everyFiveMinutes();");
 });
 
 it('creates explicitly versioned missing application scaffolds during updates', function (): void {
