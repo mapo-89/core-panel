@@ -10,7 +10,7 @@ import { computed, ref } from 'vue'
 
 import AppIcon from '@/components/AppIcon.vue'
 import LocaleFlag from '@/components/Locale/LocaleFlag.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { useCan } from '@/composables/useCan'
 import locale from '@/routes/locale'
 import profile from '@/routes/profile'

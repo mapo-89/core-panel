@@ -5,7 +5,7 @@ import { computed, ref } from 'vue'
 
 import AppIcon from '@/components/AppIcon.vue'
 import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 import userRoutes from '@/routes/core-panel/users'

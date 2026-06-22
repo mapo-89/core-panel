@@ -19,6 +19,7 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VERSIONED_UPDATE_SCAFFOLDS = [
+        'resources/js/components/ui/UserAvatar.vue',
         'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
     ];

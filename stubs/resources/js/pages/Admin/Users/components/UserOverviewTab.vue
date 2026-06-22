@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import UserAvatar from '@/components/UserAvatar.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import ProfileAvatarUpload from '@/pages/Admin/Settings/components/ProfileAvatarUpload.vue'
 import type { UserCapabilities, UserRecord } from '@/types/core-panel'
 

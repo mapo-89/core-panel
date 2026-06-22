@@ -573,6 +573,12 @@ it('excludes generated scaffold artifacts from the installable stubs tree', func
     }
 });
 
+it('keeps newly referenced frontend scaffolds eligible for managed-only updates', function (): void {
+    $scaffolder = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
+
+    expect($scaffolder)->toContain("'resources/js/components/ui/UserAvatar.vue'");
+});
+
 it('ships the managed host gitignore stub', function (): void {
     $contents = file_get_contents(__DIR__.'/../../stubs/.gitignore');
 
@@ -646,6 +652,7 @@ it('maps installer templates onto the host application paths by relative path', 
         'resources/js/components/AppIcon.vue',
         'resources/js/components/CorePanelLogo.vue',
         'resources/js/components/UserAvatar.vue',
+        'resources/js/components/ui/UserAvatar.vue',
         'tsconfig.json',
         'vite.config.ts',
         'tests/TestCase.php',
@@ -2148,7 +2155,7 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($usersIndexContents)->toContain("label: 'navigation.user_groups'")
         ->and($usersIndexContents)->toContain("icon: 'sitemap'")
         ->and($usersIndexContents)->toContain("panelSurfaceVariant: 'card'")
-        ->and($usersTableContents)->toContain("import UserAvatar from '@/components/UserAvatar.vue'")
+        ->and($usersTableContents)->toContain("import UserAvatar from '@/components/ui/UserAvatar.vue'")
         ->and($usersTableContents)->toContain("labelKey: 'navigation.users'")
         ->and($usersTableContents)->toContain("labelKey: 'navigation.user_groups'")
         ->and($usersIndexContents)->toContain('roleLabels: props.roleLabels,')
@@ -2618,7 +2625,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('userSessionRoutes.destroy.url({')
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('user: props.userId')
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('session: session.id')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("import UserAvatar from '@/components/UserAvatar.vue'")
+        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("import UserAvatar from '@/components/ui/UserAvatar.vue'")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('<UserAvatar')
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(":presence-status=\"user.presenceStatus ?? 'offline'\"")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('size="lg"')
@@ -2816,7 +2823,7 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
         ->and($authenticationPresentation)->toContain('looksLikeUserAgent')
         ->and($authenticationPresentation)->toContain("normalized.includes('mozilla/')")
         ->and($authenticationPresentation)->toContain("'page-authentication-logs.methods.socialite_provider'")
-        ->and($logUserAvatar)->toContain("import UserAvatar from '@/components/UserAvatar.vue'")
+        ->and($logUserAvatar)->toContain("import UserAvatar from '@/components/ui/UserAvatar.vue'")
         ->and($logUserAvatar)->toContain('v-tooltip.top="label"')
         ->and($logsTab)->toContain("import logFiles from '@/routes/core-panel/log-files'")
         ->and($logFilePage)->toContain("import logFiles from '@/routes/core-panel/log-files'")
