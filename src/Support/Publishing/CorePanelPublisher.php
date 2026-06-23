@@ -59,9 +59,14 @@ final readonly class CorePanelPublisher
      *     themeMigrationHint:bool
      * }
      */
-    public function update(array $tags, bool $force = false, bool $dryRun = false, ?string $basePath = null): array
-    {
-        return $this->apply($tags, $force, $dryRun, true, $basePath);
+    public function update(
+        array $tags,
+        bool $force = false,
+        bool $dryRun = false,
+        ?string $basePath = null,
+        bool $adoptUnmanagedExisting = false,
+    ): array {
+        return $this->apply($tags, $force, $dryRun, true, $basePath, adoptUnmanagedExisting: $adoptUnmanagedExisting);
     }
 
     /**

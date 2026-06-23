@@ -6,11 +6,9 @@ namespace CorePanel\Support\Migrations;
 
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use RuntimeException;
 
-final readonly class CorePanelHostMigrationRunner
+final readonly class HostMigrationRunner
 {
     public function __construct(private Filesystem $files) {}
 
@@ -43,38 +41,7 @@ final readonly class CorePanelHostMigrationRunner
      */
     private function migrationFiles(string $migrationsRoot): array
     {
-        $files = [];
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($migrationsRoot, RecursiveDirectoryIterator::SKIP_DOTS),
-        );
-
-        foreach ($iterator as $file) {
-            if (! $file->isFile() || $file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $path = $file->getPathname();
-
-            if (str_contains($path, DIRECTORY_SEPARATOR.'migrations'.DIRECTORY_SEPARATOR.'tenant'.DIRECTORY_SEPARATOR)) {
-                continue;
-            }
-
-            $files[] = $path;
-        }
-
-        usort($files, static function (string $left, string $right): int {
-            $leftName = basename($left);
-            $rightName = basename($right);
-            $nameComparison = strcmp($leftName, $rightName);
-
-            if ($nameComparison !== 0) {
-                return $nameComparison;
-            }
-
-            return strcmp($left, $right);
-        });
-
-        return $files;
+        return MigrationPathResolver::host(dirname($migrationsRoot, 2));
     }
 
     /**

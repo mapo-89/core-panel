@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Console;
 
-use CorePanel\Support\Migrations\CorePanelHostMigrationRunner;
+use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\PublishesCorePanelAssets;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\ScaffoldsCorePanelStubs;
@@ -19,7 +19,7 @@ final class UpdateCommand extends Command
     public function __construct(
         private readonly ScaffoldsCorePanelStubs $stubs,
         private readonly SynchronizesEnvironmentFile $environment,
-        private readonly CorePanelHostMigrationRunner $migrations,
+        private readonly HostMigrationRunner $migrations,
     ) {
         parent::__construct();
     }
@@ -53,7 +53,13 @@ final class UpdateCommand extends Command
             $tags[] = PublishTag::Config->value;
         }
 
-        $result = $this->updatePublishedTags($tags, $force, $dryRun, $basePath);
+        $result = $this->updatePublishedTags(
+            $tags,
+            $force,
+            $dryRun,
+            $basePath,
+            adoptUnmanagedExisting: $force,
+        );
 
         $this->table(
             ['Tag', 'Status', 'Reason', 'Destination'],

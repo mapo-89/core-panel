@@ -180,6 +180,34 @@ it('creates a backup before force updates overwrite local files', function (): v
         ->and(file_get_contents($target))->not->toContain('// local change');
 });
 
+it('adopts unmanaged published assets during force updates', function (): void {
+    $basePath = makePublishBasePath('force-adopt-unmanaged');
+    $target = $basePath.'/resources/js/components/FormBuilder/FormRenderer.vue';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, "<template>\n    <div>legacy local component</div>\n</template>\n");
+
+    $this->artisan('core-panel:update', [
+        '--dry-run' => true,
+        '--base-path' => $basePath,
+    ])->expectsOutputToContain('destination is not managed by the publish manifest')
+        ->assertExitCode(0);
+
+    expect(file_exists($basePath.'/storage/app/core-panel/published.json'))->toBeFalse();
+
+    $this->artisan('core-panel:update', [
+        '--force' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/resources/js/components/FormBuilder/FormRenderer.vue');
+
+    expect($backups)->not->toBeFalse()
+        ->and($backups)->not->toBeEmpty()
+        ->and(file_get_contents($target))->not->toContain('legacy local component')
+        ->and(readManifest($basePath))->toContain('core-panel-components');
+});
+
 it('does not overwrite application scaffolds during force updates', function (): void {
     $basePath = makePublishBasePath('force-scaffold-preserve');
     $target = $basePath.'/resources/js/pages/Admin/Settings/Index.vue';

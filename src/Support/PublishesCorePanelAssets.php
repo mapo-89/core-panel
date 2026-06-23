@@ -68,9 +68,14 @@ trait PublishesCorePanelAssets
      *     themeMigrationHint:bool
      * }
      */
-    private function updatePublishedTags(array $tags, bool $force, bool $dryRun = false, ?string $basePath = null): array
-    {
-        return app(CorePanelPublisher::class)->update($tags, $force, $dryRun, $basePath);
+    private function updatePublishedTags(
+        array $tags,
+        bool $force,
+        bool $dryRun = false,
+        ?string $basePath = null,
+        bool $adoptUnmanagedExisting = false,
+    ): array {
+        return app(CorePanelPublisher::class)->update($tags, $force, $dryRun, $basePath, $adoptUnmanagedExisting);
     }
 
     /**

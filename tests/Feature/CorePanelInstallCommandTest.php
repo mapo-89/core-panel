@@ -7,7 +7,8 @@ use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
-use CorePanel\Support\Migrations\CorePanelHostMigrationRunner;
+use CorePanel\Support\Migrations\HostMigrationRunner;
+use CorePanel\Support\Migrations\MigrationPathResolver;
 use CorePanel\Support\SynchronizesEnvironmentFile;
 use Illuminate\Console\Command;
 use Illuminate\Console\OutputStyle;
@@ -195,7 +196,7 @@ it('runs host migrations in global timestamp order across domain directories', f
     file_put_contents($temporaryBasePath.'/database/migrations/tenancy/2026_01_01_000001_create_tenants_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/tenant/users/0001_01_01_000000_create_users_table.php', '<?php');
 
-    $runner = app(CorePanelHostMigrationRunner::class);
+    $runner = app(HostMigrationRunner::class);
     $method = new ReflectionMethod($runner, 'migrationFiles');
     $method->setAccessible(true);
 
@@ -210,6 +211,38 @@ it('runs host migrations in global timestamp order across domain directories', f
     ]);
 });
 
+it('resolves tenant migrations recursively in global timestamp order', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-tenant-migration-order-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/tenant/auth', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/tenant/users', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/tenant/files', 0777, true);
+
+    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/tenant/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/tenant/users/0001_01_01_000000_create_users_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/tenant/files/2019_01_01_000001_create_media_table.php', '<?php');
+
+    $migrationFiles = MigrationPathResolver::tenant($temporaryBasePath);
+
+    expect(array_map('basename', $migrationFiles))->toBe([
+        '0001_01_01_000000_create_users_table.php',
+        '2016_06_01_000001_create_oauth_auth_codes_table.php',
+        '2019_01_01_000001_create_media_table.php',
+    ]);
+});
+
+it('keeps tenant migration path scoped when no tenant migration files exist', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-empty-tenant-migrations-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath.'/database/migrations', 0777, true);
+
+    expect(MigrationPathResolver::tenant($temporaryBasePath))->toBe([
+        $temporaryBasePath.'/database/migrations/tenant',
+    ]);
+});
+
 it('executes host migrations in a single batch-preserving migrate call', function (): void {
     $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-run-'.bin2hex(random_bytes(5));
 
@@ -219,7 +252,7 @@ it('executes host migrations in a single batch-preserving migrate call', functio
     file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
 
-    $runner = app(CorePanelHostMigrationRunner::class);
+    $runner = app(HostMigrationRunner::class);
     $command = new RecordingMigrationCommand;
 
     $runner->run($command, $temporaryBasePath);
@@ -243,7 +276,7 @@ it('rejects duplicate host migration basenames across domain directories', funct
     file_put_contents($temporaryBasePath.'/database/migrations/auth/2026_01_01_000001_create_users_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/users/2026_01_01_000001_create_users_table.php', '<?php');
 
-    $runner = app(CorePanelHostMigrationRunner::class);
+    $runner = app(HostMigrationRunner::class);
     $command = new RecordingMigrationCommand;
 
     expect(fn () => $runner->run($command, $temporaryBasePath))
