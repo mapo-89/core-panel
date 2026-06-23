@@ -1,27 +1,15 @@
-FROM dunglas/frankenphp:1-php8.5-bookworm AS php-base
+FROM node:24-bookworm AS node
 
-ARG APP_ENV=production
-
-ENV APP_ENV=${APP_ENV} \
-    COMPOSER_ALLOW_SUPERUSER=1 \
-    OCTANE_SERVER=frankenphp \
-    SUPERVISOR_PHP_COMMAND="php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --admin-port=2019"
+FROM php:8.5-fpm-bookworm AS php-extension-base
 
 WORKDIR /var/www/html
 
+COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        ca-certificates \
         curl \
-        git \
-        libfreetype6-dev \
-        libicu-dev \
-        libjpeg62-turbo-dev \
-        libpng-dev \
-        libpq-dev \
-        libzip-dev \
-        postgresql-client \
-        supervisor \
-        unzip \
     && install-php-extensions \
         bcmath \
         exif \
@@ -34,14 +22,34 @@ RUN apt-get update \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
+FROM php-extension-base AS php-build-base
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+    && ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && rm -rf /var/lib/apt/lists/*
 
-FROM php-base AS vendor
-
-WORKDIR /app
+FROM php-build-base AS composer-base
 
 COPY composer.json composer.lock ./
+
+FROM composer-base AS vendor-prod
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --prefer-dist
+
+FROM composer-base AS vendor-dev
 
 RUN composer install \
     --no-interaction \
@@ -49,45 +57,78 @@ RUN composer install \
     --no-scripts \
     --prefer-dist
 
+FROM php-build-base AS frontend-build
 
-FROM node:22-bookworm-slim AS node-base
+COPY package.json package-lock.json ./
 
-
-FROM php-base AS assets
-
-WORKDIR /app
-
-COPY --from=node-base /usr/local/ /usr/local/
-COPY package*.json ./
-
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm ci
 
 COPY . .
-COPY --from=vendor /app/vendor /app/vendor
+COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor
 
 RUN php artisan package:discover --ansi \
+    && php artisan wayfinder:generate --no-interaction \
     && npm run build
 
+FROM php-extension-base AS php-runtime-base
 
-FROM php-base AS runtime
+COPY . /var/www/html
+COPY .docker/bin/php-entrypoint.sh /usr/local/bin/core-panel-php-entrypoint
+COPY .docker/php/banner.sh /usr/local/bin/banner.sh
+COPY .docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY .docker/php/php.ini /usr/local/etc/php/conf.d/99-core-panel.ini
+COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/99-opcache.ini
+COPY .docker/php-fpm/zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf
+
+RUN mkdir -p \
+        /var/www/html/storage/app \
+        /var/www/html/storage/framework/cache \
+        /var/www/html/storage/framework/sessions \
+        /var/www/html/storage/framework/views \
+        /var/www/html/storage/logs \
+        /var/www/html/bootstrap/cache \
+    && chmod +x /usr/local/bin/banner.sh /usr/local/bin/entrypoint.sh \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod +x /usr/local/bin/core-panel-php-entrypoint
+
+FROM php-runtime-base AS php-prod
+
+COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor
+COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
+
+RUN php artisan package:discover --ansi \
+    && php artisan wayfinder:generate --no-interaction
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1
+
+ENTRYPOINT ["core-panel-php-entrypoint"]
+CMD ["php-fpm", "-F"]
+
+FROM php-runtime-base AS php-dev
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=vendor-dev /var/www/html/vendor /var/www/html/vendor
+COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
+
+RUN php artisan package:discover --ansi \
+    && php artisan wayfinder:generate --no-interaction
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1
+
+ENTRYPOINT ["core-panel-php-entrypoint"]
+CMD ["php-fpm", "-F"]
+
+FROM nginx:1.31-alpine AS nginx-runtime
 
 WORKDIR /var/www/html
 
-COPY --from=vendor /app/vendor /var/www/html/vendor
-COPY . /var/www/html
-COPY --from=assets /app/public/build /var/www/html/public/build
-COPY .docker/php/php.ini /usr/local/etc/php/conf.d/99-core-panel.ini
-COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/99-opcache.ini
-COPY .docker/supervisor/octane.conf /etc/supervisor/conf.d/octane.conf
-COPY .docker/supervisor/horizon.conf /etc/supervisor/conf.d/horizon.conf
-COPY .docker/supervisor/scheduler.conf /etc/supervisor/conf.d/scheduler.conf
-
-RUN php artisan package:discover --ansi \
-    && mkdir -p /var/log/supervisor /var/www/html/storage/logs \
-    && chown -R www-data:www-data /var/www/html
-
-EXPOSE 8000 2019
-
-HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD curl -fsS http://127.0.0.1:8000/up || exit 1
-
-CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=8000", "--admin-port=2019"]
+COPY --from=php-prod /var/www/html/public /var/www/html/public
+COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf

@@ -4,64 +4,65 @@ services:
       file: docker-compose.yml
       service: app
     build:
-      target: php-base
+      target: php-dev
+      args:
+        APP_ENV: local
     environment:
-      - DB_HOST=postgres
-    ports:
-      - "${APP_PORT:-8000}:8000"
-      - "${OCTANE_ADMIN_PORT:-2019}:2019"
+      APP_ENV: local
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
     volumes:
       - ./:/var/www/html
-    command: >
-      sh -lc "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi &&
-      until pg_isready -h \"$${DB_HOST}\" -p \"$${DB_PORT}\" -U \"$${DB_USERNAME}\" -d postgres; do sleep 2; done &&
-      psql \"host=$${DB_HOST} port=$${DB_PORT} user=$${DB_USERNAME} password=$${DB_PASSWORD} dbname=postgres\" -tc \"SELECT 1 FROM pg_database WHERE datname = '$${DB_DATABASE}'\" | grep -q 1 || psql \"host=$${DB_HOST} port=$${DB_PORT} user=$${DB_USERNAME} password=$${DB_PASSWORD} dbname=postgres\" -c \"CREATE DATABASE \\\"$${DB_DATABASE}\\\"\" &&
-      psql \"host=$${DB_HOST} port=$${DB_PORT} user=$${DB_USERNAME} password=$${DB_PASSWORD} dbname=postgres\" -tc \"SELECT 1 FROM pg_database WHERE datname = '$${DB_DATABASE_TEST:-core_panel_test}'\" | grep -q 1 || psql \"host=$${DB_HOST} port=$${DB_PORT} user=$${DB_USERNAME} password=$${DB_PASSWORD} dbname=postgres\" -c \"CREATE DATABASE \\\"$${DB_DATABASE_TEST:-core_panel_test}\\\"\" &&
-      php artisan optimize:clear &&
-      php artisan serve --host=0.0.0.0 --port=8000"
+    command: ["/bin/sh", "/var/www/html/.docker/bin/start-dev-app.sh"]
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./.docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 
   app-test:
     extends:
       file: docker-compose.yml
       service: app-test
     build:
-      target: php-base
+      target: php-dev
     volumes:
       - ./:/var/www/html
-    command: >
-      sh -lc "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi &&
-      until pg_isready -h \"$${DB_HOST}\" -p \"$${DB_PORT}\" -U \"$${DB_USERNAME}\" -d postgres; do sleep 2; done &&
-      psql \"host=$${DB_HOST} port=$${DB_PORT} user=$${DB_USERNAME} password=$${DB_PASSWORD} dbname=postgres\" -tc \"SELECT 1 FROM pg_database WHERE datname = '$${DB_DATABASE_TEST:-core_panel_test}'\" | grep -q 1 || psql \"host=$${DB_HOST} port=$${DB_PORT} user=$${DB_USERNAME} password=$${DB_PASSWORD} dbname=postgres\" -c \"CREATE DATABASE \\\"$${DB_DATABASE_TEST:-core_panel_test}\\\"\" &&
-      php artisan optimize:clear &&
-      sleep infinity"
 
   horizon:
     extends:
       file: docker-compose.yml
       service: horizon
     build:
-      target: php-base
+      target: php-dev
+      args:
+        APP_ENV: local
+    environment:
+      APP_ENV: local
     volumes:
       - ./:/var/www/html
-    command: >
-      sh -lc "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi &&
-      until pg_isready -h \"$${DB_HOST}\" -p \"$${DB_PORT}\" -U \"$${DB_USERNAME}\" -d postgres; do sleep 2; done &&
-      php artisan optimize:clear &&
-      php artisan horizon"
+    command: ["/bin/sh", "/var/www/html/.docker/bin/start-dev-artisan.sh", "horizon"]
 
   scheduler:
     extends:
       file: docker-compose.yml
       service: scheduler
     build:
-      target: php-base
+      target: php-dev
+      args:
+        APP_ENV: local
+    environment:
+      APP_ENV: local
     volumes:
       - ./:/var/www/html
-    command: >
-      sh -lc "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi &&
-      until pg_isready -h \"$${DB_HOST}\" -p \"$${DB_PORT}\" -U \"$${DB_USERNAME}\" -d postgres; do sleep 2; done &&
-      php artisan optimize:clear &&
-      php artisan schedule:work"
+    command: ["/bin/sh", "/var/www/html/.docker/bin/start-dev-artisan.sh", "schedule:work"]
 
   postgres:
     extends:

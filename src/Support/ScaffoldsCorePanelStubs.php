@@ -19,6 +19,22 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VERSIONED_UPDATE_SCAFFOLDS = [
+        '.docker/bin/php-entrypoint.sh',
+        '.docker/bin/prepare-local-environment.sh',
+        '.docker/bin/start-dev-app.sh',
+        '.docker/bin/start-dev-artisan.sh',
+        '.docker/nginx/default.conf',
+        '.docker/php/banner.sh',
+        '.docker/php/entrypoint.sh',
+        '.docker/php/opcache.ini',
+        '.docker/php/php.ini',
+        '.docker/php-fpm/zz-docker.conf',
+        '.dockerignore',
+        'Dockerfile',
+        'docker-compose.dev.yml',
+        'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
+        'docker-compose.yml',
         'lang/de/page-user-groups.php',
         'lang/en/page-user-groups.php',
         'resources/css/theme/_datatable.css',

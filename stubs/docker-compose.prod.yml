@@ -3,77 +3,68 @@ services:
     extends:
       file: docker-compose.yml
       service: app
+    environment:
+      APP_ENV: production
+    volumes:
+      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
     restart: unless-stopped
-    ports:
-      - "8000:8000"
-      - "2019:2019"
-    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/octane.conf"]
-
-  app-test:
-    extends:
-      file: docker-compose.yml
-      service: app-test
-    profiles:
-      - test
-    command: ["sleep", "infinity"]
 
   horizon:
     extends:
       file: docker-compose.yml
       service: horizon
+    volumes:
+      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
     restart: unless-stopped
-    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/horizon.conf"]
 
   scheduler:
     extends:
       file: docker-compose.yml
       service: scheduler
+    volumes:
+      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
     restart: unless-stopped
-    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/scheduler.conf"]
+
+  migrate:
+    extends:
+      file: docker-compose.yml
+      service: app
+    command: ["php", "artisan", "migrate", "--force"]
+    environment:
+      APP_ENV: production
+    profiles: ["migrate"]
+    volumes:
+      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
+    restart: "no"
 
   postgres:
     extends:
       file: docker-compose.yml
       service: postgres
     restart: unless-stopped
+    ports: !reset []
+    volumes:
+      - ${POSTGRES_DATA_PATH:-/srv/docker/core-panel/postgres}:/var/lib/postgresql
 
   redis:
     extends:
       file: docker-compose.yml
       service: redis
     restart: unless-stopped
-
-  mailpit:
-    extends:
-      file: docker-compose.yml
-      service: mailpit
-    profiles:
-      - tooling
+    ports: !reset []
+    volumes:
+      - ${REDIS_DATA_PATH:-/srv/docker/core-panel/redis/data}:/data
 
   nginx:
-    image: nginx:1.27-alpine
-    profiles:
-      - nginx
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx-runtime
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
+    volumes:
+      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public:ro
+    restart: unless-stopped
     ports:
-      - "8080:80"
-    command: >
-      /bin/sh -lc "cat <<'EOF' >/etc/nginx/conf.d/default.conf
-      server {
-          listen 80;
-          client_max_body_size 64m;
-          location / {
-              proxy_pass http://app:8000;
-              proxy_set_header Host $$host;
-              proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto $$scheme;
-          }
-      }
-      EOF
-      && nginx -g 'daemon off;'"
-
-volumes:
-  postgres-data:
-  redis-data:
+      - "8000:80"

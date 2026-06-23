@@ -65,34 +65,21 @@ function currentCorePanelPackageVersion(): string
  */
 function versionedUpdateScaffoldPaths(): array
 {
-    return [
-        'lang/de/page-user-groups.php',
-        'lang/en/page-user-groups.php',
-        'resources/css/theme/_datatable.css',
-        'resources/js/components/AppIcon.vue',
-        'resources/js/components/AvatarUploadDropzone.vue',
-        'resources/js/components/BadgeRenderer.vue',
-        'resources/js/components/TableBuilder/DataTable.vue',
-        'resources/js/components/TableBuilder/TableFilterDropdown.vue',
-        'resources/js/components/TableBuilder/TableFilters.vue',
-        'resources/js/components/TableBuilder/useDataTable.ts',
-        'resources/js/components/UserAvatar.vue',
-        'resources/js/components/ui/BadgeRenderer.vue',
-        'resources/js/components/ui/UserAvatar.vue',
-        'resources/js/layouts/components/AppHeader.vue',
-        'resources/js/pages/Admin/Forms/Preview.vue',
-        'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
-        'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',
-        'resources/js/pages/Admin/Users/Index.vue',
-        'resources/js/pages/Admin/Users/Show.vue',
-        'resources/js/pages/Admin/Users/components/UserFormFields.vue',
-        'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
-        'resources/js/pages/Admin/Users/components/UserOverviewTab.vue',
-        'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
-        'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
-        'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
-        'resources/js/types/core-panel.ts',
-    ];
+    $contents = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
+
+    expect($contents)->toBeString();
+
+    preg_match(
+        '/private const VERSIONED_UPDATE_SCAFFOLDS = \[(.*?)\];/s',
+        (string) $contents,
+        $matches,
+    );
+
+    expect($matches[1] ?? null)->toBeString();
+
+    preg_match_all("/'([^']+)'/", $matches[1], $paths);
+
+    return $paths[1];
 }
 
 it('versions the user record type scaffold with the user management views', function (): void {

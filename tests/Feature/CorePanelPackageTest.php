@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Process\Process;
 
 final class ConfiguredUser extends Model
 {
@@ -576,7 +577,9 @@ it('excludes generated scaffold artifacts from the installable stubs tree', func
 it('keeps newly referenced frontend scaffolds eligible for managed-only updates', function (): void {
     $scaffolder = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
 
-    expect($scaffolder)->toContain("'resources/js/components/ui/UserAvatar.vue'");
+    expect($scaffolder)->toContain("'resources/js/components/ui/UserAvatar.vue'")
+        ->and($scaffolder)->toContain("'.docker/bin/php-entrypoint.sh'")
+        ->and($scaffolder)->toContain("'docker-compose.registry.yml'");
 });
 
 it('ships the managed host gitignore stub', function (): void {
@@ -621,15 +624,22 @@ it('maps installer templates onto the host application paths by relative path', 
         'config/horizon.php',
         'config/queue.php',
         'config/session.php',
+        '.docker/bin/php-entrypoint.sh',
+        '.docker/bin/prepare-local-environment.sh',
+        '.docker/bin/start-dev-app.sh',
+        '.docker/bin/start-dev-artisan.sh',
+        '.docker/nginx/default.conf',
+        '.docker/php/banner.sh',
+        '.docker/php/entrypoint.sh',
         'Dockerfile',
         '.docker/php/opcache.ini',
         '.docker/php/php.ini',
-        '.docker/supervisor/horizon.conf',
-        '.docker/supervisor/octane.conf',
-        '.docker/supervisor/scheduler.conf',
+        '.docker/php-fpm/zz-docker.conf',
+        '.dockerignore',
         'docker-compose.yml',
         'docker-compose.dev.yml',
         'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
         'lang/de/auth.php',
         'lang/de/common.php',
         'lang/en/auth.php',
@@ -1208,75 +1218,161 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     $baseCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.yml');
     $developmentCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.dev.yml');
     $productionCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.prod.yml');
+    $registryCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.registry.yml');
+    $dockerignore = file_get_contents(__DIR__.'/../../stubs/.dockerignore');
+    $phpEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/bin/php-entrypoint.sh');
+    $developmentAppEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/bin/start-dev-app.sh');
+    $developmentArtisanEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/bin/start-dev-artisan.sh');
+    $nginx = file_get_contents(__DIR__.'/../../stubs/.docker/nginx/default.conf');
+    $phpFpm = file_get_contents(__DIR__.'/../../stubs/.docker/php-fpm/zz-docker.conf');
+    $banner = file_get_contents(__DIR__.'/../../stubs/.docker/php/banner.sh');
+    $runtimeEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/php/entrypoint.sh');
     $phpIni = file_get_contents(__DIR__.'/../../stubs/.docker/php/php.ini');
     $opcacheIni = file_get_contents(__DIR__.'/../../stubs/.docker/php/opcache.ini');
-    $octaneSupervisor = file_get_contents(__DIR__.'/../../stubs/.docker/supervisor/octane.conf');
-    $horizonSupervisor = file_get_contents(__DIR__.'/../../stubs/.docker/supervisor/horizon.conf');
-    $schedulerSupervisor = file_get_contents(__DIR__.'/../../stubs/.docker/supervisor/scheduler.conf');
+    $phpDevDockerfile = explode('FROM php-runtime-base AS php-dev', $dockerfile, 2)[1] ?? '';
 
-    expect($dockerfile)->toContain('FROM dunglas/frankenphp:1-php8.5-bookworm AS php-base')
-        ->and($dockerfile)->toContain('FROM php-base AS vendor')
-        ->and($dockerfile)->toContain('FROM node:22-bookworm-slim AS node-base')
-        ->and($dockerfile)->toContain('FROM php-base AS assets')
-        ->and($dockerfile)->toContain('FROM php-base AS runtime')
+    expect($dockerfile)->toContain('FROM node:24-bookworm AS node')
+        ->and($dockerfile)->toContain('FROM php:8.5-fpm-bookworm AS php-extension-base')
+        ->and($dockerfile)->toContain('FROM composer-base AS vendor-prod')
+        ->and($dockerfile)->toContain('FROM composer-base AS vendor-dev')
+        ->and($dockerfile)->toContain('FROM php-build-base AS frontend-build')
+        ->and($dockerfile)->toContain('FROM php-runtime-base AS php-prod')
+        ->and($dockerfile)->toContain('FROM php-runtime-base AS php-dev')
+        ->and($dockerfile)->toContain('FROM nginx:1.31-alpine AS nginx-runtime')
         ->and($dockerfile)->not->toContain('FROM composer:2 AS vendor')
         ->and($dockerfile)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH=/opt/core-panel-package')
         ->and($dockerfile)->not->toContain('core-panel-prepare-composer')
         ->and($dockerfile)->not->toContain('core-panel-restore-composer')
         ->and($dockerfile)->not->toContain('COPY --from=core_panel_package . /opt/core-panel-package')
+        ->and($dockerfile)->not->toContain('octane:start')
+        ->and($dockerfile)->not->toContain('frankenphp')
+        ->and($dockerfile)->toContain('--no-dev')
         ->and($dockerfile)->toContain('--no-scripts')
-        ->and($dockerfile)->toContain('COPY --from=node-base /usr/local/ /usr/local/')
-        ->and($dockerfile)->toContain('COPY --from=vendor /app/vendor /app/vendor')
+        ->and($dockerfile)->toContain('COPY --from=node /usr/local/bin/node /usr/local/bin/node')
+        ->and($dockerfile)->toContain('COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor')
+        ->and($dockerfile)->toContain('COPY --from=vendor-dev /var/www/html/vendor /var/www/html/vendor')
         ->and($dockerfile)->toContain('RUN php artisan package:discover --ansi')
+        ->and($dockerfile)->toContain('&& php artisan wayfinder:generate --no-interaction')
         ->and($dockerfile)->toContain('&& npm run build')
-        ->and($dockerfile)->toContain('COPY --from=assets /app/public/build /var/www/html/public/build')
-        ->and($dockerfile)->toContain('&& mkdir -p /var/log/supervisor /var/www/html/storage/logs')
-        ->and($dockerfile)->toContain('COPY package*.json ./')
-        ->and($dockerfile)->toContain('RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi')
+        ->and($dockerfile)->toContain('COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build')
+        ->and($dockerfile)->toContain('COPY .docker/bin/php-entrypoint.sh /usr/local/bin/core-panel-php-entrypoint')
+        ->and($dockerfile)->toContain('COPY .docker/php-fpm/zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf')
+        ->and($dockerfile)->toContain('COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf')
+        ->and($dockerfile)->toContain('COPY package.json package-lock.json ./')
+        ->and($dockerfile)->toContain('RUN npm ci')
         ->and($dockerfile)->toContain('install-php-extensions')
+        ->and($phpDevDockerfile)->toContain('postgresql-client')
         ->and($dockerfile)->toContain('exif')
         ->and($dockerfile)->toContain('pcntl')
         ->and($dockerfile)->toContain('pdo_pgsql')
         ->and($dockerfile)->toContain('redis')
         ->and($dockerfile)->toContain('gd')
-        ->and($dockerfile)->toContain('HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD curl -fsS http://127.0.0.1:8000/up || exit 1')
+        ->and($dockerfile)->toContain('HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1')
         ->and($baseCompose)->toContain('app-test:')
         ->and($baseCompose)->toContain('horizon:')
         ->and($baseCompose)->toContain('scheduler:')
         ->and($baseCompose)->toContain('postgres:')
         ->and($baseCompose)->toContain('redis:')
         ->and($baseCompose)->toContain('mailpit:')
+        ->and($baseCompose)->not->toContain('CENTRAL_DOMAINS')
         ->and($baseCompose)->not->toContain('additional_contexts:')
         ->and($baseCompose)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH')
+        ->and($baseCompose)->toContain('target: php-prod')
+        ->and($baseCompose)->toContain('target: php-dev')
         ->and($baseCompose)->toContain('DB_HOST: postgres')
         ->and($baseCompose)->toContain('REDIS_HOST: redis')
+        ->and($baseCompose)->toContain('QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}')
         ->and($baseCompose)->toContain('DB_DATABASE: ${DB_DATABASE_TEST:-core_panel_test}')
-        ->and($baseCompose)->toContain('pg_isready -U ${POSTGRES_USER:-core_panel} -d ${POSTGRES_DB:-core_panel}')
+        ->and($baseCompose)->toContain('pg_isready -U ${POSTGRES_USER:-${DB_USERNAME:-core_panel}} -d ${POSTGRES_DB:-${DB_DATABASE:-core_panel}}')
         ->and($baseCompose)->toContain('redis-cli')
         ->and($developmentCompose)->not->toContain('composer install --no-interaction')
         ->and($developmentCompose)->not->toContain('core-panel-prepare-composer')
         ->and($developmentCompose)->not->toContain('core-panel-restore-composer')
         ->and($developmentCompose)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH')
-        ->and($developmentCompose)->toContain('target: php-base')
+        ->and($developmentCompose)->toContain('target: php-dev')
         ->and($developmentCompose)->toContain('- ./:/var/www/html')
-        ->and($developmentCompose)->toContain('php artisan optimize:clear')
-        ->and($developmentCompose)->toContain('php artisan serve --host=0.0.0.0 --port=8000')
+        ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-app.sh')
+        ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-artisan.sh')
+        ->and($developmentCompose)->toContain('nginx:')
+        ->and($developmentCompose)->toContain('${APP_PORT:-8000}:80')
         ->and($developmentCompose)->not->toContain('php artisan migrate --force')
-        ->and($developmentCompose)->toContain('CREATE DATABASE \\\\\\"$${DB_DATABASE_TEST:-core_panel_test}\\\\\\"')
         ->and($developmentCompose)->toContain('volumes:')
         ->and($developmentCompose)->toContain('postgres-data:')
         ->and($developmentCompose)->toContain('redis-data:')
         ->and($productionCompose)->toContain('nginx:')
-        ->and($productionCompose)->toContain('/usr/bin/supervisord')
-        ->and($productionCompose)->toContain('postgres-data:')
-        ->and($productionCompose)->toContain('redis-data:')
-        ->and($phpIni)->toContain('upload_max_filesize=64M')
+        ->and($productionCompose)->toContain('target: nginx-runtime')
+        ->and($productionCompose)->toContain('command: ["php", "artisan", "migrate", "--force"]')
+        ->and($productionCompose)->not->toContain('migrate:recursive')
+        ->and($productionCompose)->toContain('/srv/docker/core-panel/storage/public')
+        ->and($productionCompose)->toContain('/srv/docker/core-panel/postgres')
+        ->and($productionCompose)->toContain('/srv/docker/core-panel/redis/data')
+        ->and($registryCompose)->toContain('image: ${PHP_IMAGE:?Set PHP_IMAGE}')
+        ->and($registryCompose)->toContain('image: ${NGINX_IMAGE:?Set NGINX_IMAGE}')
+        ->and($dockerignore)->toContain('.env')
+        ->and($dockerignore)->toContain('vendor')
+        ->and($phpEntrypoint)->toContain('docker-php-entrypoint "$@"')
+        ->and($developmentAppEntrypoint)->toContain('exec php-fpm -F')
+        ->and($developmentArtisanEntrypoint)->toContain('exec php artisan "$@"')
+        ->and($nginx)->toContain('fastcgi_pass app:9000')
+        ->and($nginx)->toContain('location = /nginx-health')
+        ->and($phpFpm)->toContain('listen = 9000')
+        ->and($runtimeEntrypoint)->toContain('WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"')
+        ->and($runtimeEntrypoint)->toContain('[ "$WAIT_FOR_NGINX" = "auto" ] && [ "$command_name" = "php-fpm" ]')
+        ->and($runtimeEntrypoint)->toContain('Checking nginx connection')
+        ->and($runtimeEntrypoint)->toContain('Skipping nginx wait for command:')
+        ->and($runtimeEntrypoint)->not->toContain('re-sulting')
+        ->and($phpIni)->toContain('upload_max_filesize=256M')
         ->and($opcacheIni)->toContain('opcache.enable=1')
-        ->and($octaneSupervisor)->toContain('artisan octane:start')
-        ->and($horizonSupervisor)->toContain('artisan horizon')
-        ->and($schedulerSupervisor)->toContain('artisan schedule:work');
+        ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/octane.conf'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/horizon.conf'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/scheduler.conf'))->toBeFalse();
 
     expect(file_exists(__DIR__.'/../../stubs/package-lock.json'))->toBeTrue();
+});
+
+it('skips nginx probing for one-off cli entrypoint commands', function (): void {
+    $process = new Process([
+        'sh',
+        __DIR__.'/../../stubs/.docker/php/entrypoint.sh',
+        '/bin/echo',
+        'cli-ok',
+    ]);
+    $process->setEnv([
+        'APP_ROOT' => sys_get_temp_dir(),
+        'DB_CONNECTION' => 'sqlite',
+        'WAIT_FOR_NGINX' => 'auto',
+    ]);
+
+    $process->run();
+
+    expect($process->isSuccessful())->toBeTrue()
+        ->and($process->getOutput())->toContain('Skipping nginx wait for command: /bin/echo')
+        ->and($process->getOutput())->toContain('cli-ok');
+});
+
+it('probes nginx automatically for the php-fpm entrypoint command', function (): void {
+    $process = new Process([
+        'sh',
+        __DIR__.'/../../stubs/.docker/php/entrypoint.sh',
+        'docker-php-entrypoint',
+        'php-fpm',
+        '-F',
+    ]);
+    $process->setEnv([
+        'APP_ROOT' => sys_get_temp_dir(),
+        'DB_CONNECTION' => 'sqlite',
+        'MAX_RETRIES' => '1',
+        'NGINX_HEALTH_URL' => 'http://127.0.0.1:9/nginx-health',
+        'SLEEP_SECONDS' => '0',
+        'WAIT_FOR_NGINX' => 'auto',
+    ]);
+    $process->setTimeout(5);
+
+    $process->run();
+
+    expect($process->isSuccessful())->toBeFalse()
+        ->and($process->getOutput())->toContain('Checking nginx connection at http://127.0.0.1:9/nginx-health')
+        ->and($process->getOutput())->toContain('nginx unreachable after 1 attempts');
 });
 
 it('ships a user stub that uses passport tokens without sanctum compatibility shims', function (): void {
