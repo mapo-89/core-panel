@@ -1,7 +1,7 @@
 {
-    "release_version": "1.1.6",
-    "display_version": "1.1.6 (405e9a1)",
-    "image_version": "1.1.6-405e9a1",
-    "commit": "405e9a1",
-    "commit_date": "2026-06-23T14:58:56+02:00"
+    "release_version": "1.1.7",
+    "display_version": "1.1.7 (af554c4)",
+    "image_version": "1.1.7-af554c4",
+    "commit": "af554c4",
+    "commit_date": "2026-06-23T15:45:50+02:00"
 }
