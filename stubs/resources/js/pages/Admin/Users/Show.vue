@@ -89,6 +89,7 @@ const tabsSchema = computed<TabsSchema>(() => ({
         {
             component: 'UserSessionsTab',
             componentProps: {
+                canUpdateUser: props.user.canUpdate,
                 enabled: props.sessionsEnabled,
                 userId: props.user.id,
             },
@@ -113,6 +114,10 @@ function reloadUser(): void {
 }
 
 function openEditDialog(): void {
+    if (!props.user.canUpdate) {
+        return
+    }
+
     dialog.open(UserFormDialog, {
         data: {
             canAssignRoles: props.canAssignRoles,
@@ -144,7 +149,11 @@ function openEditDialog(): void {
 
         <template #page-actions>
             <div class="flex flex-wrap gap-2">
-                <Button :label="$t('common.ui.edit')" @click="openEditDialog" />
+                <Button
+                    v-if="user.canUpdate"
+                    :label="$t('common.ui.edit')"
+                    @click="openEditDialog"
+                />
             </div>
         </template>
 

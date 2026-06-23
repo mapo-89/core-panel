@@ -37,10 +37,14 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
         'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',
         'resources/js/pages/Admin/Users/Index.vue',
+        'resources/js/pages/Admin/Users/Show.vue',
         'resources/js/pages/Admin/Users/components/UserFormFields.vue',
         'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
         'resources/js/pages/Admin/Users/components/UserOverviewTab.vue',
+        'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
+        'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
+        'resources/js/types/core-panel.ts',
     ];
 
     public function __construct(private Filesystem $files, private BackupManager $backups) {}
@@ -173,6 +177,29 @@ final readonly class ScaffoldsCorePanelStubs
             $this->files->ensureDirectoryExists(dirname($destinationPath));
             $this->files->copy($sourcePath, $destinationPath);
             $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+        }
+    }
+
+    /**
+     * @param  list<string>  $relativePaths
+     */
+    public function synchronizeVersionedScaffolds(array $relativePaths, ?string $basePath = null): void
+    {
+        $root = $basePath ?? base_path();
+        $currentVersion = $this->currentPackageVersion();
+        $installedVersion = $this->installedScaffoldPackageVersion($root);
+
+        foreach ($relativePaths as $relativePath) {
+            if (! $this->shouldSynchronizeVersionedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
+                continue;
+            }
+
+            $this->synchronizeVersionedScaffold(
+                $relativePath,
+                $this->sourcePath($relativePath),
+                $root.'/'.$relativePath,
+                $root,
+            );
         }
     }
 

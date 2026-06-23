@@ -136,6 +136,62 @@ it('falls back to the users tab and strips role payloads when the actor lacks ro
         ->assertJsonPath('props.permissions', []);
 });
 
+it('does not expose user update capabilities to actors without user update permission', function (): void {
+    $this->withoutMiddleware([CheckPermission::class, EnsureCorePanelEmailIsVerified::class]);
+    Gate::before(static fn ($user, string $ability): ?bool => in_array($ability, ['view', 'viewAny'], true) ? true : null);
+
+    Permission::findOrCreate('users.view', 'web');
+    Permission::findOrCreate('users.update', 'web');
+
+    $actor = FakeUser::query()->create([
+        'email' => 'users-readonly@example.test',
+        'email_verified_at' => now(),
+        'first_name' => 'Users',
+        'last_name' => 'Readonly',
+        'password' => Hash::make('secret-password'),
+    ]);
+    $actor->givePermissionTo('users.view');
+
+    $target = FakeUser::query()->create([
+        'email' => 'readonly-target@example.test',
+        'email_verified_at' => now(),
+        'first_name' => 'Readonly',
+        'last_name' => 'Target',
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    $indexResponse = $this->actingAs($actor)->get(route('core-panel.users.index'), [
+        'X-Inertia' => 'true',
+        'X-Requested-With' => 'XMLHttpRequest',
+    ]);
+
+    $indexResponse->assertOk();
+
+    /** @var array<string, mixed> $indexPayload */
+    $indexPayload = $indexResponse->json();
+    $indexUsers = collect($indexPayload['props']['users'] ?? []);
+    $targetPayload = $indexUsers->firstWhere('email', 'readonly-target@example.test');
+
+    expect($targetPayload)->toBeArray()
+        ->and($targetPayload['canUpdate'])->toBeFalse();
+
+    $this->actingAs($actor)
+        ->get(route('core-panel.users.edit', $target->getKey()))
+        ->assertForbidden();
+
+    $this->actingAs($actor)
+        ->put(route('core-panel.users.update', $target->getKey()), [
+            'email' => 'readonly-target-updated@example.test',
+            'first_name' => 'Readonly',
+            'last_name' => 'Target',
+            'password' => '',
+            'password_confirmation' => '',
+            'status' => 'active',
+            'user_group_ids' => [],
+        ])
+        ->assertForbidden();
+});
+
 it('rejects assigning the super-admin role through user updates for non super-admins', function (): void {
     $this->withoutMiddleware([CheckPermission::class, EnsureCorePanelEmailIsVerified::class]);
 

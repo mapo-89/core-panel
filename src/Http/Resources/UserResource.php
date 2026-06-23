@@ -29,6 +29,7 @@ final class UserResource extends JsonResource
      *     twoFactorEnabled:bool,
      *     canDelete:bool,
      *     canForceDelete:bool,
+     *     canUpdate:bool,
      *     emailVerifiedAt:?string,
      *     deletedAt:?string,
      *     invitationAcceptedAt:?string,
@@ -54,6 +55,8 @@ final class UserResource extends JsonResource
                 && Gate::forUser($actor)->allows('delete', $this->resource),
             'canForceDelete' => $actor !== null
                 && Gate::forUser($actor)->allows('forceDelete', $this->resource),
+            'canUpdate' => $actor !== null
+                && Gate::forUser($actor)->allows('update', $this->resource),
         ];
     }
 }

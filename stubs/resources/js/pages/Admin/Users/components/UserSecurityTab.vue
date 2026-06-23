@@ -84,6 +84,7 @@ function openDirectResetDialog(): void {
 
                     <div class="cp-user-profile__actions">
                         <Button
+                            v-if="user.canUpdate"
                             :label="$t('page-auth.send_reset_link')"
                             outlined
                             :loading="resetLinkForm.processing"
@@ -93,7 +94,7 @@ function openDirectResetDialog(): void {
                 </article>
 
                 <article
-                    v-if="canHardResetPassword"
+                    v-if="canHardResetPassword && user.canUpdate"
                     class="cp-user-profile__card"
                 >
                     <h3>{{ $t('page-users.password_reset_directly') }}</h3>

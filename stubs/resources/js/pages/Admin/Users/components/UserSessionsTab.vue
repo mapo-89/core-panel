@@ -8,6 +8,7 @@ import userSessionRoutes from '@/routes/core-panel/users/sessions'
 import type { UserSessionRecord } from '@/types/core-panel'
 
 const props = defineProps<{
+    canUpdateUser: boolean
     enabled: boolean
     userId: string
 }>()
@@ -326,6 +327,7 @@ onMounted(async () => {
                         </div>
 
                         <Button
+                            v-if="canUpdateUser"
                             :label="$t('common.ui.remove')"
                             outlined
                             severity="secondary"

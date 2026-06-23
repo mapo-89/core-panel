@@ -84,12 +84,27 @@ function versionedUpdateScaffoldPaths(): array
         'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
         'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',
         'resources/js/pages/Admin/Users/Index.vue',
+        'resources/js/pages/Admin/Users/Show.vue',
         'resources/js/pages/Admin/Users/components/UserFormFields.vue',
         'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
         'resources/js/pages/Admin/Users/components/UserOverviewTab.vue',
+        'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
+        'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
+        'resources/js/types/core-panel.ts',
     ];
 }
+
+it('versions the user record type scaffold with the user management views', function (): void {
+    expect(versionedUpdateScaffoldPaths())->toContain(
+        'resources/js/pages/Admin/Users/Index.vue',
+        'resources/js/pages/Admin/Users/Show.vue',
+        'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
+        'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
+        'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
+        'resources/js/types/core-panel.ts',
+    );
+});
 
 it('publishes a single config tag', function (): void {
     $basePath = makePublishBasePath('config');

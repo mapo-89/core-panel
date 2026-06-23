@@ -317,7 +317,8 @@ function userActions(user: UserRecord): Array<{
             label: trans('common.ui.view'),
             run: () => router.visit(userRoutes.show.url(user.id)),
         },
-        ...(user.requiresPasswordSetup || user.invitationStatus === 'accepted'
+        ...(user.canUpdate &&
+        (user.requiresPasswordSetup || user.invitationStatus === 'accepted')
             ? [
                   {
                       key: 'reinvite',
@@ -326,11 +327,15 @@ function userActions(user: UserRecord): Array<{
                   },
               ]
             : []),
-        {
-            key: 'edit',
-            label: trans('common.ui.edit'),
-            run: () => props.onEditUser?.(user),
-        },
+        ...(user.canUpdate
+            ? [
+                  {
+                      key: 'edit',
+                      label: trans('common.ui.edit'),
+                      run: () => props.onEditUser?.(user),
+                  },
+              ]
+            : []),
         ...(user.deletedAt && props.capabilities.supportsSoftDeletes
             ? [
                   {
@@ -718,10 +723,11 @@ function openRowActionsMenu(event: Event, user: UserRecord): void {
                         </Link>
                         <Button
                             v-if="
-                                (row.user as UserRecord)
+                                (row.user as UserRecord).canUpdate &&
+                                ((row.user as UserRecord)
                                     .requiresPasswordSetup ||
-                                (row.user as UserRecord).invitationStatus ===
-                                    'accepted'
+                                    (row.user as UserRecord)
+                                        .invitationStatus === 'accepted')
                             "
                             v-tooltip.top="
                                 invitationActionTooltip(
@@ -753,6 +759,7 @@ function openRowActionsMenu(event: Event, user: UserRecord): void {
                             />
                         </Button>
                         <Button
+                            v-if="(row.user as UserRecord).canUpdate"
                             :aria-label="$t('common.ui.edit')"
                             class="cp-datatable__action-button"
                             severity="secondary"

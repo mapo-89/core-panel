@@ -120,6 +120,7 @@ export type UserRecord = {
     twoFactorEnabled: boolean
     canDelete: boolean
     canForceDelete: boolean
+    canUpdate: boolean
     createdAt: string | null
     emailVerifiedAt: string | null
     deletedAt: string | null
