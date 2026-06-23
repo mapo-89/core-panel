@@ -181,6 +181,34 @@ it('supports no-interaction installer defaults', function (): void {
         ->and($installer->options?->createAdmin)->toBeTrue();
 });
 
+it('rejects installation when core panel is already installed', function (): void {
+    $installer = new CapturingInstaller;
+    $manifestPath = base_path('storage/app/core-panel/scaffolds.json');
+
+    if (! is_dir(dirname($manifestPath))) {
+        mkdir(dirname($manifestPath), 0777, true);
+    }
+
+    file_put_contents($manifestPath, json_encode([
+        '_meta' => [
+            'package_version' => '1.0.0',
+        ],
+        'files' => [],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+
+    app()->instance(CorePanelInstallerInterface::class, $installer);
+
+    try {
+        $this->artisan('core-panel:install', ['--no-interaction' => true])
+            ->expectsOutputToContain('Laravel CorePanel is already installed. Run core-panel:update to update an existing installation.')
+            ->assertExitCode(1);
+
+        expect($installer->options)->toBeNull();
+    } finally {
+        @unlink($manifestPath);
+    }
+});
+
 it('runs host migrations in global timestamp order across domain directories', function (): void {
     $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-order-'.bin2hex(random_bytes(5));
 

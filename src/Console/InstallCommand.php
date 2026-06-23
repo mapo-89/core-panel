@@ -49,6 +49,12 @@ final class InstallCommand extends Command
 
     public function handle(): int
     {
+        if ($this->isAlreadyInstalled()) {
+            $this->components->error('Laravel CorePanel is already installed. Run core-panel:update to update an existing installation.');
+
+            return self::FAILURE;
+        }
+
         $this->components->info('Installing Laravel CorePanel...');
 
         try {
@@ -60,6 +66,11 @@ final class InstallCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function isAlreadyInstalled(): bool
+    {
+        return is_file(base_path('storage/app/core-panel/scaffolds.json'));
     }
 
     private function resolveOptions(): CorePanelInstallOptions
