@@ -7,7 +7,7 @@ namespace App\OpenApi;
 use OpenApi\Attributes as OA;
 
 #[OA\Info(
-    version: '1.1.5',
+    version: '1.1.6',
     title: 'CorePanel API',
     description: 'Swagger UI for the application\'s versioned authenticated API surface.',
 )]
