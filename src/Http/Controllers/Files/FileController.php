@@ -29,7 +29,7 @@ final class FileController extends Controller
         $files = $this->listFiles->execute($request);
         $filePayload = $files->toArray();
         $filePayload['data'] = $files->getCollection()
-            ->map(fn (ManagedFile $file): array => FileData::fromModel($file, $this->media)->toArray())
+            ->map(fn (ManagedFile $file): array => $this->fileData($request, $file))
             ->all();
 
         return Inertia::render('Files/Index', [
@@ -48,6 +48,49 @@ final class FileController extends Controller
                 'totalSize' => $this->listFiles->totalSize($request),
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fileData(Request $request, ManagedFile $file): array
+    {
+        $payload = FileData::fromModel($file, $this->media)->toArray();
+
+        if (($payload['disk'] ?? null) !== 'local') {
+            return $payload;
+        }
+
+        $previewUrl = route($this->routeName($request, 'preview'), ['file' => $file->getKey()]);
+        $downloadUrl = route($this->routeName($request, 'download'), ['file' => $file->getKey()]);
+
+        $payload['previewUrl'] = $previewUrl;
+        $payload['downloadUrl'] = $downloadUrl;
+        $payload['url'] = $this->isPreviewableMimeType($payload['mimeType'] ?? null)
+            ? $previewUrl
+            : $downloadUrl;
+
+        return $payload;
+    }
+
+    private function isPreviewableMimeType(mixed $mimeType): bool
+    {
+        if (! is_string($mimeType) || $mimeType === '') {
+            return false;
+        }
+
+        return str_starts_with($mimeType, 'image/') || $mimeType === 'application/pdf';
+    }
+
+    private function routeName(Request $request, string $action): string
+    {
+        $currentRouteName = (string) $request->route()?->getName();
+
+        if (str_ends_with($currentRouteName, '.index')) {
+            return substr($currentRouteName, 0, -strlen('.index')).'.'.$action;
+        }
+
+        return 'core-panel.files.'.$action;
     }
 
     /**
