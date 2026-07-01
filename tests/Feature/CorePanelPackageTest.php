@@ -1092,7 +1092,7 @@ it('ships host route templates that can be composed by the tenancy addon', funct
     $routeManifest = file_get_contents(__DIR__.'/../../stubs/routes/web/routes.php');
 
     expect($webRoutes)->toContain("Route::redirect('/', config('core-panel.route_prefix', 'admin'));")
-        ->and($webRoutes)->toContain("\$shouldLoadPublicRoutes = ! file_exists(__DIR__.'/universal.php');")
+        ->and($webRoutes)->toContain("foreach (\$webRoutes['public'] as \$publicRouteFile)")
         ->and($webRoutes)->not->toContain("if (file_exists(__DIR__.'/web/tenants.php'))")
         ->and($routeManifest)->toContain("'dashboard.php'")
         ->and($routeManifest)->toContain("'platform.php'")
@@ -2663,11 +2663,13 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and($generalSettings)->toContain('@drop.prevent="handleLogoDrop"')
         ->and($generalSettings)->toContain(":class=\"{ 'is-drag-active': logoDragActive }\"")
         ->and($avatarUpload)->toContain('router.reload({')
+        ->and($avatarUpload)->toContain("import userAvatarRoutes from '@/routes/core-panel/users/avatar/index'")
+        ->and($avatarUpload)->not->toContain("import userAvatarRoutes from '@/routes/core-panel/users/avatar'")
         ->and($avatarUpload)->toContain('<AvatarUploadDropzone')
         ->and($avatarUpload)->toContain('@invalid-file="notifyInvalidFileType"')
         ->and($avatarUpload)->toContain('size="xl"')
         ->and($avatarUpload)->toContain("import AvatarUploadDropzone from '@/components/AvatarUploadDropzone.vue'")
-        ->and($avatarUpload)->toContain("import userAvatarRoutes from '@/routes/core-panel/users/avatar'")
+        ->and($avatarUpload)->toContain("import userAvatarRoutes from '@/routes/core-panel/users/avatar/index'")
         ->and($avatarUpload)->toContain('layout="inline"')
         ->and($avatarUpload)->toContain("reloadKeys: () => ['auth', 'flash']")
         ->and($avatarUpload)->toContain('only: props.reloadKeys')
