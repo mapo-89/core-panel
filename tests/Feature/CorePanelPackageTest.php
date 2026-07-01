@@ -973,6 +973,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($provisionPlaygroundsScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel\\":\\"dev-main\\"}')
         ->and($provisionPlaygroundsScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel-tenancy\\":\\"dev-main\\"}')
         ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel:dev-main --no-interaction --prefer-dist')
+        ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel-tenancy:dev-main --no-interaction --prefer-dist')
         ->and($provisionPlaygroundsScript)->toContain('php artisan core-panel:install')
         ->and($provisionPlaygroundsScript)->toContain('--install-tenancy="${install_tenancy}"')
         ->and($provisionPlaygroundsScript)->toContain('npm install')
