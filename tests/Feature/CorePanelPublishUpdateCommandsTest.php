@@ -381,6 +381,34 @@ it('creates explicitly versioned missing application scaffolds during updates', 
     }
 });
 
+it('fully synchronizes local application scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('local-full-scaffold-sync');
+    $originalEnvironment = app()->environment();
+    $existingTarget = $basePath.'/resources/js/components/AppToast.vue';
+    $missingTarget = $basePath.'/resources/js/components/Dialogs/ConfirmActionDialog.vue';
+
+    mkdir(dirname($existingTarget), 0777, true);
+    file_put_contents($existingTarget, "<template>\n    <div>custom local toast</div>\n</template>\n");
+
+    app()->instance('env', 'local');
+
+    try {
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+    } finally {
+        app()->instance('env', $originalEnvironment);
+    }
+
+    expect(file_exists($existingTarget))->toBeTrue()
+        ->and(file_get_contents($existingTarget))->toContain('useToast')
+        ->and(file_get_contents($existingTarget))->not->toContain('custom local toast')
+        ->and(file_exists($missingTarget))->toBeTrue()
+        ->and(file_get_contents($missingTarget))->toContain('cp-confirm-dialog__message')
+        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/components/AppToast.vue'))
+        ->not->toBeEmpty();
+});
+
 it('creates explicitly versioned missing application scaffolds without per-file current manifest entries', function (): void {
     $basePath = makePublishBasePath('missing-versioned-scaffold-no-file-entry');
     $managedContents = "<?php\n\n// current managed console scaffold\n";

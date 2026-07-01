@@ -47,6 +47,7 @@ final class UpdateCommand extends Command
         $force = (bool) $this->option('force');
         $withAddonUpdates = (bool) $this->option('with-addon-updates');
         $withBreakingChanges = (bool) $this->option('breaking-changes');
+        $localScaffoldSync = $this->shouldFullySynchronizeScaffolds($basePath);
         $tags = PublishTag::updateTags();
 
         if ($withBreakingChanges) {
@@ -88,11 +89,11 @@ final class UpdateCommand extends Command
 
         if (! $dryRun) {
             $this->stubs->scaffold(
-                force: false,
+                force: $localScaffoldSync,
                 basePath: $basePath,
                 pruneHostScaffolds: false,
-                mergeExisting: true,
-                onlyManagedChanges: true,
+                mergeExisting: ! $localScaffoldSync,
+                onlyManagedChanges: ! $localScaffoldSync,
             );
             $this->syncEnvironmentDefaults($basePath);
 
@@ -112,6 +113,11 @@ final class UpdateCommand extends Command
         return collect($result['changes'])->contains(static fn (array $change): bool => $change['status'] === 'conflict')
             ? self::FAILURE
             : self::SUCCESS;
+    }
+
+    private function shouldFullySynchronizeScaffolds(?string $basePath): bool
+    {
+        return app()->isLocal();
     }
 
     private function updateInstalledOptionalAddons(
