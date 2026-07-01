@@ -272,6 +272,7 @@ it('applies environment overrides from the config file', function (): void {
         ->and($config->routePrefix)->toBe('control')
         ->and($config->auth->usesPassport())->toBeTrue()
         ->and($config->auth->registrationEnabled)->toBeTrue()
+        ->and($config->security->contentSecurityPolicy)->toContain('blob:')
         ->and($config->files->disk)->toBe('s3');
 
     putenv('CORE_PANEL_USER_MODEL');
@@ -2716,7 +2717,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and(file_get_contents(__DIR__.'/../../src/Http/Requests/UpdateUserRequest.php'))->toContain("'remove_avatar' => ['sometimes', 'boolean']")
         ->and(file_get_contents(__DIR__.'/../../src/Domains/User/Actions/UpdateUserAction.php'))->toContain("(\$attributes['remove_avatar'] ?? false) === true")
         ->and($avatarController)->toContain('if ($request->expectsJson()) {')
-        ->and($avatarController)->toContain("'avatar_url' => \$this->users->avatarUrl(\$target->refresh())")
+        ->and($avatarController)->toContain("'avatar_url' => \$target->refresh()->getAttribute('avatar_url')")
         ->and($header)->toContain("import users from '@/routes/core-panel/users'")
         ->and($header)->toContain('router.visit(users.index.url())')
         ->and($rolesManager)->toContain("import userRoleRoutes from '@/routes/core-panel/users/roles'")
@@ -3037,6 +3038,7 @@ it('ships locale switching assets and shared locale scaffolding', function (): v
         ->and($appHeader)->toContain('preserveState: true')
         ->and($appHeader)->toContain('@click.prevent="switchLocale(item.localeCode)"')
         ->and($bootstrap)->toContain('ApplyCorePanelRuntimeSettings::class')
+        ->and($bootstrap)->toContain('AllowBlobImageCsp::class')
         ->and($bootstrap)->toContain('SecurityHeaders::class')
         ->and($bootstrap)->toContain('ResolveCorePanelLocale::class')
         ->and($bootstrap)->toContain('ShareLocaleDataWithInertia::class');

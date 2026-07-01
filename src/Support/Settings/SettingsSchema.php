@@ -362,7 +362,7 @@ final class SettingsSchema
                 'description' => __('core-panel::settings.descriptions.security'),
                 'fields' => [
                     'content_security_policy' => [
-                        'default' => (string) config('core-panel.security.headers.csp', "default-src 'self'; frame-ancestors 'self'; img-src 'self' data: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"),
+                        'default' => (string) config('core-panel.security.headers.csp', "default-src 'self'; frame-ancestors 'self'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"),
                         'help' => __('core-panel::settings.help.content_security_policy'),
                         'is_localized' => false,
                         'is_public' => false,

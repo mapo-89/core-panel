@@ -54,7 +54,7 @@ final readonly class CorePanelConfig
             ),
             security: new SecurityConfig(
                 headersEnabled: (bool) $config->get('core-panel.security.headers.enabled', $config->get('core-panel.security.headers_enabled', true)),
-                contentSecurityPolicy: (string) $config->get('core-panel.security.headers.csp', "default-src 'self'; frame-ancestors 'self'; img-src 'self' data: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"),
+                contentSecurityPolicy: (string) $config->get('core-panel.security.headers.csp', "default-src 'self'; frame-ancestors 'self'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"),
                 cspReportOnly: (bool) $config->get('core-panel.security.headers.csp_report_only', false),
                 strictTransportSecurity: (string) $config->get('core-panel.security.headers.hsts', 'max-age=31536000; includeSubDomains'),
                 referrerPolicy: (string) $config->get('core-panel.security.headers.referrer_policy', 'strict-origin-when-cross-origin'),

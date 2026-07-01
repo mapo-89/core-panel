@@ -73,7 +73,7 @@ return [
 
     'security' => [
         'headers' => [
-            'csp' => "default-src 'self'; frame-ancestors 'self'; img-src 'self' data: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+            'csp' => "default-src 'self'; frame-ancestors 'self'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
             'csp_report_only' => env('CORE_PANEL_SECURITY_CSP_REPORT_ONLY', false),
             'enabled' => env('CORE_PANEL_SECURITY_HEADERS_ENABLED', true),
             'hsts' => 'max-age=31536000; includeSubDomains',

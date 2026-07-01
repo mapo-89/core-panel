@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\TrackUserPresence;
+use CorePanel\Http\Middleware\AllowBlobImageCsp;
 use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
 use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\ResolveCorePanelLocale;
@@ -56,6 +57,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: $tenantSessionCookieMiddleware);
         $middleware->web(append: [
             ApplyCorePanelRuntimeSettings::class,
+            AllowBlobImageCsp::class,
             SecurityHeaders::class,
             ResolveCorePanelLocale::class,
             ShareLocaleDataWithInertia::class,
@@ -66,6 +68,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             ApplyCorePanelRuntimeSettings::class,
+            AllowBlobImageCsp::class,
             SecurityHeaders::class,
             ResolveCorePanelLocale::class,
         ]);
