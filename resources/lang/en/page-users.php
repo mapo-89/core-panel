@@ -19,6 +19,7 @@ return [
     'email_verified' => 'Email verified',
     'force_delete_current_message' => 'Permanently delete this user?',
     'force_delete_message' => 'Permanently delete :name?',
+    'groups' => 'Groups',
     'index_description' => 'Users, roles, and security status in one interface.',
     'invite' => 'Invite user',
     'invitation_action_hint' => [

@@ -58,6 +58,7 @@ export type DataTableSchema = {
     bulkActions: DataTableAction[]
     columns: DataTableColumn[]
     filters: DataTableFilter[]
+    mode?: 'local' | 'remote'
     pagination: DataTablePagination
     rows: DataTableRow[]
     state: DataTableState

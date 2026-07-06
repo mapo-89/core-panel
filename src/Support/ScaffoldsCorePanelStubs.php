@@ -19,6 +19,7 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VERSIONED_UPDATE_SCAFFOLDS = [
+        'bootstrap/app.php',
         '.docker/bin/php-entrypoint.sh',
         '.docker/bin/prepare-local-environment.sh',
         '.docker/bin/start-dev-app.sh',
@@ -35,7 +36,9 @@ final readonly class ScaffoldsCorePanelStubs
         'docker-compose.prod.yml',
         'docker-compose.registry.yml',
         'docker-compose.yml',
+        'lang/de/page-users.php',
         'lang/de/page-user-groups.php',
+        'lang/en/page-users.php',
         'lang/en/page-user-groups.php',
         'resources/css/theme/_datatable.css',
         'resources/js/components/AppIcon.vue',
@@ -49,6 +52,7 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/components/ui/BadgeRenderer.vue',
         'resources/js/components/ui/UserAvatar.vue',
         'resources/js/layouts/components/AppHeader.vue',
+        'resources/js/layouts/components/AppPageHeader.vue',
         'resources/js/pages/Admin/Forms/Preview.vue',
         'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
         'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',

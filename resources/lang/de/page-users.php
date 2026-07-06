@@ -19,6 +19,7 @@ return [
     'email_verified' => 'E-Mail verifiziert',
     'force_delete_current_message' => 'Diesen Benutzer endgültig löschen?',
     'force_delete_message' => ':name endgültig löschen?',
+    'groups' => 'Gruppen',
     'index_description' => 'Benutzer, Rollen und Sicherheitsstatus in einer Oberfläche.',
     'invite' => 'Benutzer einladen',
     'invitation_action_hint' => [

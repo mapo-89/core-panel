@@ -66,7 +66,7 @@ final class UserAvatarController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'data' => [
-                    'avatar_url' => $target->refresh()->getAttribute('avatar_url'),
+                    'avatar_url' => $this->users->avatarUrl($target->refresh()),
                 ],
                 'message' => __('page-users.users.avatar_updated'),
             ]);

@@ -148,7 +148,7 @@ const usersTableSchema = computed<DataTableSchema>(() => ({
             key: 'user_groups',
             label: null,
             meta: {
-                labelKey: 'navigation.user_groups',
+                labelKey: 'page-users.groups',
             },
             searchable: false,
             sortable: false,

@@ -6,7 +6,7 @@ it('ships a datatable renderer that binds schema rows into primevue datatable co
     $renderer = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/DataTable.vue');
 
     expect($renderer)->toContain('<PrimeDataTable')
-        ->and($renderer)->toContain(':value="schema.rows"')
+        ->and($renderer)->toContain(':value="table.rows.value"')
         ->and($renderer)->toContain('<PrimeColumn')
         ->and($renderer)->toContain('v-for="column in displayColumns"');
 });

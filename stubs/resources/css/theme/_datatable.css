@@ -1,12 +1,96 @@
 /* DataTable shell */
 .cp-datatable {
+    --cp-datatable-sticky-head-height: 0px;
     display: grid;
-    gap: 1rem;
+    gap: 0;
+}
+
+.cp-datatable__sticky-head {
+    position: sticky;
+    top: var(--cp-page-header-height, 0px);
+    z-index: 24;
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+    border: 0;
+    border-bottom: 0;
+    border-radius: var(--cp-radius-lg) var(--cp-radius-lg) 0 0;
+    background: color-mix(in srgb, var(--cp-surface-panel) 96%, white);
+    box-shadow: none;
+}
+
+.cp-datatable__sticky-header-row {
+    display: grid;
+    align-items: stretch;
+    margin-top: 0.35rem;
+    border-bottom: 1px solid
+        color-mix(in srgb, var(--cp-surface-border) 88%, transparent);
+    background: color-mix(
+        in srgb,
+        var(--cp-surface-panel-alt) 78%,
+        transparent
+    );
+    backdrop-filter: blur(12px);
+}
+
+.cp-datatable__sticky-header-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem;
+    min-width: 0;
+    min-height: 3.85rem;
+    padding: 0.95rem 1rem;
+    color: var(--cp-text-muted);
+    font-size: 0.81rem;
+    font-weight: 750;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.cp-datatable__sticky-header-cell--sortable {
+    width: 100%;
+    border: 0;
+    appearance: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cp-datatable__sticky-header-cell--sortable:hover {
+    background: color-mix(
+        in srgb,
+        var(--cp-surface-panel-alt) 70%,
+        transparent
+    );
+    color: var(--cp-text-primary);
+}
+
+.cp-datatable__sticky-header-cell--actions {
+    justify-content: flex-end;
+}
+
+.cp-datatable__sticky-header-cell--selection {
+    justify-content: center;
+}
+
+.cp-datatable__sticky-header-label {
+    min-width: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+.cp-datatable__sticky-header-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
 }
 
 .cp-datatable__surface {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     border: 0;
     border-radius: 0 0 var(--cp-radius-lg) var(--cp-radius-lg);
     box-shadow: none;
@@ -15,33 +99,24 @@
 .cp-datatable__table.p-datatable {
     border: 0;
     border-radius: 0 0 var(--cp-radius-lg) var(--cp-radius-lg);
-    overflow: hidden;
+    overflow: visible;
     background: transparent;
 }
 
 .cp-datatable__table .p-datatable-table-container {
+    margin-top: -1px;
+    overflow: visible;
     background: transparent;
 }
 
 .cp-datatable__table .p-datatable-table {
     min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
-.cp-datatable__table .p-datatable-thead > tr > th {
-    padding: 0.95rem 1rem;
-    height: 3.85rem;
-    border-bottom: 1px solid
-        color-mix(in srgb, var(--cp-surface-border) 88%, transparent);
-    background: color-mix(
-        in srgb,
-        var(--cp-surface-panel-alt) 78%,
-        transparent
-    );
-    color: var(--cp-text-muted);
-    font-size: 0.81rem;
-    font-weight: 750;
-    letter-spacing: 0.02em;
-    text-transform: none;
+.cp-datatable__table--sticky-head .p-datatable-thead {
+    display: none;
 }
 
 .cp-datatable__table .p-sortable-column:not(.p-datatable-column-sorted):hover {
@@ -106,6 +181,11 @@
     padding: 1.5rem;
     background: rgba(255, 255, 255, 0.72);
     backdrop-filter: blur(2px);
+}
+
+.cp-datatable__body-overlay--top {
+    align-items: flex-start;
+    padding-top: 1rem;
 }
 
 .cp-datatable__body-overlay-card {
@@ -353,7 +433,7 @@
 
 .cp-datatable-pagination__summary {
     color: var(--cp-text-muted);
-    font-size: 0.84rem;
+    font-size: 0.92rem;
     font-weight: 500;
     white-space: nowrap;
 }
@@ -362,6 +442,7 @@
     margin-left: auto;
     gap: 0.35rem;
     padding: 0;
+    font-size: 0.95rem;
     background: transparent;
     border: 0;
 }
@@ -401,6 +482,19 @@
 }
 
 /* Dark mode */
+.core-panel-dark .cp-datatable__sticky-head {
+    border-color: color-mix(in srgb, var(--cp-surface-border) 58%, transparent);
+    background: color-mix(in srgb, var(--cp-surface-panel) 94%, black);
+}
+
+.core-panel-dark .cp-datatable__sticky-header-row {
+    background: color-mix(
+        in srgb,
+        var(--cp-surface-panel-alt) 54%,
+        transparent
+    );
+}
+
 .core-panel-dark .cp-datatable__surface {
     box-shadow: none;
 }

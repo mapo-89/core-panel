@@ -84,8 +84,12 @@ function versionedUpdateScaffoldPaths(): array
 
 it('versions the user record type scaffold with the user management views', function (): void {
     expect(versionedUpdateScaffoldPaths())->toContain(
+        'bootstrap/app.php',
+        'lang/de/page-users.php',
+        'lang/en/page-users.php',
         'resources/js/pages/Admin/Users/Index.vue',
         'resources/js/pages/Admin/Users/Show.vue',
+        'resources/js/layouts/components/AppPageHeader.vue',
         'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
         'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
@@ -425,6 +429,38 @@ it('creates explicitly versioned missing application scaffolds without per-file 
     }
 });
 
+it('creates the versioned bootstrap middleware scaffold during updates', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-bootstrap-app');
+    $target = $basePath.'/bootstrap/app.php';
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(file_get_contents($target))->toContain('use CorePanel\Http\Middleware\AllowBlobImageCsp;')
+        ->and(file_get_contents($target))->toContain('AllowBlobImageCsp::class');
+});
+
+it('creates the versioned page-users translation scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-page-users-translations');
+    $englishTarget = $basePath.'/lang/en/page-users.php';
+    $germanTarget = $basePath.'/lang/de/page-users.php';
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($englishTarget))->toBeTrue()
+        ->and(file_get_contents($englishTarget))->toContain("'groups' => 'Groups'")
+        ->and(file_exists($germanTarget))->toBeTrue()
+        ->and(file_get_contents($germanTarget))->toContain("'groups' => 'Gruppen'");
+});
+
 it('updates explicitly versioned existing application scaffolds without a previous baseline', function (): void {
     $basePath = makePublishBasePath('existing-versioned-scaffold');
 
@@ -454,6 +490,79 @@ it('updates explicitly versioned existing application scaffolds without a previo
             ->and($manifest['files'][$relativePath] ?? null)
             ->toBeArray("Expected {$relativePath} to be recorded in the scaffold manifest.");
     }
+});
+
+it('updates an existing bootstrap middleware scaffold without a previous baseline', function (): void {
+    $basePath = makePublishBasePath('existing-versioned-bootstrap-app');
+    $target = $basePath.'/bootstrap/app.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Foundation\Application;
+
+return Application::configure(basePath: dirname(__DIR__))->create();
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(file_get_contents($target))->toContain('use CorePanel\Http\Middleware\AllowBlobImageCsp;')
+        ->and(file_get_contents($target))->toContain('AllowBlobImageCsp::class')
+        ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/app.php'))
+        ->not->toBeEmpty()
+        ->and($manifest['files']['bootstrap/app.php'] ?? null)
+        ->toBeArray();
+});
+
+it('updates existing page-users translation scaffolds without a previous baseline', function (): void {
+    $basePath = makePublishBasePath('existing-versioned-page-users-translations');
+    $englishTarget = $basePath.'/lang/en/page-users.php';
+    $germanTarget = $basePath.'/lang/de/page-users.php';
+
+    mkdir(dirname($englishTarget), 0777, true);
+    mkdir(dirname($germanTarget), 0777, true);
+    file_put_contents($englishTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+return [
+    'users' => 'Users',
+];
+PHP);
+    file_put_contents($germanTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+return [
+    'users' => 'Benutzer',
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(file_get_contents($englishTarget))->toContain("'groups' => 'Groups'")
+        ->and(file_get_contents($germanTarget))->toContain("'groups' => 'Gruppen'")
+        ->and(glob($basePath.'/.core-panel-backups/*/lang/en/page-users.php'))
+        ->not->toBeEmpty()
+        ->and(glob($basePath.'/.core-panel-backups/*/lang/de/page-users.php'))
+        ->not->toBeEmpty()
+        ->and($manifest['files']['lang/en/page-users.php'] ?? null)
+        ->toBeArray()
+        ->and($manifest['files']['lang/de/page-users.php'] ?? null)
+        ->toBeArray();
 });
 
 it('does not create extra backups for current versioned scaffolds that are already up to date', function (): void {

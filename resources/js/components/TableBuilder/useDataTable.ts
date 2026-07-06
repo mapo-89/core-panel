@@ -1,4 +1,5 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toValue, watch } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import type { FormDataConvertible } from '@inertiajs/core'
 
@@ -45,35 +46,39 @@ function currentTab(url: string): string | undefined {
 }
 
 export function useDataTable(
-    schema: Readonly<DataTableSchema>,
+    schema: MaybeRefOrGetter<Readonly<DataTableSchema>>,
     options: DataTableReloadOptions = {},
 ) {
     const page = usePage<PageLike>()
+    const currentSchema = computed(() => toValue(schema))
+    const isLocal = computed(() => currentSchema.value.mode === 'local')
     const selectedRows = ref<DataTableRow[]>([])
-    const search = ref(schema.state.search ?? '')
+    const search = ref(currentSchema.value.state.search ?? '')
     const filters = ref<Record<string, unknown>>({
-        ...(schema.state.filters ?? {}),
+        ...(currentSchema.value.state.filters ?? {}),
     })
     const visibleColumns = ref<string[]>(
-        schema.state.visibleColumns.length > 0
-            ? [...schema.state.visibleColumns]
-            : schema.columns
+        currentSchema.value.state.visibleColumns.length > 0
+            ? [...currentSchema.value.state.visibleColumns]
+            : currentSchema.value.columns
                   .filter((column) => column.visible)
                   .map((column) => column.key),
     )
-    const sort = ref(schema.state.sort ?? '')
+    const sort = ref(currentSchema.value.state.sort ?? '')
     const isLoading = ref(false)
+    const currentPage = ref(currentSchema.value.pagination.page ?? 1)
+    const perPage = ref(currentSchema.value.pagination.perPage ?? 10)
 
     let searchDebounce: ReturnType<typeof setTimeout> | null = null
 
     const columnMap = computed<Record<string, DataTableColumn>>(() =>
         Object.fromEntries(
-            schema.columns.map((column) => [column.key, column]),
+            currentSchema.value.columns.map((column) => [column.key, column]),
         ),
     )
 
     const activeColumns = computed(() =>
-        schema.columns.filter(
+        currentSchema.value.columns.filter(
             (column) =>
                 visibleColumns.value.length === 0 ||
                 visibleColumns.value.includes(column.key),
@@ -81,9 +86,11 @@ export function useDataTable(
     )
 
     const rowActions = computed(() =>
-        schema.actions.filter((action) => !action.bulk),
+        currentSchema.value.actions.filter((action) => !action.bulk),
     )
-    const bulkActions = computed(() => schema.bulkActions)
+    const bulkActions = computed(() => currentSchema.value.bulkActions)
+    const sortField = computed(() => sort.value.replace(/^-/, ''))
+    const sortOrder = computed(() => (sort.value.startsWith('-') ? -1 : 1))
 
     function isEmptyFilterValue(value: unknown): boolean {
         if (value === null || value === undefined || value === '') {
@@ -119,7 +126,160 @@ export function useDataTable(
         )
     }
 
+    function resolveSearchableValues(
+        row: DataTableRow,
+        column: DataTableColumn,
+    ): string[] {
+        const metaSearchKeys = Array.isArray(column.meta?.searchKeys)
+            ? (column.meta?.searchKeys as unknown[])
+            : []
+
+        const keys = [
+            column.key,
+            ...metaSearchKeys.filter(
+                (value): value is string =>
+                    typeof value === 'string' && value !== '',
+            ),
+        ]
+
+        return keys
+            .map((key) => row[key])
+            .filter((value) => value !== null && value !== undefined)
+            .flatMap((value) =>
+                Array.isArray(value)
+                    ? value.map((entry) => String(entry ?? ''))
+                    : [String(value)],
+            )
+    }
+
+    function compareValues(
+        leftValue: unknown,
+        rightValue: unknown,
+        column?: DataTableColumn,
+    ): number {
+        const sortType = column?.meta?.localSortType
+
+        if (sortType === 'date') {
+            const leftDate = leftValue
+                ? new Date(String(leftValue)).getTime()
+                : 0
+            const rightDate = rightValue
+                ? new Date(String(rightValue)).getTime()
+                : 0
+
+            return leftDate - rightDate
+        }
+
+        if (sortType === 'number') {
+            return Number(leftValue ?? 0) - Number(rightValue ?? 0)
+        }
+
+        if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+            return leftValue - rightValue
+        }
+
+        return String(leftValue ?? '').localeCompare(String(rightValue ?? ''))
+    }
+
+    const localRows = computed(() => {
+        if (!isLocal.value) {
+            return currentSchema.value.rows
+        }
+
+        const normalizedSearch = search.value.trim().toLowerCase()
+
+        const searchedRows =
+            normalizedSearch === ''
+                ? currentSchema.value.rows
+                : currentSchema.value.rows.filter((row) =>
+                      currentSchema.value.columns
+                          .filter((column) => column.searchable)
+                          .some((column) =>
+                              resolveSearchableValues(row, column).some(
+                                  (value) =>
+                                      value
+                                          .toLowerCase()
+                                          .includes(normalizedSearch),
+                              ),
+                          ),
+                  )
+
+        if (sort.value === '') {
+            return searchedRows
+        }
+
+        const activeSortField = sortField.value
+        const activeColumn =
+            currentSchema.value.columns.find((column) => {
+                const sortKey = column.meta?.sortKey
+
+                return typeof sortKey === 'string' && sortKey !== ''
+                    ? sortKey === activeSortField
+                    : column.key === activeSortField
+            }) ??
+            currentSchema.value.columns.find(
+                (column) => column.key === activeSortField,
+            )
+
+        return [...searchedRows].sort((left, right) => {
+            const leftValue = left[activeSortField]
+            const rightValue = right[activeSortField]
+
+            return (
+                compareValues(leftValue, rightValue, activeColumn) *
+                sortOrder.value
+            )
+        })
+    })
+
+    const rows = computed(() => {
+        if (!isLocal.value) {
+            return currentSchema.value.rows
+        }
+
+        const start = (currentPage.value - 1) * perPage.value
+
+        return localRows.value.slice(start, start + perPage.value)
+    })
+
+    const pagination = computed(() => {
+        if (!isLocal.value) {
+            return currentSchema.value.pagination
+        }
+
+        const total = localRows.value.length
+        const from =
+            total === 0 ? null : (currentPage.value - 1) * perPage.value + 1
+        const to =
+            total === 0
+                ? null
+                : Math.min(currentPage.value * perPage.value, total)
+
+        return {
+            from,
+            lastPage: Math.max(1, Math.ceil(total / perPage.value)),
+            page: currentPage.value,
+            perPage: perPage.value,
+            to,
+            total,
+        }
+    })
+
     function syncQuery(overrides: Partial<DataTableState> = {}): void {
+        if (isLocal.value) {
+            filters.value = normalizeFiltersRecord({
+                ...filters.value,
+                ...(overrides.filters ?? {}),
+            })
+            search.value = overrides.search ?? search.value
+            sort.value = overrides.sort ?? sort.value
+            visibleColumns.value =
+                overrides.visibleColumns ?? visibleColumns.value
+            currentPage.value = 1
+
+            return
+        }
+
         const nextState: DataTableState = {
             filters: normalizeFiltersRecord({
                 ...filters.value,
@@ -181,6 +341,13 @@ export function useDataTable(
     }
 
     function setPage(event: { page: number; rows: number }): void {
+        if (isLocal.value) {
+            currentPage.value = event.page + 1
+            perPage.value = event.rows
+
+            return
+        }
+
         isLoading.value = true
 
         router.get(
@@ -208,6 +375,12 @@ export function useDataTable(
 
     function setSearch(value: string): void {
         search.value = value
+
+        if (isLocal.value) {
+            currentPage.value = 1
+
+            return
+        }
 
         if (searchDebounce !== null) {
             clearTimeout(searchDebounce)
@@ -320,17 +493,28 @@ export function useDataTable(
     }
 
     watch(
-        () => schema.state,
-        (nextState) => {
+        [() => currentSchema.value.state, () => currentSchema.value.pagination],
+        ([nextState, nextPagination]) => {
             filters.value = { ...(nextState.filters ?? {}) }
             search.value = nextState.search ?? ''
             sort.value = nextState.sort ?? ''
             visibleColumns.value =
                 nextState.visibleColumns.length > 0
                     ? [...nextState.visibleColumns]
-                    : schema.columns
+                    : currentSchema.value.columns
                           .filter((column) => column.visible)
                           .map((column) => column.key)
+            currentPage.value = nextPagination.page ?? 1
+            perPage.value = nextPagination.perPage ?? 10
+        },
+    )
+
+    watch(
+        () => pagination.value.lastPage,
+        (lastPage) => {
+            if (currentPage.value > lastPage) {
+                currentPage.value = lastPage
+            }
         },
     )
 
@@ -339,9 +523,12 @@ export function useDataTable(
         bulkActions,
         columnMap,
         filters,
+        isLocal,
         isLoading,
+        pagination,
         rowActions,
         resetFilters,
+        rows,
         search,
         selectedRows,
         setFilter,
