@@ -1,41 +1,162 @@
+x-php-environment: &php-environment
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_ENV: ${APP_ENV:-production}
+  APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-en}
+  APP_FAKER_LOCALE: ${APP_FAKER_LOCALE:-de_DE}
+  APP_KEY: ${APP_KEY:-}
+  APP_LOCALE: ${APP_LOCALE:-de}
+  APP_NAME: ${APP_NAME:-CorePanel}
+  APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Berlin}
+  APP_URL: ${APP_URL:-https://core-panel.test}
+  APP_VERSION: ${APP_VERSION:-1.1.7}
+  ASSET_URL: ${ASSET_URL:-}
+  BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-log}
+  CACHE_STORE: ${CACHE_STORE:-redis}
+  DB_CONNECTION: ${DB_CONNECTION:-pgsql}
+  DB_DATABASE: ${DB_DATABASE:-${POSTGRES_DB:-core_panel}}
+  DB_HOST: ${DB_HOST:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_USERNAME: ${DB_USERNAME:-${POSTGRES_USER:-core_panel}}
+  DATABASE_BACKUPS_AUTOMATIC_ENABLED: ${DATABASE_BACKUPS_AUTOMATIC_ENABLED:-false}
+  DATABASE_BACKUPS_ENABLED: ${DATABASE_BACKUPS_ENABLED:-true}
+  DATABASE_BACKUPS_IMPORT_MAX_SIZE_KB: ${DATABASE_BACKUPS_IMPORT_MAX_SIZE_KB:-1048576}
+  DATABASE_BACKUPS_PATH: ${DATABASE_BACKUPS_PATH:-/var/www/html/storage/app/backups/database}
+  DATABASE_BACKUPS_RESTORE_STATUS_STORE: ${DATABASE_BACKUPS_RESTORE_STATUS_STORE:-file}
+  DATABASE_BACKUPS_RESTORE_TIMEOUT: ${DATABASE_BACKUPS_RESTORE_TIMEOUT:-900}
+  DATABASE_BACKUPS_RETENTION_COUNT: ${DATABASE_BACKUPS_RETENTION_COUNT:-30}
+  DATABASE_BACKUPS_RETENTION_DAYS: ${DATABASE_BACKUPS_RETENTION_DAYS:-30}
+  DATABASE_BACKUPS_RETENTION_MODE: ${DATABASE_BACKUPS_RETENTION_MODE:-count}
+  DATABASE_BACKUPS_SCHEDULE_MODE: ${DATABASE_BACKUPS_SCHEDULE_MODE:-daily}
+  DATABASE_BACKUPS_SYSTEM_TIME: ${DATABASE_BACKUPS_SYSTEM_TIME:-02:00}
+  DATABASE_BACKUPS_TIMEOUT: ${DATABASE_BACKUPS_TIMEOUT:-900}
+  DATABASE_BACKUPS_TIME: ${DATABASE_BACKUPS_TIME:-02:00}
+  DATABASE_BACKUPS_TIMEZONE: ${DATABASE_BACKUPS_TIMEZONE:-${APP_TIMEZONE:-Europe/Berlin}}
+  DATABASE_BACKUPS_TIME_MODE: ${DATABASE_BACKUPS_TIME_MODE:-system}
+  FILESYSTEM_DISK: ${FILESYSTEM_DISK:-public}
+  HORIZON_ENABLED: ${HORIZON_ENABLED:-true}
+  HORIZON_SLACK_CHANNEL: ${HORIZON_SLACK_CHANNEL:-}
+  HORIZON_SLACK_WEBHOOK_URL: ${HORIZON_SLACK_WEBHOOK_URL:-}
+  LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+  LOG_LEVEL: ${LOG_LEVEL:-debug}
+  LOG_STACK: ${LOG_STACK:-daily}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@example.com}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-${APP_NAME:-CorePanel}}
+  MAIL_HOST: ${MAIL_HOST:-127.0.0.1}
+  MAIL_LOCAL_RECIPIENT: ${MAIL_LOCAL_RECIPIENT:-}
+  MAIL_MAILER: ${MAIL_MAILER:-smtp}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_PORT: ${MAIL_PORT:-1025}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  PASSWORD_RESET_ENABLED: ${PASSWORD_RESET_ENABLED:-true}
+  PASSPORT_PERSONAL_ACCESS_CLIENTS_ENABLED: ${PASSPORT_PERSONAL_ACCESS_CLIENTS_ENABLED:-false}
+  PASSPORT_PERSONAL_ACCESS_TOKEN_TTL_DAYS: ${PASSPORT_PERSONAL_ACCESS_TOKEN_TTL_DAYS:-180}
+  PASSPORT_REFRESH_TOKEN_TTL_DAYS: ${PASSPORT_REFRESH_TOKEN_TTL_DAYS:-30}
+  PASSPORT_TOKEN_TTL_MINUTES: ${PASSPORT_TOKEN_TTL_MINUTES:-15}
+  QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+  REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
+  ROUTE_PREFIX: ${ROUTE_PREFIX:-admin}
+  SECURITY_CSP_REPORT_ONLY: ${SECURITY_CSP_REPORT_ONLY:-false}
+  SECURITY_HEADERS_ENABLED: ${SECURITY_HEADERS_ENABLED:-true}
+  SESSION_DOMAIN: ${SESSION_DOMAIN:-}
+  SESSION_DRIVER: ${SESSION_DRIVER:-database}
+  SESSION_ENCRYPT: ${SESSION_ENCRYPT:-false}
+  SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+  SESSION_PATH: ${SESSION_PATH:-/}
+  SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+  SOCIAL_GITHUB_ENABLED: ${SOCIAL_GITHUB_ENABLED:-false}
+  SOCIAL_GOOGLE_ENABLED: ${SOCIAL_GOOGLE_ENABLED:-false}
+  SOCIAL_MASTER_PROVIDER: ${SOCIAL_MASTER_PROVIDER:-}
+  SOCIAL_MICROSOFT_ENABLED: ${SOCIAL_MICROSOFT_ENABLED:-false}
+  SYSTEM_UPDATES_AUTOMATIC_ENABLED: ${SYSTEM_UPDATES_AUTOMATIC_ENABLED:-false}
+  SYSTEM_UPDATES_AUTOMATIC_INACTIVE_MINUTES: ${SYSTEM_UPDATES_AUTOMATIC_INACTIVE_MINUTES:-15}
+  SYSTEM_UPDATES_AUTOMATIC_TIMEZONE: ${SYSTEM_UPDATES_AUTOMATIC_TIMEZONE:-${APP_TIMEZONE:-Europe/Berlin}}
+  SYSTEM_UPDATES_AUTOMATIC_WINDOW_END: ${SYSTEM_UPDATES_AUTOMATIC_WINDOW_END:-04:00}
+  SYSTEM_UPDATES_AUTOMATIC_WINDOW_START: ${SYSTEM_UPDATES_AUTOMATIC_WINDOW_START:-02:00}
+  SYSTEM_UPDATES_CHECK_TIMEOUT: ${SYSTEM_UPDATES_CHECK_TIMEOUT:-120}
+  SYSTEM_UPDATES_CONNECT_TIMEOUT: ${SYSTEM_UPDATES_CONNECT_TIMEOUT:-3}
+  SYSTEM_UPDATES_DOCKER_ONLY: ${SYSTEM_UPDATES_DOCKER_ONLY:-true}
+  SYSTEM_UPDATES_ENABLED: ${SYSTEM_UPDATES_ENABLED:-true}
+  SYSTEM_UPDATES_FORCE_UPDATE_ENABLED: ${SYSTEM_UPDATES_FORCE_UPDATE_ENABLED:-false}
+  SYSTEM_UPDATES_TIMEOUT: ${SYSTEM_UPDATES_TIMEOUT:-10}
+  SYSTEM_UPDATES_TOKEN: ${SYSTEM_UPDATES_TOKEN:-}
+  SYSTEM_UPDATES_UPDATE_TIMEOUT: ${SYSTEM_UPDATES_UPDATE_TIMEOUT:-600}
+  SYSTEM_UPDATES_UPDATER_URL: ${SYSTEM_UPDATES_UPDATER_URL:-http://system-updater:8080}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-*}
+  TWO_FACTOR_ENABLED: ${TWO_FACTOR_ENABLED:-true}
+
 services:
   app:
     extends:
       file: docker-compose.yml
       service: app
+    build:
+      args:
+        APP_ENV: ${APP_ENV:-production}
     environment:
-      APP_ENV: production
+      <<: *php-environment
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
-      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
+      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
     restart: unless-stopped
 
   horizon:
     extends:
       file: docker-compose.yml
       service: horizon
+    build:
+      args:
+        APP_ENV: ${APP_ENV:-production}
+    environment:
+      <<: *php-environment
+      RUN_MIGRATIONS: "false"
     volumes:
-      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
+      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
     restart: unless-stopped
 
   scheduler:
     extends:
       file: docker-compose.yml
       service: scheduler
+    build:
+      args:
+        APP_ENV: ${APP_ENV:-production}
+    environment:
+      <<: *php-environment
+      RUN_MIGRATIONS: "false"
     volumes:
-      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
+      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
     restart: unless-stopped
 
-  migrate:
-    extends:
-      file: docker-compose.yml
-      service: app
-    command: ["php", "artisan", "migrate", "--force"]
+  system-updater:
+    build:
+      context: ./updater
+      dockerfile: Dockerfile
     environment:
-      APP_ENV: production
-    profiles: ["migrate"]
+      UPDATER_ADDR: :8080
+      UPDATER_COMPOSE_ENV_FILE: ${SYSTEM_UPDATER_COMPOSE_ENV_FILE:-auto}
+      UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-docker-compose.prod.yml}
+      UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-core-panel}
+      UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}
+      UPDATER_FORCE_SELF_UPDATE_AVAILABLE: ${SYSTEM_UPDATER_FORCE_SELF_UPDATE_AVAILABLE:-false}
+      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler,nginx}
+      UPDATER_SELF_SERVICE: ${SYSTEM_UPDATER_SELF_SERVICE:-system-updater}
+      UPDATER_SELF_UPDATE_ENABLED: ${SYSTEM_UPDATER_SELF_UPDATE_ENABLED:-false}
+      UPDATER_STATE_PATH: /data/state.json
+      UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:-}
+      DOCKER_CONFIG: /docker-config
+    expose:
+      - "8080"
     volumes:
-      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public
-    restart: "no"
+      - ${SYSTEM_UPDATER_PROJECT_PATH:-/srv/docker/core-panel}:/workspace:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${SYSTEM_UPDATER_DOCKER_CONFIG_PATH:-/srv/docker/core-panel/docker-config}:/docker-config:ro
+      - ${UPDATER_DATA_PATH:-/srv/docker/core-panel/updater/data}:/data
+    restart: unless-stopped
 
   postgres:
     extends:
@@ -63,8 +184,10 @@ services:
     depends_on:
       app:
         condition: service_started
+    environment:
+      PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}
     volumes:
-      - ${PUBLIC_STORAGE_PATH:-/srv/docker/core-panel/storage/public}:/var/www/html/storage/app/public:ro
+      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage:ro
     restart: unless-stopped
     ports:
       - "8000:80"

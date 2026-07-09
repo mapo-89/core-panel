@@ -1,3 +1,4 @@
+import administration from '@/routes/core-panel/administration'
 import developer from '@/routes/core-panel/developer'
 import files from '@/routes/core-panel/files'
 import logs from '@/routes/core-panel/logs'
@@ -28,6 +29,18 @@ export function useAdminMenu() {
             label: 'navigation.files',
             match: ['/core-panel/files'],
             permission: 'files.view',
+        },
+        {
+            anyPermissions: [
+                'database-backups.view',
+                'horizon.view',
+                'system-updates.view',
+            ],
+            href: administration.index.url(),
+            icon: 'wrench',
+            key: 'administration',
+            label: 'navigation.administration',
+            match: [administration.index.url()],
         },
         {
             anyPermissions: ['activity-logs.view', 'authentication-logs.view'],

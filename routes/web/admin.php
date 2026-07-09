@@ -17,12 +17,15 @@ Route::middleware($middleware)
         Route::redirect('/', '/dashboard');
 
         foreach ([
+            'administration.php',
+            'database-backups.php',
             'logs.php',
             'developer.php',
             'files.php',
             'api-tokens.php',
             'oauth-clients.php',
             'settings.php',
+            'system-updates.php',
             'roles.php',
             'user-groups.php',
             'permissions.php',

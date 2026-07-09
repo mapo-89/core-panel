@@ -83,6 +83,7 @@ return [
         'provider' => 'Provider',
         'redirect' => 'Redirect',
         'redirect_uri' => 'Redirect URI',
+        'refresh' => 'Refresh',
         'remove' => 'Remove',
         'restore' => 'Restore',
         'revoke' => 'Revoke',

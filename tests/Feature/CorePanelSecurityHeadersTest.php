@@ -120,3 +120,29 @@ it('does not set headers when disabled', function (): void {
 
     expect($response->headers->all())->not->toHaveKey('x-frame-options');
 });
+
+it('adds horizon-specific script and font allowances to the content security policy', function (): void {
+    $settings = new InMemorySecuritySettingsRepository(new CacheRepository(new ArrayStore), new Setting);
+
+    $response = securityHeadersMiddleware($settings, [
+        'csp' => "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+    ])->handle(Request::create('/horizon/dashboard', 'GET'), static fn () => new Response('ok'));
+
+    expect((string) $response->headers->get('Content-Security-Policy'))
+        ->toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'")
+        ->toContain("style-src 'self' 'unsafe-inline' https://fonts.bunny.net")
+        ->toContain('font-src https://fonts.bunny.net');
+});
+
+it('does not duplicate horizon-specific content security policy allowances', function (): void {
+    $settings = new InMemorySecuritySettingsRepository(new CacheRepository(new ArrayStore), new Setting);
+
+    $response = securityHeadersMiddleware($settings, [
+        'csp' => "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; font-src https://fonts.bunny.net",
+    ])->handle(Request::create('/horizon', 'GET'), static fn () => new Response('ok'));
+
+    $policy = (string) $response->headers->get('Content-Security-Policy');
+
+    expect(substr_count($policy, "'unsafe-eval'"))->toBe(1)
+        ->and(substr_count($policy, 'https://fonts.bunny.net'))->toBe(2);
+});

@@ -38,7 +38,7 @@ final readonly class SettingsLogoManager
             return null;
         }
 
-        if ($this->disk() === 'public') {
+        if (in_array($this->disk(), ['local', 'public'], true)) {
             return $this->publicAssetUrl($path);
         }
 

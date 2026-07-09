@@ -344,8 +344,9 @@ it('automatically links and signs in the existing user when the master-provider 
     $request->setLaravelSession($session);
 
     $response = app(SocialiteCallbackController::class)->__invoke($request, 'microsoft');
+    $expectedTargetUrl = url('/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
 
-    expect($response->getTargetUrl())->toBe(url('/admin'))
+    expect($response->getTargetUrl())->toBe($expectedTargetUrl)
         ->and(
             SocialAccount::query()
                 ->where('provider', 'microsoft')
@@ -578,8 +579,9 @@ it('imports the microsoft avatar automatically when the local user has no profil
     $request->setLaravelSession($session);
 
     $response = app(SocialiteCallbackController::class)->__invoke($request, 'microsoft');
+    $expectedTargetUrl = url('/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
 
-    expect($response->getTargetUrl())->toBe(url('/admin'))
+    expect($response->getTargetUrl())->toBe($expectedTargetUrl)
         ->and($session->get('page-auth.socialite.pending-avatar-sync'))->toBeNull();
 
     Http::assertSentCount(1);
@@ -636,8 +638,9 @@ it('prompts before replacing an existing local avatar with the microsoft profile
     $request->setLaravelSession($session);
 
     $response = app(SocialiteCallbackController::class)->__invoke($request, 'microsoft');
+    $expectedTargetUrl = url('/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
 
-    expect($response->getTargetUrl())->toBe(url('/admin'))
+    expect($response->getTargetUrl())->toBe($expectedTargetUrl)
         ->and($session->get('page-auth.socialite.pending-avatar-sync.provider'))->toBe('microsoft')
         ->and($session->get('page-auth.socialite.pending-avatar-sync.current_avatar_url'))->toBe('https://app.example.test/storage/avatars/current.png')
         ->and($session->get('page-auth.socialite.pending-avatar-sync.provider_avatar_url'))->toBe('https://cdn.example.test/avatar-new.png');
@@ -1134,8 +1137,9 @@ it('updates the linked user email and signs the user in after confirming the mas
     $request->setLaravelSession($session);
 
     $response = app(SocialiteCallbackController::class)->resolveConflict($request, 'microsoft');
+    $expectedTargetUrl = url('/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
 
-    expect($response->getTargetUrl())->toBe(url('/admin'))
+    expect($response->getTargetUrl())->toBe($expectedTargetUrl)
         ->and($existingUser->fresh()?->getAttribute('email'))->toBe('master@example.test')
         ->and(
             SocialAccount::query()
@@ -1227,8 +1231,9 @@ it('switches to the matching existing user when the master provider email alread
     $request->setUserResolver(static fn () => $currentUser);
 
     $response = app(SocialiteCallbackController::class)->resolveConflict($request, 'microsoft');
+    $expectedTargetUrl = url('/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
 
-    expect($response->getTargetUrl())->toBe(url('/admin'));
+    expect($response->getTargetUrl())->toBe($expectedTargetUrl);
     $this->assertAuthenticatedAs($existingUser);
 
     expect(

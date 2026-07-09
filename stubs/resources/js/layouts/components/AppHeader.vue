@@ -235,6 +235,13 @@ function toggleUserMenu(event: Event): void {
                 </button>
             </div>
 
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <div
+                    aria-hidden="true"
+                    class="hidden w-full max-w-2xl lg:block"
+                />
+            </div>
+
             <div class="flex min-w-0 items-center gap-2.5">
                 <div v-if="supportedLocales.length > 1" class="hidden md:block">
                     <button

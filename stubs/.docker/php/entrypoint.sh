@@ -24,11 +24,46 @@ app_version() {
     fi
 }
 
+is_enabled() {
+    value="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+
+    case "$value" in
+        1|true|yes|on)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+ensure_public_storage_link() {
+    public_storage_path="${APP_ROOT}/public/storage"
+    storage_target="${APP_ROOT}/storage/app/public"
+
+    mkdir -p "$storage_target"
+    mkdir -p "$(dirname "$public_storage_path")"
+
+    if [ -L "$public_storage_path" ]; then
+        ln -sfn "$storage_target" "$public_storage_path"
+        log "✅ success " "Updated public/storage symlink"
+        return
+    fi
+
+    if [ -e "$public_storage_path" ]; then
+        log "⚠️ WARNING " "Skipping public/storage symlink because ${public_storage_path} already exists and is not a symlink"
+        return
+    fi
+
+    ln -s "$storage_target" "$public_storage_path"
+    log "✅ success " "Created public/storage symlink"
+}
+
 APP_ROOT="${APP_ROOT:-/var/www/html}"
 MAX_RETRIES="${MAX_RETRIES:-30}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-5}"
 ENTRYPOINT_DIR="${APP_ROOT}/.docker/php"
-WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"
+WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-false}"
 
 command_name="${1:-}"
 
@@ -62,6 +97,8 @@ echo
 # -----------------------------
 if [ -f "${APP_ROOT}/.env" ]; then
     log "📥 info    " ".env detected at ${APP_ROOT}/.env"
+elif [ -n "${APP_ENV:-}" ] || [ -n "${APP_KEY:-}" ]; then
+    log "📥 info    " ".env not found at ${APP_ROOT}/.env; using injected environment variables"
 else
     log "⚠️ WARNING " ".env not found at ${APP_ROOT}/.env"
 fi
@@ -168,6 +205,18 @@ elif [ "${DB_CONNECTION:-}" = "mysql" ] && command -v mysql >/dev/null 2>&1; the
     log "✅ success " "MySQL is reachable${db_name:+ for ${db_name}}"
 else
     log "⚠️ WARNING " "Skipping database wait for DB_CONNECTION=${DB_CONNECTION:-unset}"
+fi
+
+ensure_public_storage_link
+
+if is_enabled "${RUN_MIGRATIONS:-}"; then
+    if [ "$command_name" = "php-fpm" ]; then
+        log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate --force"
+        php artisan migrate --force
+        log "✅ success " "Migrations completed"
+    else
+        log "ℹ️ info    " "RUN_MIGRATIONS enabled; skipping migrations for command: ${command_name:-unknown}"
+    fi
 fi
 
 log "📥 info    " "Starting: $*"

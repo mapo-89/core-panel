@@ -29,6 +29,8 @@ final readonly class SecurityHeaders
         $contentSecurityPolicy = $this->headers->contentSecurityPolicy();
 
         if ($contentSecurityPolicy !== null && $contentSecurityPolicy !== '') {
+            $contentSecurityPolicy = $this->horizonCompatibleContentSecurityPolicy($request, $contentSecurityPolicy);
+
             $response->headers->set(
                 $this->headers->cspReportOnly() ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy',
                 $contentSecurityPolicy,
@@ -42,5 +44,44 @@ final readonly class SecurityHeaders
         }
 
         return $response;
+    }
+
+    private function horizonCompatibleContentSecurityPolicy(Request $request, string $policy): string
+    {
+        $horizonPath = trim((string) config('horizon.path', 'horizon'), '/');
+
+        if ($horizonPath === '' || ! ($request->is($horizonPath) || $request->is($horizonPath.'/*'))) {
+            return $policy;
+        }
+
+        $policy = $this->appendDirectiveValue($policy, 'script-src', "'unsafe-eval'");
+        $policy = $this->appendDirectiveValue($policy, 'style-src', 'https://fonts.bunny.net');
+
+        return $this->appendDirectiveValue($policy, 'font-src', 'https://fonts.bunny.net');
+    }
+
+    private function appendDirectiveValue(string $policy, string $directive, string $value): string
+    {
+        $segments = array_values(array_filter(array_map('trim', explode(';', $policy))));
+
+        foreach ($segments as $index => $segment) {
+            if (! str_starts_with($segment, $directive.' ')) {
+                continue;
+            }
+
+            $parts = preg_split('/\s+/', $segment) ?: [];
+
+            if (in_array($value, $parts, true)) {
+                return implode('; ', $segments);
+            }
+
+            $segments[$index] = $segment.' '.$value;
+
+            return implode('; ', $segments);
+        }
+
+        $segments[] = $directive.' '.$value;
+
+        return implode('; ', $segments);
     }
 }

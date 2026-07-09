@@ -264,7 +264,7 @@ const socialAvatarPrompt = computed(() => page.props.flash?.socialAvatarPrompt)
             />
 
             <main
-                class="app-main flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pt-[calc(4.5rem+1.5rem)] pb-8 md:px-6 lg:px-8"
+                class="app-main flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pt-[4.5rem] pb-8 md:px-6 lg:px-8"
             >
                 <AppPageHeader
                     :back-url="props.backUrl"

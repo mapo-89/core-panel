@@ -34,7 +34,8 @@ it('seeds managed permissions and predefined roles from the access configuration
     $adminRole = Role::query()->where('name', 'admin')->firstOrFail();
 
     expect($adminRole->getAttribute('core_panel_group'))->toBe('system')
-        ->and((bool) $adminRole->getAttribute('core_panel_is_protected'))->toBeTrue();
+        ->and((bool) $adminRole->getAttribute('core_panel_is_protected'))->toBeTrue()
+        ->and($adminRole->permissions->pluck('name')->all())->toContain('horizon.view');
 });
 
 it('resynchronizes managed access additively and preserves manual role extras', function (): void {

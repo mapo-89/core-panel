@@ -13,3 +13,13 @@ Artisan::command('inspire', function () {
 if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {
     Schedule::command('horizon:snapshot')->everyFiveMinutes();
 }
+
+if ((bool) config('core-panel.administration.database_backups.enabled', true)) {
+    Schedule::command('database-backups:auto')
+        ->everyMinute()
+        ->withoutOverlapping(60);
+}
+
+if ((bool) config('core-panel.administration.system_updates.automatic.enabled', false)) {
+    Schedule::command('system-updates:auto')->everyFiveMinutes();
+}

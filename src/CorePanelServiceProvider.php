@@ -14,7 +14,10 @@ use CorePanel\Console\MakeDtoCommand;
 use CorePanel\Console\MakeFormCommand;
 use CorePanel\Console\MakeTableCommand;
 use CorePanel\Console\PublishCommand;
+use CorePanel\Console\RunAutomaticDatabaseBackupCommand;
+use CorePanel\Console\RunAutomaticSystemUpdateCommand;
 use CorePanel\Console\SyncAccessCommand;
+use CorePanel\Console\SyncEnvironmentCommand;
 use CorePanel\Console\UpdateCommand;
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Contracts\LocaleResolver;
@@ -37,6 +40,15 @@ use CorePanel\Models\ManagedFile;
 use CorePanel\Models\Media;
 use CorePanel\Models\OAuthClient;
 use CorePanel\Support\ActivityLog\ActivityLogService;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupCloudBackupService;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupEncryptor;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupRestoreService;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupRestoreStatus;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupService;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
+use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSqlExportService;
+use CorePanel\Support\Administration\DatabaseBackups\RunAutomaticDatabaseBackupAction;
+use CorePanel\Support\Administration\SystemUpdates\RunAutomaticSystemUpdateAction;
 use CorePanel\Support\Api\ApiResponseFactory;
 use CorePanel\Support\Api\ApiTokenAbilityOptions;
 use CorePanel\Support\Auth\AuthenticationLogRecorder;
@@ -103,6 +115,14 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(AuthenticationLogRecorder::class);
         $this->app->scoped(ApiResponseFactory::class);
         $this->app->scoped(BackupManager::class);
+        $this->app->scoped(DatabaseBackupCloudBackupService::class);
+        $this->app->scoped(DatabaseBackupEncryptor::class);
+        $this->app->scoped(DatabaseBackupRestoreService::class);
+        $this->app->scoped(DatabaseBackupRestoreStatus::class);
+        $this->app->scoped(DatabaseBackupSettings::class);
+        $this->app->scoped(DatabaseBackupSqlExportService::class);
+        $this->app->scoped(DatabaseBackupService::class);
+        $this->app->scoped(RunAutomaticDatabaseBackupAction::class);
         $this->app->scoped(CorePanelInstallerInterface::class, CorePanelInstaller::class);
         $this->app->scoped(FileModelManager::class);
         $this->app->scoped(FormModelManager::class);
@@ -113,6 +133,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(MediaStateResetter::class);
         $this->app->scoped(OctaneStateResetter::class);
         $this->app->scoped(PermissionCacheResetter::class);
+        $this->app->scoped(RunAutomaticSystemUpdateAction::class);
         $this->app->scoped(CorePanelAccess::class);
         $this->app->scoped(PermissionService::class);
         $this->app->scoped(RoutePermissionResolver::class);
@@ -144,11 +165,14 @@ final class CorePanelServiceProvider extends PackageServiceProvider
                 InstallCommand::class,
                 MakeActionCommand::class,
                 MakeCrudCommand::class,
+                RunAutomaticDatabaseBackupCommand::class,
                 MakeDomainCommand::class,
                 MakeDtoCommand::class,
                 MakeFormCommand::class,
                 MakeTableCommand::class,
                 PublishCommand::class,
+                RunAutomaticSystemUpdateCommand::class,
+                SyncEnvironmentCommand::class,
                 SyncAccessCommand::class,
                 UpdateCommand::class,
             ]);

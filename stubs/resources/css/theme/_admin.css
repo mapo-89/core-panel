@@ -1604,7 +1604,8 @@
 .app-header {
     position: fixed;
     top: 0;
-    z-index: 30;
+    z-index: 40;
+    isolation: isolate;
     border-bottom: 1px solid
         color-mix(in srgb, var(--cp-surface-border) 84%, transparent);
     backdrop-filter: blur(18px);

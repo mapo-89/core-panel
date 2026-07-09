@@ -17,12 +17,16 @@ beforeEach(function (): void {
     }
 
     $this->migrateScaffoldDatabase();
+    config()->set('core-panel.files.disk', 'public');
+    config()->set('core-panel.files.logo.disk', 'public');
 
     Gate::before(static fn (...$arguments): bool => true);
 });
 
 it('uploads and removes the settings logo through dedicated endpoints', function (): void {
-    Storage::fake('public');
+    $disk = (string) config('core-panel.files.logo.disk', config('core-panel.files.disk', 'public'));
+
+    Storage::fake($disk);
 
     $user = FakeUser::query()->create([
         'email' => 'settings-logo@example.test',
@@ -52,7 +56,7 @@ it('uploads and removes the settings logo through dedicated endpoints', function
 
     expect($path)->toBeString()->not->toBe('');
 
-    Storage::disk('public')->assertExists((string) $path);
+    Storage::disk($disk)->assertExists((string) $path);
 
     $deleteResponse = $this
         ->actingAs($user)
@@ -68,7 +72,7 @@ it('uploads and removes the settings logo through dedicated endpoints', function
     expect(Setting::query()->where('group', 'general')->where('key', 'app_logo_path')->doesntExist())->toBeTrue()
         ->and(app(SettingsRepository::class)->get('general', 'app_logo_path'))->toBeNull();
 
-    Storage::disk('public')->assertMissing((string) $path);
+    Storage::disk($disk)->assertMissing((string) $path);
 });
 
 it('uses the public storage asset url for logo urls by default', function (): void {

@@ -84,9 +84,24 @@ function versionedUpdateScaffoldPaths(): array
 
 it('versions the user record type scaffold with the user management views', function (): void {
     expect(versionedUpdateScaffoldPaths())->toContain(
+        '.env.example',
         'bootstrap/app.php',
+        'docker-compose.portainer.yml',
+        'updater/Dockerfile',
+        'updater/go.mod',
+        'updater/main.go',
+        'lang/de/administration.php',
+        'lang/en/administration.php',
+        'lang/en/system_updates.php',
         'lang/de/page-users.php',
         'lang/en/page-users.php',
+        'resources/js/composables/useAdminMenu.ts',
+        'resources/js/pages/Admin/Administration/Index.vue',
+        'resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue',
+        'resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue',
+        'resources/js/pages/Admin/Administration/components/HorizonTab.vue',
+        'routes/web/admin/administration.php',
+        'routes/console.php',
         'resources/js/pages/Admin/Users/Index.vue',
         'resources/js/pages/Admin/Users/Show.vue',
         'resources/js/layouts/components/AppPageHeader.vue',
@@ -94,7 +109,42 @@ it('versions the user record type scaffold with the user management views', func
         'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
         'resources/js/types/core-panel.ts',
+        'resources/views/app.blade.php',
     );
+});
+
+it('creates missing administration scaffolds during update for existing applications', function (): void {
+    $basePath = makePublishBasePath('administration-missing-scaffold');
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($basePath.'/resources/js/pages/Admin/Administration/Index.vue'))->toBeTrue()
+        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue'))->toBeTrue()
+        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue'))->toBeTrue()
+        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/HorizonTab.vue'))->toBeTrue()
+        ->and(file_exists($basePath.'/routes/web/admin/administration.php'))->toBeTrue()
+        ->and(file_exists($basePath.'/routes/console.php'))->toBeTrue();
+});
+
+it('updates untracked administration scaffolds with a backup during versioned updates', function (): void {
+    $basePath = makePublishBasePath('administration-untracked-scaffold');
+    $target = $basePath.'/resources/js/pages/Admin/Administration/Index.vue';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, "<template>\n    <div>legacy administration page</div>\n</template>\n");
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Administration/Index.vue');
+
+    expect($backups)->not->toBeFalse()
+        ->and($backups)->not->toBeEmpty()
+        ->and(file_get_contents($target))->toContain("trans('administration.title')")
+        ->and(file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain('resources/js/pages/Admin/Administration/Index.vue');
 });
 
 it('publishes a single config tag', function (): void {
@@ -328,7 +378,7 @@ it('merges manifest-managed existing package json during updates', function (): 
         ->and(glob($basePath.'/.core-panel-backups/*/package.json'))->not->toBe([]);
 });
 
-it('does not create missing application scaffolds during updates without a previous version baseline', function (): void {
+it('creates missing versioned application scaffolds during updates without a previous version baseline', function (): void {
     $basePath = makePublishBasePath('missing-scaffold-no-baseline');
     $target = $basePath.'/routes/console.php';
 
@@ -338,7 +388,11 @@ it('does not create missing application scaffolds during updates without a previ
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($target))->toBeFalse();
+    expect(file_exists($target))->toBeTrue()
+        ->and(file_get_contents($target))->toContain('database-backups:auto')
+        ->and(file_get_contents($target))->toContain('system-updates:auto')
+        ->and(file_get_contents($target))->not->toContain("app()->bound('command.database-backups:auto')")
+        ->and(file_get_contents($target))->not->toContain("app()->bound('command.system-updates:auto')");
 });
 
 it('does not create unlisted missing application scaffolds just because another scaffold has an old baseline', function (): void {

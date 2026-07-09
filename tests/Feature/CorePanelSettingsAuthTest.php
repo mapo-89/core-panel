@@ -272,6 +272,7 @@ it('hides disabled auth pages and skips verification redirects when email verifi
     $verifyEmailResponse = $this->actingAs($user)->get(route('auth.verification.notice'));
 
     $destination = app(ResolveLoginDestination::class)->resolve(Request::create('/login', 'GET'), $user);
+    $expectedDestination = '/'.trim((string) config('core-panel.route_prefix', 'admin'), '/');
 
     expect($guestResponse->status())->toBe(404)
         ->and($forgotPasswordResponse->status())->toBe(404)
@@ -279,7 +280,7 @@ it('hides disabled auth pages and skips verification redirects when email verifi
         ->and($twoFactorChallengeResponse->status())->toBe(404)
         ->and($verifyEmailResponse->status())->toBe(404)
         ->and($destination)->toBe([
-            'destination' => '/admin',
+            'destination' => $expectedDestination,
             'error' => null,
         ]);
 });

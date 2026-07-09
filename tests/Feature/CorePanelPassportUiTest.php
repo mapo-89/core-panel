@@ -19,8 +19,8 @@ it('ships oauth scaffolding that prepares passport environment and runtime hooks
     $installer = file_get_contents(__DIR__.'/../../src/Support/Install/CorePanelInstaller.php');
     $routes = file_get_contents(__DIR__.'/../../routes/web/admin/oauth-clients.php');
 
-    expect($environment)->toContain('CORE_PANEL_PASSPORT_TOKEN_TTL_MINUTES=15')
-        ->and($environment)->toContain('CORE_PANEL_PASSPORT_REFRESH_TOKEN_TTL_DAYS=30')
+    expect($environment)->toContain('PASSPORT_TOKEN_TTL_MINUTES=15')
+        ->and($environment)->toContain('PASSPORT_REFRESH_TOKEN_TTL_DAYS=30')
         ->and($installer)->not->toContain("'passport-config'")
         ->and($installer)->not->toContain("'passport-migrations'")
         ->and($installer)->toContain("'passport:keys'")

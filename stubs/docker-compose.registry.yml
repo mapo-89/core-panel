@@ -11,10 +11,10 @@ services:
     image: ${PHP_IMAGE:?Set PHP_IMAGE}
     build: !reset null
 
-  migrate:
-    image: ${PHP_IMAGE:?Set PHP_IMAGE}
-    build: !reset null
-
   nginx:
     image: ${NGINX_IMAGE:?Set NGINX_IMAGE}
+    build: !reset null
+
+  system-updater:
+    image: ${UPDATER_IMAGE:?Set UPDATER_IMAGE}
     build: !reset null

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use CorePanel\Console\CleanActivityLogsCommand;
 use CorePanel\Console\InstallCommand;
 use CorePanel\Console\PublishCommand;
+use CorePanel\Console\RunAutomaticDatabaseBackupCommand;
+use CorePanel\Console\SyncEnvironmentCommand;
 use CorePanel\Console\UpdateCommand;
 use CorePanel\CorePanelServiceProvider;
 use CorePanel\Http\Responses\ResetPasswordResponse;
@@ -19,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -39,7 +42,14 @@ function publishedJavascriptAssetDirectories(string $basePath): array
         'stubs/resources/js/actions' => $basePath.'/resources/js/actions',
         'stubs/resources/js/app.ts' => $basePath.'/resources/js/app.ts',
         'stubs/resources/js/assets' => $basePath.'/resources/js/assets',
+        'stubs/resources/js/components/AppToast.vue' => $basePath.'/resources/js/components/AppToast.vue',
+        'stubs/resources/js/components/Auth' => $basePath.'/resources/js/components/Auth',
+        'stubs/resources/js/components/AvatarUploadDropzone.vue' => $basePath.'/resources/js/components/AvatarUploadDropzone.vue',
+        'stubs/resources/js/components/CorePanelLogo.vue' => $basePath.'/resources/js/components/CorePanelLogo.vue',
+        'stubs/resources/js/components/Dialogs' => $basePath.'/resources/js/components/Dialogs',
         'stubs/resources/js/components/Locale' => $basePath.'/resources/js/components/Locale',
+        'stubs/resources/js/components/ui' => $basePath.'/resources/js/components/ui',
+        'stubs/resources/js/components/UserAvatar.vue' => $basePath.'/resources/js/components/UserAvatar.vue',
         'resources/js/components/TranslatedPassword.vue' => $basePath.'/resources/js/components/TranslatedPassword.vue',
         'resources/js/components/FormBuilder' => $basePath.'/resources/js/components/FormBuilder',
         'resources/js/components/TabBuilder' => $basePath.'/resources/js/components/TabBuilder',
@@ -73,6 +83,7 @@ function seedPublishedJavascriptAssets(string $basePath): void
     }
 
     foreach ([
+        'core-panel/administration.ts',
         'core-panel/users/index.ts',
         'login/index.ts',
         'password/index.ts',
@@ -206,7 +217,7 @@ it('loads the expected configuration defaults', function (): void {
         ->and($config->auth->registrationEnabled)->toBeFalse()
         ->and($config->i18n->defaultLocale)->toBe((string) config('core-panel.i18n.default_locale'))
         ->and($config->i18n->fallbackLocale)->toBe('en')
-        ->and($config->files->disk)->toBe('public')
+        ->and($config->files->disk)->toBe((string) config('core-panel.files.disk'))
         ->and($config->files->maxUploadSize)->toBe(10240)
         ->and($config->security->headersEnabled)->toBeTrue()
         ->and($config->security->cspReportOnly)->toBeFalse()
@@ -258,10 +269,26 @@ it('reapplies runtime ui settings when inertia shared props change', function ()
 });
 
 it('applies environment overrides from the config file', function (): void {
-    putenv('CORE_PANEL_USER_MODEL=Domain\\Auth\\AdminUser');
-    putenv('CORE_PANEL_ROUTE_PREFIX=control');
-    putenv('CORE_PANEL_REGISTRATION_ENABLED=1');
+    $originalEnvironment = [
+        'USER_MODEL' => getenv('USER_MODEL'),
+        'ROUTE_PREFIX' => getenv('ROUTE_PREFIX'),
+        'REGISTRATION_ENABLED' => getenv('REGISTRATION_ENABLED'),
+        'FILESYSTEM_DISK' => getenv('FILESYSTEM_DISK'),
+    ];
+
+    putenv('USER_MODEL=Domain\\Auth\\AdminUser');
+    putenv('ROUTE_PREFIX=control');
+    putenv('REGISTRATION_ENABLED=1');
     putenv('FILESYSTEM_DISK=s3');
+    $_ENV['USER_MODEL'] = 'Domain\\Auth\\AdminUser';
+    $_ENV['ROUTE_PREFIX'] = 'control';
+    $_ENV['REGISTRATION_ENABLED'] = '1';
+    $_ENV['FILESYSTEM_DISK'] = 's3';
+    $_SERVER['USER_MODEL'] = 'Domain\\Auth\\AdminUser';
+    $_SERVER['ROUTE_PREFIX'] = 'control';
+    $_SERVER['REGISTRATION_ENABLED'] = '1';
+    $_SERVER['FILESYSTEM_DISK'] = 's3';
+    Env::enablePutenv();
 
     /** @var array<string, mixed> $config */
     $rawConfig = require __DIR__.'/../../config/core-panel.php';
@@ -275,10 +302,20 @@ it('applies environment overrides from the config file', function (): void {
         ->and($config->security->contentSecurityPolicy)->toContain('blob:')
         ->and($config->files->disk)->toBe('s3');
 
-    putenv('CORE_PANEL_USER_MODEL');
-    putenv('CORE_PANEL_ROUTE_PREFIX');
-    putenv('CORE_PANEL_REGISTRATION_ENABLED');
-    putenv('FILESYSTEM_DISK');
+    foreach ($originalEnvironment as $key => $value) {
+        if ($value === false) {
+            putenv($key);
+            unset($_ENV[$key], $_SERVER[$key]);
+
+            continue;
+        }
+
+        putenv("{$key}={$value}");
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+
+    Env::enablePutenv();
 });
 
 it('allows configuring the user model', function (): void {
@@ -579,8 +616,16 @@ it('keeps newly referenced frontend scaffolds eligible for managed-only updates'
     $scaffolder = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
 
     expect($scaffolder)->toContain("'resources/js/components/ui/UserAvatar.vue'")
+        ->and($scaffolder)->toContain("'resources/js/components/AppToast.vue'")
+        ->and($scaffolder)->toContain("'resources/js/components/Auth/SocialAccountConflictDialog.vue'")
+        ->and($scaffolder)->toContain("'resources/js/components/Auth/SocialAvatarSyncDialog.vue'")
+        ->and($scaffolder)->toContain("'resources/js/components/CorePanelLogo.vue'")
+        ->and($scaffolder)->toContain("'resources/js/components/Dialogs/ConfirmActionDialog.vue'")
+        ->and($scaffolder)->toContain("'resources/js/components/Locale/LocaleFlag.vue'")
+        ->and($scaffolder)->toContain("'resources/js/routes/core-panel/administration.ts'")
         ->and($scaffolder)->toContain("'.docker/bin/php-entrypoint.sh'")
-        ->and($scaffolder)->toContain("'docker-compose.registry.yml'");
+        ->and($scaffolder)->toContain("'docker-compose.registry.yml'")
+        ->and($scaffolder)->toContain("'docker-compose.portainer.yml'");
 });
 
 it('ships the managed host gitignore stub', function (): void {
@@ -639,8 +684,12 @@ it('maps installer templates onto the host application paths by relative path', 
         '.dockerignore',
         'docker-compose.yml',
         'docker-compose.dev.yml',
+        'docker-compose.portainer.yml',
         'docker-compose.prod.yml',
         'docker-compose.registry.yml',
+        'updater/Dockerfile',
+        'updater/go.mod',
+        'updater/main.go',
         'lang/de/auth.php',
         'lang/de/common.php',
         'lang/en/auth.php',
@@ -1127,8 +1176,20 @@ it('ships an inertia root view template for the host application', function (): 
     $contents = file_get_contents(__DIR__.'/../../stubs/resources/views/app.blade.php');
 
     expect($contents)->toContain("@vite(['resources/css/app.css', 'resources/js/app.ts'])")
+        ->and($contents)->toContain('$publicSettings = app(\CorePanel\Support\Settings\SettingsRepository::class)->public();')
+        ->and($contents)->toContain('<title inertia>{{ $resolvedAppName }}</title>')
         ->and($contents)->toContain('<x-inertia::head />')
         ->and($contents)->toContain('<x-inertia::app />');
+});
+
+it('ships a package inertia root view that resolves the configured app name before hydration', function (): void {
+    $contents = file_get_contents(__DIR__.'/../../resources/views/app.blade.php');
+
+    expect($contents)->toContain('$publicSettings = app(\CorePanel\Support\Settings\SettingsRepository::class)->public();')
+        ->and($contents)->toContain('<title inertia>{{ $resolvedAppName }}</title>')
+        ->and($contents)->not->toContain("config('core-panel.name', 'Laravel CorePanel')")
+        ->and($contents)->toContain('@inertiaHead')
+        ->and($contents)->toContain('@inertia');
 });
 
 it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 browser origin', function (): void {
@@ -1177,12 +1238,18 @@ it('ships passport-oriented defaults in the scaffold environment template', func
     $contents = file_get_contents(__DIR__.'/../../stubs/.env.example');
 
     expect($contents)->toContain('SESSION_DOMAIN=')
+        ->and($contents)->toContain('APP_TIMEZONE=Europe/Berlin')
+        ->and($contents)->toContain('ASSET_URL=')
         ->and($contents)->toContain('LOG_CHANNEL=daily')
+        ->and($contents)->toContain('LOG_LEVEL=debug')
         ->and($contents)->toContain('DB_HOST=127.0.0.1')
         ->and($contents)->toContain('FILESYSTEM_DISK=public')
         ->and($contents)->toContain('REDIS_HOST=127.0.0.1')
         ->and($contents)->toContain('DB_DATABASE_TEST=core_panel_test')
-        ->and($contents)->toContain('CORE_PANEL_PASSPORT_TOKEN_TTL_MINUTES=15')
+        ->and($contents)->toContain('PASSPORT_TOKEN_TTL_MINUTES=15')
+        ->and($contents)->toContain('DATABASE_BACKUPS_ENABLED=true')
+        ->and($contents)->toContain('SYSTEM_UPDATES_ENABLED=true')
+        ->and($contents)->toContain('SYSTEM_UPDATES_DOCKER_ONLY=true')
         ->and($contents)->not->toContain('SANCTUM_STATEFUL_DOMAINS=')
         ->and($contents)->not->toContain('CORE_PANEL_API_DRIVER=')
         ->and($contents)->not->toContain('CORE_PANEL_DARK_MODE=')
@@ -1219,6 +1286,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     $dockerfile = file_get_contents(__DIR__.'/../../stubs/Dockerfile');
     $baseCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.yml');
     $developmentCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.dev.yml');
+    $portainerCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.portainer.yml');
     $productionCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.prod.yml');
     $registryCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.registry.yml');
     $dockerignore = file_get_contents(__DIR__.'/../../stubs/.dockerignore');
@@ -1231,6 +1299,9 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     $runtimeEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/php/entrypoint.sh');
     $phpIni = file_get_contents(__DIR__.'/../../stubs/.docker/php/php.ini');
     $opcacheIni = file_get_contents(__DIR__.'/../../stubs/.docker/php/opcache.ini');
+    $updaterDockerfile = file_get_contents(__DIR__.'/../../stubs/updater/Dockerfile');
+    $updaterGoModule = file_get_contents(__DIR__.'/../../stubs/updater/go.mod');
+    $updaterMain = file_get_contents(__DIR__.'/../../stubs/updater/main.go');
     $phpDevDockerfile = explode('FROM php-runtime-base AS php-dev', $dockerfile, 2)[1] ?? '';
 
     expect($dockerfile)->toContain('FROM node:24-bookworm AS node')
@@ -1253,14 +1324,20 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($dockerfile)->toContain('COPY --from=node /usr/local/bin/node /usr/local/bin/node')
         ->and($dockerfile)->toContain('COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor')
         ->and($dockerfile)->toContain('COPY --from=vendor-dev /var/www/html/vendor /var/www/html/vendor')
-        ->and($dockerfile)->toContain('RUN php artisan package:discover --ansi')
+        ->and($dockerfile)->toContain('php artisan package:discover --ansi')
         ->and($dockerfile)->toContain('&& php artisan wayfinder:generate --no-interaction')
         ->and($dockerfile)->toContain('&& npm run build')
         ->and($dockerfile)->toContain('COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build')
         ->and($dockerfile)->toContain('COPY .docker/bin/php-entrypoint.sh /usr/local/bin/core-panel-php-entrypoint')
         ->and($dockerfile)->toContain('COPY .docker/php-fpm/zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf')
-        ->and($dockerfile)->toContain('COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf')
+        ->and($dockerfile)->toContain('ENV PHP_UPSTREAM=app:9000')
+        ->and($dockerfile)->toContain('COPY .docker/nginx/default.conf /etc/nginx/templates/default.conf.template')
         ->and($dockerfile)->toContain('COPY package.json package-lock.json ./')
+        ->and($dockerfile)->toContain('COPY .env.example .env')
+        ->and($dockerfile)->toContain('COPY .env.example /var/www/html/.env')
+        ->and($dockerfile)->toContain('default-mysql-client')
+        ->and($dockerfile)->toContain('postgresql-client-${POSTGRES_CLIENT_MAJOR}')
+        ->and($dockerfile)->toContain('sqlite3')
         ->and($dockerfile)->toContain('RUN npm ci')
         ->and($dockerfile)->toContain('install-php-extensions')
         ->and($phpDevDockerfile)->toContain('postgresql-client')
@@ -1276,7 +1353,6 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($baseCompose)->toContain('postgres:')
         ->and($baseCompose)->toContain('redis:')
         ->and($baseCompose)->toContain('mailpit:')
-        ->and($baseCompose)->not->toContain('CENTRAL_DOMAINS')
         ->and($baseCompose)->not->toContain('additional_contexts:')
         ->and($baseCompose)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH')
         ->and($baseCompose)->toContain('target: php-prod')
@@ -1285,8 +1361,12 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($baseCompose)->toContain('REDIS_HOST: redis')
         ->and($baseCompose)->toContain('QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}')
         ->and($baseCompose)->toContain('DB_DATABASE: ${DB_DATABASE_TEST:-core_panel_test}')
+        ->and($baseCompose)->toContain('DATABASE_BACKUPS_PATH: ${DATABASE_BACKUPS_PATH:-/var/www/html/storage/app/backups/database}')
+        ->and($baseCompose)->toContain('SYSTEM_UPDATES_UPDATER_URL: ${SYSTEM_UPDATES_UPDATER_URL:-http://system-updater:8080}')
         ->and($baseCompose)->toContain('pg_isready -U ${POSTGRES_USER:-${DB_USERNAME:-core_panel}} -d ${POSTGRES_DB:-${DB_DATABASE:-core_panel}}')
         ->and($baseCompose)->toContain('redis-cli')
+        ->and($portainerCompose)->toContain('DOCKER_CONFIG: /docker-config')
+        ->and($productionCompose)->toContain('DOCKER_CONFIG: /docker-config')
         ->and($developmentCompose)->not->toContain('composer install --no-interaction')
         ->and($developmentCompose)->not->toContain('core-panel-prepare-composer')
         ->and($developmentCompose)->not->toContain('core-panel-restore-composer')
@@ -1296,35 +1376,60 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-app.sh')
         ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-artisan.sh')
         ->and($developmentCompose)->toContain('nginx:')
+        ->and($developmentCompose)->toContain('system-updater:')
+        ->and($developmentCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($developmentCompose)->toContain('./.docker/nginx/default.conf:/etc/nginx/templates/default.conf.template:ro')
+        ->and($developmentCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:-local-dev-token}')
         ->and($developmentCompose)->toContain('${APP_PORT:-8000}:80')
         ->and($developmentCompose)->not->toContain('php artisan migrate --force')
         ->and($developmentCompose)->toContain('volumes:')
         ->and($developmentCompose)->toContain('postgres-data:')
         ->and($developmentCompose)->toContain('redis-data:')
+        ->and($developmentCompose)->toContain('system-updater-data:')
+        ->and($portainerCompose)->toContain('container_name: core-panel-app')
+        ->and($portainerCompose)->toContain('container_name: core-panel-nginx')
+        ->and($portainerCompose)->toContain('container_name: core-panel-postgres')
+        ->and($portainerCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($portainerCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:?Set SYSTEM_UPDATES_TOKEN}')
+        ->and($portainerCompose)->toContain('${PORTAINER_DATA_PATH:-/srv/docker/portainer/data}:/data:ro')
+        ->and($portainerCompose)->toContain('proxy-network:')
+        ->and($portainerCompose)->toContain('core-panel:')
         ->and($productionCompose)->toContain('nginx:')
         ->and($productionCompose)->toContain('target: nginx-runtime')
-        ->and($productionCompose)->toContain('command: ["php", "artisan", "migrate", "--force"]')
-        ->and($productionCompose)->not->toContain('migrate:recursive')
-        ->and($productionCompose)->toContain('/srv/docker/core-panel/storage/public')
+        ->and($productionCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($productionCompose)->toContain('x-php-environment: &php-environment')
+        ->and($productionCompose)->toContain('system-updater:')
+        ->and($productionCompose)->toContain('UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-docker-compose.prod.yml}')
+        ->and($productionCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:-}')
+        ->and($productionCompose)->toContain('/srv/docker/core-panel/storage')
         ->and($productionCompose)->toContain('/srv/docker/core-panel/postgres')
         ->and($productionCompose)->toContain('/srv/docker/core-panel/redis/data')
+        ->and($productionCompose)->toContain('/srv/docker/core-panel/updater/data')
         ->and($registryCompose)->toContain('image: ${PHP_IMAGE:?Set PHP_IMAGE}')
         ->and($registryCompose)->toContain('image: ${NGINX_IMAGE:?Set NGINX_IMAGE}')
+        ->and($registryCompose)->toContain('image: ${UPDATER_IMAGE:?Set UPDATER_IMAGE}')
         ->and($dockerignore)->toContain('.env')
         ->and($dockerignore)->toContain('vendor')
         ->and($phpEntrypoint)->toContain('docker-php-entrypoint "$@"')
         ->and($developmentAppEntrypoint)->toContain('exec php-fpm -F')
         ->and($developmentArtisanEntrypoint)->toContain('exec php artisan "$@"')
-        ->and($nginx)->toContain('fastcgi_pass app:9000')
+        ->and($nginx)->toContain('fastcgi_pass ${PHP_UPSTREAM};')
         ->and($nginx)->toContain('location = /nginx-health')
         ->and($phpFpm)->toContain('listen = 9000')
-        ->and($runtimeEntrypoint)->toContain('WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"')
-        ->and($runtimeEntrypoint)->toContain('[ "$WAIT_FOR_NGINX" = "auto" ] && [ "$command_name" = "php-fpm" ]')
+        ->and($runtimeEntrypoint)->toContain('WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-false}"')
+        ->and($runtimeEntrypoint)->toContain('elif [ "$WAIT_FOR_NGINX" = "auto" ] && [ "$command_name" = "php-fpm" ]; then')
         ->and($runtimeEntrypoint)->toContain('Checking nginx connection')
         ->and($runtimeEntrypoint)->toContain('Skipping nginx wait for command:')
         ->and($runtimeEntrypoint)->not->toContain('re-sulting')
         ->and($phpIni)->toContain('upload_max_filesize=256M')
         ->and($opcacheIni)->toContain('opcache.enable=1')
+        ->and($updaterDockerfile)->toContain('FROM golang:1.26-alpine AS build')
+        ->and($updaterDockerfile)->toContain('FROM docker:29-cli')
+        ->and($updaterGoModule)->toContain('module core-panel-system-updater')
+        ->and($updaterMain)->toContain('defaultComposeProjectName = "core-panel"')
+        ->and($updaterMain)->toContain('defaultComposeFiles       = "docker-compose.prod.yml"')
+        ->and($updaterMain)->toContain('UPDATER_RUNTIME_SERVICES')
+        ->and($updaterMain)->toContain('if image.UpdateAvailable && !image.ManualUpdateRequired {')
         ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/octane.conf'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/horizon.conf'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/scheduler.conf'))->toBeFalse();
@@ -1535,6 +1640,11 @@ BLADE);
         ->and($webRoutes)->toContain("Route::redirect('/', config('core-panel.route_prefix', 'admin'));")
         ->and($webRoutes)->not->toContain("return view('welcome');")
         ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {")
+        ->and($consoleRoutes)->toContain("Schedule::command('database-backups:auto')")
+        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.database_backups.enabled', true)) {")
+        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.system_updates.automatic.enabled', false)) {")
+        ->and($consoleRoutes)->not->toContain("app()->bound('command.database-backups:auto')")
+        ->and($consoleRoutes)->not->toContain("app()->bound('command.system-updates:auto')")
         ->and(file_exists($temporaryBasePath.'/resources/views/welcome.blade.php'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/js/app.js'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/js/app.ts'))->toBeTrue()
@@ -1884,15 +1994,20 @@ it('registers the package commands', function (): void {
     $commands = Artisan::all();
 
     expect($commands)->toHaveKeys([
+        'database-backups:auto',
         'core-panel:activity:clean',
+        'core-panel:env:sync',
         'core-panel:install',
         'core-panel:publish',
         'core-panel:update',
     ])
+        ->and($commands['database-backups:auto'])->toBeInstanceOf(RunAutomaticDatabaseBackupCommand::class)
         ->and($commands['core-panel:activity:clean'])->toBeInstanceOf(CleanActivityLogsCommand::class)
+        ->and($commands['core-panel:env:sync'])->toBeInstanceOf(SyncEnvironmentCommand::class)
         ->and($commands['core-panel:install'])->toBeInstanceOf(InstallCommand::class)
         ->and($commands['core-panel:publish'])->toBeInstanceOf(PublishCommand::class)
         ->and($commands['core-panel:update'])->toBeInstanceOf(UpdateCommand::class)
+        ->and($commands['core-panel:env:sync']->getAliases())->toContain('core:env:sync')
         ->and($commands['core-panel:install']->getAliases())->toContain('core:install')
         ->and($commands['core-panel:publish']->getAliases())->toContain('core:publish')
         ->and($commands['core-panel:update']->getAliases())->toContain('core:update');
@@ -2227,6 +2342,7 @@ it('renders user management with a reference-style datatable shell and a table-o
     $userGroupsTabContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserGroupsTab.vue');
     $userGroupFormContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/UserGroups/components/UserGroupForm.vue');
     $userGroupImportContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/UserGroups/components/UserGroupImportForm.vue');
+    $restoreDialogContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue');
     $rolesOverviewContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
     $dataTableContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/DataTable.vue');
     $useDataTableContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/useDataTable.ts');
@@ -2404,6 +2520,8 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($userGroupImportContents)->toContain('accept=".csv,.txt,.sql"')
         ->and($userGroupImportContents)->toContain("'X-XSRF-TOKEN'")
         ->and($userGroupImportContents)->toContain('void loadPreview()')
+        ->and($restoreDialogContents)->toContain('XSRF-TOKEN')
+        ->and($restoreDialogContents)->toContain("'X-XSRF-TOKEN'")
         ->and($userGroupImportContents)->toContain('rounded-[var(--cp-radius-lg)] border border-slate-200 bg-slate-50 px-4 py-3')
         ->and($userGroupImportContents)->toContain('border-t border-[var(--cp-surface-border)] pt-5')
         ->and($userGroupImportContents)->toContain(':disabled="preview === null || previewLoading"')
@@ -2615,7 +2733,7 @@ it('uses a scrollable main admin content container', function (): void {
         ->and($adminStyles)->toContain('overscroll-behavior: contain;')
         ->and($adminStyles)->not->toContain('@apply flex min-h-0 w-full flex-1 flex-col overflow-y-auto;')
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/layouts/AppLayout.vue'))
-        ->toContain('class="app-main flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pt-[calc(4.5rem+1.5rem)] pb-8 md:px-6 lg:px-8"');
+        ->toContain('class="app-main flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pt-[4.5rem] pb-8 md:px-6 lg:px-8"');
 });
 
 it('uses wayfinder-driven user management endpoints in the user pages', function (): void {
@@ -2906,6 +3024,7 @@ it('uses wayfinder-driven activity endpoints in the activity page', function ():
 it('ships the consolidated developer area with tabbed activity, authentication, and log views', function (): void {
     $routes = file_get_contents(__DIR__.'/../../routes/web/admin.php');
     $logRoutes = file_get_contents(__DIR__.'/../../routes/web/admin/logs.php');
+    $administrationRoute = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/administration.ts');
     $developer = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/Index.vue');
     $logFilePage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/File.vue');
     $adminMenu = file_get_contents(__DIR__.'/../../stubs/resources/js/composables/useAdminMenu.ts');
@@ -2919,6 +3038,7 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
     $logsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/LogFilesTab.vue');
 
     expect($routes)->toContain("'logs.php'")
+        ->and($administrationRoute)->toContain("index: action('get')")
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\ActivityLogDetailController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\AuthenticationLogDetailController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogController;')

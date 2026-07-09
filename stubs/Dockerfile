@@ -2,6 +2,8 @@ FROM node:24-bookworm AS node
 
 FROM php:8.5-fpm-bookworm AS php-extension-base
 
+ARG POSTGRES_CLIENT_MAJOR=18
+
 WORKDIR /var/www/html
 
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
@@ -10,6 +12,22 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && . /etc/os-release \
+    && printf '%s\n' \
+        'Types: deb' \
+        'URIs: https://apt.postgresql.org/pub/repos/apt' \
+        "Suites: ${VERSION_CODENAME}-pgdg" \
+        "Architectures: $(dpkg --print-architecture)" \
+        'Components: main' \
+        'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \
+        > /etc/apt/sources.list.d/pgdg.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        default-mysql-client \
+        postgresql-client-${POSTGRES_CLIENT_MAJOR} \
+        sqlite3 \
     && install-php-extensions \
         bcmath \
         exif \
@@ -46,16 +64,14 @@ RUN composer install \
     --no-dev \
     --no-interaction \
     --no-progress \
-    --no-scripts \
-    --prefer-dist
+    --no-scripts
 
 FROM composer-base AS vendor-dev
 
 RUN composer install \
     --no-interaction \
     --no-progress \
-    --no-scripts \
-    --prefer-dist
+    --no-scripts
 
 FROM php-build-base AS frontend-build
 
@@ -65,8 +81,10 @@ RUN npm ci
 
 COPY . .
 COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor
+COPY .env.example .env
 
-RUN php artisan package:discover --ansi \
+RUN export APP_ENV=production APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= \
+    && php artisan package:discover --ansi \
     && php artisan wayfinder:generate --no-interaction \
     && npm run build
 
@@ -95,8 +113,10 @@ FROM php-runtime-base AS php-prod
 
 COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
+COPY .env.example /var/www/html/.env
 
-RUN php artisan package:discover --ansi \
+RUN export APP_ENV=production APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= \
+    && php artisan package:discover --ansi \
     && php artisan wayfinder:generate --no-interaction
 
 EXPOSE 9000
@@ -116,7 +136,8 @@ RUN apt-get update \
 COPY --from=vendor-dev /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
 
-RUN php artisan package:discover --ansi \
+RUN export APP_ENV=production APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= \
+    && php artisan package:discover --ansi \
     && php artisan wayfinder:generate --no-interaction
 
 EXPOSE 9000
@@ -130,5 +151,7 @@ FROM nginx:1.31-alpine AS nginx-runtime
 
 WORKDIR /var/www/html
 
+ENV PHP_UPSTREAM=app:9000
+
 COPY --from=php-prod /var/www/html/public /var/www/html/public
-COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY .docker/nginx/default.conf /etc/nginx/templates/default.conf.template

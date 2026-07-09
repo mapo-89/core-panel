@@ -30,6 +30,7 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertFileExists(base_path('resources/js/layouts/components/AppPageHeader.vue'));
         $this->assertFileExists(base_path('resources/js/layouts/components/AppSidebar.vue'));
         $this->assertFileExists(base_path('resources/js/composables/useSidebar.ts'));
+        $this->assertFileExists(base_path('resources/js/pages/Admin/Administration/Index.vue'));
         $this->assertFileExists(base_path('resources/js/pages/Admin/Dashboard/Index.vue'));
         $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
         $this->assertFileExists(base_path('app/Http/Middleware/TrackUserPresence.php'));

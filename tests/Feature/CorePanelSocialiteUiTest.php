@@ -94,7 +94,7 @@ it('ships socialite scaffolding for services configuration and environment varia
     expect($services)->toContain("'github' => [")
         ->and($services)->toContain("'google' => [")
         ->and($services)->toContain("'microsoft' => [")
-        ->and($environment)->toContain('CORE_PANEL_SOCIAL_GITHUB_ENABLED=')
+        ->and($environment)->toContain('SOCIAL_GITHUB_ENABLED=')
         ->and($environment)->toContain('GOOGLE_CLIENT_ID=')
         ->and($platformRoutes)->toContain("Route::get('/auth/{provider}/redirect'")
         ->and($platformRoutes)->toContain("Route::get('/auth/{provider}/callback'")
