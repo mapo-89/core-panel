@@ -29,14 +29,18 @@ final class LogFileQuery
             ->map(function (SplFileInfo $file): LogFileData {
                 $name = $file->getFilename();
                 $absolute = $file->getRealPath() ?: $file->getPathname();
+                $channelType = $this->detectChannelType($name);
+                $isActive = $this->isActive($name, $absolute);
 
                 return new LogFileData(
                     name: $name,
                     path: $absolute,
                     sizeBytes: (int) $file->getSize(),
                     modifiedAt: CarbonImmutable::createFromTimestamp($file->getMTime()),
-                    channelType: $this->detectChannelType($name),
-                    isActive: $this->isActive($name, $absolute),
+                    channelType: $channelType,
+                    isActive: $isActive,
+                    canDelete: ! $isActive,
+                    canClear: $channelType === 'single',
                 );
             })
             ->values();
@@ -66,6 +70,10 @@ final class LogFileQuery
 
     private function isActive(string $name, string $absolutePath): bool
     {
+        if ($name === 'laravel.log') {
+            return true;
+        }
+
         if ($name === 'laravel-'.now()->toDateString().'.log') {
             return true;
         }

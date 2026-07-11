@@ -66,8 +66,10 @@ type AuthenticationTabPayload = {
 
 type LogsTabPayload = {
     filters: {
+        channel: string | null
         direction: string
         search: string
+        state: string | null
         sort: string
     }
     files: {
@@ -76,6 +78,10 @@ type LogsTabPayload = {
         lastPage: number
         perPage: number
         total: number
+    }
+    options: {
+        channels: Array<{ label: string; value: string }>
+        states: Array<{ label: string; value: string }>
     }
 }
 

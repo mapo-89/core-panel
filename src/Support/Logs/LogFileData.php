@@ -15,6 +15,8 @@ final readonly class LogFileData
         public CarbonInterface $modifiedAt,
         public string $channelType,
         public bool $isActive,
+        public bool $canDelete,
+        public bool $canClear,
     ) {}
 
     /**
@@ -23,6 +25,8 @@ final readonly class LogFileData
     public function toArray(): array
     {
         return [
+            'canClear' => $this->canClear,
+            'canDelete' => $this->canDelete,
             'channelType' => $this->channelType,
             'isActive' => $this->isActive,
             'modifiedAt' => $this->modifiedAt->toIso8601String(),

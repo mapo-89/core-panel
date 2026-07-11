@@ -325,9 +325,14 @@ class LogController extends Controller
     {
         $files = $this->logFiles->all();
         $usesTableQuery = $this->usesTabTableQuery($request, 'logs');
+        $filters = $usesTableQuery ? $this->tableFilters($request) : [];
         $search = $usesTableQuery
             ? $this->stringFromQuery($request, 'search')
             : $this->stringFromQuery($request, 'log_search');
+        $channel = $this->stringFromFilters($filters, 'channel')
+            ?? $this->nullableString($request->query('log_channel'));
+        $state = $this->stringFromFilters($filters, 'state')
+            ?? $this->nullableString($request->query('log_state'));
         $rawSort = $usesTableQuery
             ? $this->stringFromQuery($request, 'sort')
             : $this->stringFromQuery($request, 'log_sort');
@@ -351,14 +356,33 @@ class LogController extends Controller
                 ->values();
         }
 
+        if ($channel !== null) {
+            $files = $files
+                ->filter(static fn (LogFileData $file): bool => $file->channelType === $channel)
+                ->values();
+        }
+
+        if ($state !== null) {
+            $files = $files
+                ->filter(static fn (LogFileData $file): bool => match ($state) {
+                    'active' => $file->isActive,
+                    'archived' => ! $file->isActive,
+                    'clearable' => $file->canClear,
+                    default => true,
+                })
+                ->values();
+        }
+
         $files = $this->sortLogFiles($files, $sort, $direction);
         $total = $files->count();
         $pageItems = $files->slice(($page - 1) * $perPage, $perPage)->values();
 
         return [
             'filters' => [
+                'channel' => $channel,
                 'direction' => $direction,
                 'search' => $search,
+                'state' => $state,
                 'sort' => $sort,
             ],
             'files' => [
@@ -367,6 +391,18 @@ class LogController extends Controller
                 'lastPage' => max(1, (int) ceil($total / $perPage)),
                 'perPage' => $perPage,
                 'total' => $total,
+            ],
+            'options' => [
+                'channels' => [
+                    ['label' => __('page-log-files.channels.daily'), 'value' => 'daily'],
+                    ['label' => __('page-log-files.channels.single'), 'value' => 'single'],
+                    ['label' => __('page-log-files.channels.other'), 'value' => 'other'],
+                ],
+                'states' => [
+                    ['label' => __('page-log-files.states.active'), 'value' => 'active'],
+                    ['label' => __('page-log-files.states.archived'), 'value' => 'archived'],
+                    ['label' => __('page-log-files.states.clearable'), 'value' => 'clearable'],
+                ],
             ],
         ];
     }

@@ -223,6 +223,8 @@ export type LogEntryRecord = {
 }
 
 export type LogFileRecord = {
+    canClear: boolean
+    canDelete: boolean
     channelType: 'daily' | 'single' | 'other'
     isActive: boolean
     modifiedAt: string

@@ -189,12 +189,57 @@ it('lists log files and parses structured log entries', function (): void {
         ->and($file?->channelType)->toBe('single')
         ->and($result['eof'])->toBeTrue()
         ->and($result['entries'])->toHaveCount(2)
-        ->and($result['entries'][0]['level'])->toBe('error')
-        ->and($result['entries'][0]['context'])->toMatchArray([
+        ->and($result['entries'][0]['level'])->toBe('info')
+        ->and($result['entries'][1]['level'])->toBe('error')
+        ->and($result['entries'][1]['context'])->toMatchArray([
             'request_id' => 'abc',
         ])
-        ->and($result['entries'][0]['stack'])->toContain('Demo->run')
-        ->and($result['entries'][1]['level'])->toBe('info');
+        ->and($result['entries'][1]['stack'])->toContain('Demo->run')
+        ->and($result['entries'][0]['message'])->toBe('Follow-up message');
+
+    File::delete($path);
+});
+
+it('paginates log entries without changing newest-first ordering', function (): void {
+    $logsDirectory = storage_path('logs');
+    File::ensureDirectoryExists($logsDirectory);
+    $filename = 'pagination-test.log';
+    $path = $logsDirectory.'/'.$filename;
+
+    File::put($path, implode("\n", [
+        '[2026-05-12 10:00:00] local.ERROR: First failure {"request_id":"first"}',
+        '#0 /var/www/html/app/First.php(10): Demo->run()',
+        '[2026-05-12 10:05:00] local.WARNING: Second warning',
+        '[2026-05-12 10:10:00] local.INFO: Third info',
+        '',
+    ]));
+
+    /** @var LogEntryQuery $entries */
+    $entries = app(LogEntryQuery::class);
+
+    $firstPage = $entries->paginate($filename, LogEntryFilter::fromArray([
+        'per_page' => 2,
+    ]));
+    $secondPage = $entries->paginate($filename, LogEntryFilter::fromArray([
+        'cursor' => $firstPage['next_cursor'],
+        'per_page' => 2,
+    ]));
+
+    expect($firstPage['eof'])->toBeFalse()
+        ->and($firstPage['next_cursor'])->toBe(2)
+        ->and($firstPage['entries'])->toHaveCount(2)
+        ->and($firstPage['entries'][0]['level'])->toBe('info')
+        ->and($firstPage['entries'][0]['message'])->toBe('Third info')
+        ->and($firstPage['entries'][1]['level'])->toBe('warning')
+        ->and($firstPage['entries'][1]['message'])->toBe('Second warning')
+        ->and($secondPage['eof'])->toBeTrue()
+        ->and($secondPage['next_cursor'])->toBeNull()
+        ->and($secondPage['entries'])->toHaveCount(1)
+        ->and($secondPage['entries'][0]['level'])->toBe('error')
+        ->and($secondPage['entries'][0]['context'])->toMatchArray([
+            'request_id' => 'first',
+        ])
+        ->and($secondPage['entries'][0]['stack'])->toContain('Demo->run');
 
     File::delete($path);
 });
@@ -203,13 +248,18 @@ it('renders the log file detail page for super admins', function (): void {
     $logsDirectory = storage_path('logs');
     File::ensureDirectoryExists($logsDirectory);
     $filename = 'laravel-2026-05-13.log';
+    $olderFilename = 'laravel-2026-05-12.log';
     $path = $logsDirectory.'/'.$filename;
+    $olderPath = $logsDirectory.'/'.$olderFilename;
 
     File::put($path, implode("\n", [
         '[2026-05-13 10:11:12] local.ERROR: First failure {"request_id":"abc"}',
         '#0 /var/www/html/app/Example.php(10): Demo->run()',
+        '[2026-05-13 10:12:13] local.INFO: Second message',
         '',
     ]));
+    File::put($olderPath, "[2026-05-12 09:00:00] local.INFO: Older file\n");
+    touch($olderPath, now()->subDay()->timestamp);
 
     $user = FakeUser::query()->create([
         'email' => 'super-admin@example.test',
@@ -231,7 +281,178 @@ it('renders the log file detail page for super admins', function (): void {
         ->assertJsonPath('component', 'Logs/File')
         ->assertJsonPath('props.file.name', $filename)
         ->assertJsonPath('props.file.channelType', 'daily')
-        ->assertJsonCount(1, 'props.initialEntries');
+        ->assertJsonCount(2, 'props.initialEntries')
+        ->assertJsonPath('props.initialEntries.0.message', 'Second message')
+        ->assertJsonPath('props.initialEntries.1.message', 'First failure')
+        ->assertJsonPath('props.files.0.name', $filename)
+        ->assertJsonPath('props.files.1.name', $olderFilename);
+
+    File::delete([$path, $olderPath]);
+});
+
+it('filters log files on the consolidated logs index', function (): void {
+    config()->set('core-panel.user_model', FakeUser::class);
+
+    $logsDirectory = storage_path('logs');
+    File::ensureDirectoryExists($logsDirectory);
+    $activeFilename = 'laravel.log';
+    $archivedFilename = 'worker.log';
+
+    File::put($logsDirectory.'/'.$activeFilename, "[2026-05-13 10:11:12] local.INFO: Active\n");
+    File::put($logsDirectory.'/'.$archivedFilename, "[2026-05-13 10:11:12] local.INFO: Archived\n");
+    touch($logsDirectory.'/'.$archivedFilename, now()->subHour()->timestamp);
+
+    $user = FakeUser::query()->create([
+        'email' => 'super-admin@example.test',
+        'first_name' => 'Super',
+        'last_name' => 'Admin',
+        'password' => bcrypt('password'),
+    ]);
+
+    Role::findOrCreate('super-admin', 'web');
+    $user->assignRole('super-admin');
+
+    $response = $this->actingAs($user)
+        ->withHeaders([
+            'X-Inertia' => 'true',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+        ->get(route('core-panel.logs.index', [
+            'tab' => 'logs',
+            'filter' => [
+                'channel' => 'single',
+                'state' => 'active',
+            ],
+            'search' => 'laravel',
+        ]));
+
+    $response->assertOk()
+        ->assertJsonPath('component', 'Logs/Index')
+        ->assertJsonCount(1, 'props.logsTab.files.data')
+        ->assertJsonPath('props.logsTab.filters.channel', 'single')
+        ->assertJsonPath('props.logsTab.filters.state', 'active')
+        ->assertJsonPath('props.logsTab.files.data.0.name', $activeFilename)
+        ->assertJsonPath('props.logsTab.files.data.0.canClear', true)
+        ->assertJsonPath('props.logsTab.files.data.0.canDelete', false);
+
+    File::delete([$logsDirectory.'/'.$activeFilename, $logsDirectory.'/'.$archivedFilename]);
+});
+
+it('deletes inactive log files for super admins', function (): void {
+    $logsDirectory = storage_path('logs');
+    File::ensureDirectoryExists($logsDirectory);
+    $filename = 'laravel-2026-05-12.log';
+    $path = $logsDirectory.'/'.$filename;
+
+    File::put($path, "[2026-05-12 10:11:12] local.INFO: Archived\n");
+    touch($path, now()->subHour()->timestamp);
+
+    $user = FakeUser::query()->create([
+        'email' => 'super-admin@example.test',
+        'first_name' => 'Super',
+        'last_name' => 'Admin',
+        'password' => bcrypt('password'),
+    ]);
+
+    Role::findOrCreate('super-admin', 'web');
+    $user->assignRole('super-admin');
+
+    $this->from(route('core-panel.logs.index', ['tab' => 'logs']))
+        ->actingAs($user)
+        ->delete(route('core-panel.log-files.destroy', ['filename' => $filename]))
+        ->assertRedirect(route('core-panel.logs.index', ['tab' => 'logs']));
+
+    expect(file_exists($path))->toBeFalse();
+});
+
+it('does not delete the active log file', function (): void {
+    $logsDirectory = storage_path('logs');
+    File::ensureDirectoryExists($logsDirectory);
+    $filename = 'laravel.log';
+    $path = $logsDirectory.'/'.$filename;
+
+    File::put($path, "[2026-05-12 10:11:12] local.INFO: Active\n");
+
+    $user = FakeUser::query()->create([
+        'email' => 'super-admin@example.test',
+        'first_name' => 'Super',
+        'last_name' => 'Admin',
+        'password' => bcrypt('password'),
+    ]);
+
+    Role::findOrCreate('super-admin', 'web');
+    $user->assignRole('super-admin');
+
+    $this->actingAs($user)
+        ->delete(route('core-panel.log-files.destroy', ['filename' => $filename]))
+        ->assertStatus(422);
+
+    expect(file_exists($path))->toBeTrue();
+
+    File::delete($path);
+});
+
+it('does not delete an idle single-channel log file', function (): void {
+    $logsDirectory = storage_path('logs');
+    File::ensureDirectoryExists($logsDirectory);
+    $filename = 'laravel.log';
+    $path = $logsDirectory.'/'.$filename;
+
+    File::put($path, "[2026-05-12 10:11:12] local.INFO: Idle single log\n");
+    touch($path, now()->subHour()->timestamp);
+
+    $user = FakeUser::query()->create([
+        'email' => 'super-admin@example.test',
+        'first_name' => 'Super',
+        'last_name' => 'Admin',
+        'password' => bcrypt('password'),
+    ]);
+
+    Role::findOrCreate('super-admin', 'web');
+    $user->assignRole('super-admin');
+
+    /** @var LogFileQuery $files */
+    $files = app(LogFileQuery::class);
+    $file = $files->find($filename);
+
+    expect($file)->not->toBeNull()
+        ->and($file?->isActive)->toBeTrue()
+        ->and($file?->canDelete)->toBeFalse()
+        ->and($file?->canClear)->toBeTrue();
+
+    $this->actingAs($user)
+        ->delete(route('core-panel.log-files.destroy', ['filename' => $filename]))
+        ->assertStatus(422);
+
+    expect(file_exists($path))->toBeTrue();
+
+    File::delete($path);
+});
+
+it('clears single log files for super admins', function (): void {
+    $logsDirectory = storage_path('logs');
+    File::ensureDirectoryExists($logsDirectory);
+    $filename = 'laravel.log';
+    $path = $logsDirectory.'/'.$filename;
+
+    File::put($path, "[2026-05-12 10:11:12] local.INFO: Active\n");
+
+    $user = FakeUser::query()->create([
+        'email' => 'super-admin@example.test',
+        'first_name' => 'Super',
+        'last_name' => 'Admin',
+        'password' => bcrypt('password'),
+    ]);
+
+    Role::findOrCreate('super-admin', 'web');
+    $user->assignRole('super-admin');
+
+    $this->from(route('core-panel.logs.index', ['tab' => 'logs']))
+        ->actingAs($user)
+        ->delete(route('core-panel.log-files.clear', ['filename' => $filename]))
+        ->assertRedirect(route('core-panel.logs.index', ['tab' => 'logs']));
+
+    expect(file_get_contents($path))->toBe('');
 
     File::delete($path);
 });

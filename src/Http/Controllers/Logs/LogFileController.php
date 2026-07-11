@@ -39,6 +39,11 @@ class LogFileController extends Controller
 
         return Inertia::render('Logs/File', [
             'file' => $file->toArray(),
+            'files' => $files->all()
+                ->sortByDesc(static fn ($item) => $item->modifiedAt->getTimestamp())
+                ->values()
+                ->map(static fn ($item): array => $item->toArray())
+                ->all(),
             'initialEntries' => $result['entries'],
             'initialEof' => $result['eof'],
             'initialNextCursor' => $result['next_cursor'],

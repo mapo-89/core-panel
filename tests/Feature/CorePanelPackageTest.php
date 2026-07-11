@@ -416,12 +416,25 @@ it('renders the publishable logs tabs through the shared table builder surface',
             __DIR__."/../../stubs/resources/js/pages/Admin/Logs/components/{$component}",
         );
 
-        expect($contents)->toContain(
+        $expectation = expect($contents)->toContain(
             "import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'",
         )->toContain('<TableBuilderDataTable')
-            ->toContain('class="grid gap-1 px-5 pt-5"')
             ->toContain("import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'")
             ->toContain('<LogBadge');
+
+        if ($component === 'LogFilesTab.vue') {
+            $expectation->toContain("import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'")
+                ->toContain("import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'")
+                ->toContain('#toolbar-actions="{')
+                ->toContain('class="grid gap-1 px-5 pt-5"')
+                ->toContain('$t(\'page-log-files.filters.channel\')')
+                ->toContain('$t(\'page-log-files.filters.state\')')
+                ->toContain('<ColumnVisibilityDropdown');
+
+            continue;
+        }
+
+        $expectation->toContain('class="grid gap-1 px-5 pt-5"');
     }
 
     $activityDetail = file_get_contents(
@@ -3036,17 +3049,22 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
     $authenticationPresentation = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/authenticationLogPresentation.ts');
     $logUserAvatar = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/LogUserAvatar.vue');
     $logsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/LogFilesTab.vue');
+    $logRoutesHelper = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/log-files.ts');
 
     expect($routes)->toContain("'logs.php'")
         ->and($administrationRoute)->toContain("index: action('get')")
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\ActivityLogDetailController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\AuthenticationLogDetailController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogController;')
+        ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogFileClearController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogFileController;')
+        ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogFileDestroyController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogFileEntriesController;')
         ->and($logRoutes)->toContain("Route::get('/logs', LogController::class)->name('logs.index');")
         ->and($logRoutes)->toContain("Route::get('/authentication-logs/{authenticationLog}', [AuthenticationLogDetailController::class, 'show'])->name('authentication-logs.show');")
+        ->and($logRoutes)->toContain("Route::delete('/log-files/{filename}', LogFileDestroyController::class)->name('log-files.destroy');")
         ->and($logRoutes)->toContain("Route::get('/log-files/{filename}', LogFileController::class)->name('log-files.show');")
+        ->and($logRoutes)->toContain("Route::delete('/log-files/{filename}/contents', LogFileClearController::class)->name('log-files.clear');")
         ->and($logRoutes)->toContain("Route::get('/log-files/{filename}/entries', LogFileEntriesController::class)->name('log-files.entries');")
         ->and($developer)->toContain("label: 'page-logs.tabs.activity'")
         ->and($developer)->toContain("label: 'page-logs.tabs.authentication'")
@@ -3076,10 +3094,26 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
         ->and($logUserAvatar)->toContain("import UserAvatar from '@/components/ui/UserAvatar.vue'")
         ->and($logUserAvatar)->toContain('v-tooltip.top="label"')
         ->and($logsTab)->toContain("import logFiles from '@/routes/core-panel/log-files'")
+        ->and($logsTab)->toContain("import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'")
+        ->and($logsTab)->toContain("import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'")
+        ->and($logsTab)->toContain('#toolbar-actions="{')
+        ->and($logsTab)->toContain('<template #toolbar-footer>')
+        ->and($logsTab)->toContain("trans('page-log-files.title')")
+        ->and($logsTab)->toContain("trans('page-log-files.description')")
+        ->and($logsTab)->toContain('<ColumnVisibilityDropdown')
+        ->and($logsTab)->toContain('logFiles.clear.url(pendingClearFile.value.name)')
+        ->and($logsTab)->toContain('logFiles.destroy.url(pendingDeleteFile.value.name)')
+        ->and($logRoutesHelper)->toContain("clear: callableAction('delete')")
+        ->and($logRoutesHelper)->toContain("destroy: callableAction('delete')")
         ->and($logFilePage)->toContain("import logFiles from '@/routes/core-panel/log-files'")
         ->and($logFilePage)->toContain("import logsPage from '@/routes/core-panel/logs'")
+        ->and($logFilePage)->toContain('files: LogFileRecord[]')
+        ->and($logFilePage)->toContain("trans('page-log-files.files_title')")
+        ->and($logFilePage)->toContain('await navigator.clipboard.writeText')
+        ->and($logFilePage)->toContain("trans('page-log-files.entry_copied')")
         ->and($logFilePage)->toContain('logFiles.entries.url(props.file.name)')
-        ->and($logFilePage)->toContain('router.visit(`${logsPage.index.url()}?tab=logs`)');
+        ->and($logFilePage)->toContain('router.visit(`${logsPage.index.url()}?tab=logs`)')
+        ->and($logFilePage)->toContain('v-for="logFile in props.files"');
 });
 
 it('ships a dedicated developer workspace with route inspection and swagger-backed docs', function (): void {

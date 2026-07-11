@@ -5,7 +5,9 @@ declare(strict_types=1);
 use CorePanel\Http\Controllers\Logs\ActivityLogDetailController;
 use CorePanel\Http\Controllers\Logs\AuthenticationLogDetailController;
 use CorePanel\Http\Controllers\Logs\LogController;
+use CorePanel\Http\Controllers\Logs\LogFileClearController;
 use CorePanel\Http\Controllers\Logs\LogFileController;
+use CorePanel\Http\Controllers\Logs\LogFileDestroyController;
 use CorePanel\Http\Controllers\Logs\LogFileEntriesController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,5 +23,7 @@ Route::get('/authentication-logs/{authenticationLog}', [AuthenticationLogDetailC
 Route::get('/log-files', static function () {
     return redirect()->route('core-panel.logs.index', ['tab' => 'logs']);
 })->name('log-files.index');
+Route::delete('/log-files/{filename}', LogFileDestroyController::class)->name('log-files.destroy');
 Route::get('/log-files/{filename}', LogFileController::class)->name('log-files.show');
+Route::delete('/log-files/{filename}/contents', LogFileClearController::class)->name('log-files.clear');
 Route::get('/log-files/{filename}/entries', LogFileEntriesController::class)->name('log-files.entries');
