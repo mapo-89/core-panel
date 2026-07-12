@@ -67,7 +67,7 @@ it('ships i18n fallback helpers for labels and option translations', function ()
 });
 
 it('registers the primevue components required by the form renderer', function (): void {
-    $entry = file_get_contents(__DIR__.'/../../stubs/resources/js/plugins/core-panel.ts');
+    $entry = file_get_contents(__DIR__.'/../../resources/js/plugins/core-panel.ts');
     $textField = file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/fields/TextField.vue');
     $dateField = file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/fields/DateField.vue');
 

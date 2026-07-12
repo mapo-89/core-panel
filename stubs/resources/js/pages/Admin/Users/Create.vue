@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
 
-import AppIcon from '@/components/AppIcon.vue'
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import UserFormFields from '@/pages/Admin/Users/components/UserFormFields.vue'
 import users from '@/routes/core-panel/users'
-import type { RoleRecord, UserCapabilities } from '@/types/core-panel'
+import type { RoleRecord, UserCapabilities } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     canAssignRoles: boolean

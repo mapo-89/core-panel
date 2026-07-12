@@ -8,7 +8,7 @@ import type {
     SocialProviderRecord,
     TabsSchema,
     UserSessionRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import ProfileConnectionsTab from './ProfileConnectionsTab.vue'
 import ProfileInfoTab from './ProfileInfoTab.vue'
 import ProfilePasswordTab from './ProfilePasswordTab.vue'

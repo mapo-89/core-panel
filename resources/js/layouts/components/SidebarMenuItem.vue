@@ -2,11 +2,11 @@
 import { Link } from '@inertiajs/vue3'
 import { computed, inject, ref, watch } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import type {
     MenuBuilderContext,
     MenuBuilderItem,
-} from '@/composables/useMenuBuilder'
+} from '@core-panel/composables/useMenuBuilder'
 
 defineOptions({ name: 'SidebarMenuItem' })
 

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import Message from 'primevue/message'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import type {
     SocialAccountRecord,
     SocialProviderRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     socialAccounts: SocialAccountRecord[]

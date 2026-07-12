@@ -2,10 +2,10 @@
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import Message from 'primevue/message'
 
-import AppIcon from '@/components/AppIcon.vue'
-import { useTranslatedAuthErrors } from '@/composables/useTranslatedAuthErrors'
-import AuthLayout from '@/layouts/AuthLayout.vue'
-import TranslatedPassword from '@/components/TranslatedPassword.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useTranslatedAuthErrors } from '@core-panel/composables/useTranslatedAuthErrors'
+import AuthLayout from '@core-panel/layouts/AuthLayout.vue'
+import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'
 
 const form = useForm({
     email: '',

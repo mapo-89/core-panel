@@ -9,15 +9,72 @@ import tailwindcss from '@tailwindcss/vite'
 import i18n from 'laravel-vue-i18n/vite'
 
 const hostJsPath = path.resolve(__dirname, 'resources/js')
-const packageManagedJsPath = fs.existsSync(
-    path.resolve(hostJsPath, 'theme/core-panel'),
+const packageJsPath = path.resolve(
+    __dirname,
+    'vendor/mapo-89/core-panel/resources/js',
 )
-    ? hostJsPath
-    : path.resolve(__dirname, '../resources/js')
+const hostThemePath = path.resolve(hostJsPath, 'theme/core-panel')
+const packageThemePath = path.resolve(packageJsPath, 'theme/core-panel')
 const additionalLangPaths = [
     path.resolve(__dirname, 'lang/vendor/core-panel'),
     path.resolve(__dirname, '../resources/lang'),
 ].filter((candidate) => fs.existsSync(candidate))
+
+function resolveImportTarget(targetPath: string): string | null {
+    if (fs.existsSync(targetPath)) {
+        if (fs.statSync(targetPath).isDirectory()) {
+            const directoryCandidates = [
+                path.resolve(targetPath, 'index.ts'),
+                path.resolve(targetPath, 'index.js'),
+                path.resolve(targetPath, 'index.vue'),
+                path.resolve(targetPath, 'index.css'),
+            ]
+
+            return (
+                directoryCandidates.find((candidate) =>
+                    fs.existsSync(candidate),
+                ) ?? null
+            )
+        }
+
+        return targetPath
+    }
+
+    const candidates = [
+        `${targetPath}.ts`,
+        `${targetPath}.js`,
+        `${targetPath}.vue`,
+        `${targetPath}.css`,
+    ]
+
+    return candidates.find((candidate) => fs.existsSync(candidate)) ?? null
+}
+
+function resolveCorePanelImport(importee: string): string | null {
+    if (!importee.startsWith('@core-panel/')) {
+        return null
+    }
+
+    const relativePath = importee.replace('@core-panel/', '')
+    const hostCandidate = path.resolve(hostJsPath, relativePath)
+    const resolvedHostImport = resolveImportTarget(hostCandidate)
+
+    if (resolvedHostImport !== null) {
+        return resolvedHostImport
+    }
+
+    return null
+}
+
+function corePanelVendorFirst() {
+    return {
+        name: 'core-panel-vendor-first',
+        enforce: 'pre' as const,
+        resolveId(importee: string) {
+            return resolveCorePanelImport(importee)
+        },
+    }
+}
 
 export default defineConfig({
     resolve: {
@@ -27,8 +84,14 @@ export default defineConfig({
                 replacement: path.resolve(__dirname, 'resources/js'),
             },
             {
+                find: '@core-panel/theme/core-panel',
+                replacement: fs.existsSync(hostThemePath)
+                    ? hostThemePath
+                    : packageThemePath,
+            },
+            {
                 find: '@core-panel',
-                replacement: packageManagedJsPath,
+                replacement: packageJsPath,
             },
             {
                 find: /^@primeuix\/themes$/,
@@ -63,6 +126,20 @@ export default defineConfig({
                 replacement: path.resolve(
                     __dirname,
                     'node_modules/@inertiajs/vue3',
+                ),
+            },
+            {
+                find: /^@blade-flags\/core\/flags\/flat$/,
+                replacement: path.resolve(
+                    __dirname,
+                    'node_modules/@blade-flags/core/dist/flags/flat.js',
+                ),
+            },
+            {
+                find: /^@vueuse\/core$/,
+                replacement: path.resolve(
+                    __dirname,
+                    'node_modules/@vueuse/core',
                 ),
             },
             {
@@ -148,6 +225,7 @@ export default defineConfig({
         },
     },
     plugins: [
+        corePanelVendorFirst(),
         tailwindcss(),
         ...(fs.existsSync(path.resolve(__dirname, 'artisan'))
             ? [wayfinder()]

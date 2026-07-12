@@ -6,7 +6,7 @@ import logs from '@/routes/core-panel/logs'
 import {
     useMenuBuilder,
     type MenuBuilderItem,
-} from '@/composables/useMenuBuilder'
+} from '@core-panel/composables/useMenuBuilder'
 
 export function useAdminMenu() {
     const items: MenuBuilderItem[] = [

@@ -58,7 +58,7 @@ import {
     resolveCorePanelColorMode,
     resolveCorePanelRuntimeTheme,
 } from '@core-panel/theme/core-panel'
-import { canAnyInAuth, canInAuth, hasRoleInAuth } from '@/composables/useCan'
+import { canAnyInAuth, canInAuth, hasRoleInAuth } from '@core-panel/composables/useCan'
 
 export type CorePanelUiConfig = {
     darkMode?: boolean | 'system'

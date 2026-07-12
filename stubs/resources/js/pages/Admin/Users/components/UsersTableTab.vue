@@ -3,9 +3,9 @@ import { Link, router } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import { computed, ref } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
-import UserAvatar from '@/components/ui/UserAvatar.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
+import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 import userRoutes from '@/routes/core-panel/users'
@@ -13,7 +13,7 @@ import type {
     DataTableSchema,
     UserCapabilities,
     UserRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     capabilities: UserCapabilities

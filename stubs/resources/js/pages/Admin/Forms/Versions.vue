@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 
 defineProps<{
     formId: string

@@ -2,9 +2,9 @@
 import { Head, useForm } from '@inertiajs/vue3'
 import { ref } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import { useTranslatedAuthErrors } from '@/composables/useTranslatedAuthErrors'
-import AuthLayout from '@/layouts/AuthLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useTranslatedAuthErrors } from '@core-panel/composables/useTranslatedAuthErrors'
+import AuthLayout from '@core-panel/layouts/AuthLayout.vue'
 import twoFactorLoginRoutes from '@/routes/two-factor/login'
 
 const useRecoveryCode = ref(false)

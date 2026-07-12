@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import UserAvatar from '@/components/ui/UserAvatar.vue'
+import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 import ProfileAvatarUpload from '@/pages/Admin/Settings/components/ProfileAvatarUpload.vue'
-import type { UserCapabilities, UserRecord } from '@/types/core-panel'
+import type { UserCapabilities, UserRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     capabilities: UserCapabilities

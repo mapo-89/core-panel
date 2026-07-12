@@ -82,7 +82,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
                 $this->ensureApplicationKey($command);
             });
 
-            $this->runStep($command, 'Publishing package assets', function () use ($command, $options): void {
+            $this->runStep($command, 'Preparing package runtime assets', function () use ($command, $options): void {
                 $this->publishMigrations($command, $options);
                 $this->publishAssets($command, $options);
             });

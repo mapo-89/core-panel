@@ -2,7 +2,7 @@
 import { useForm } from '@inertiajs/vue3'
 import { inject } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import roleRoutes from '@/routes/core-panel/roles'
 
 type DialogRef = {

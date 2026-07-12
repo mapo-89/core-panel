@@ -4,12 +4,12 @@ import { computed } from 'vue'
 
 import { trans } from 'laravel-vue-i18n'
 import RolesOverviewPanel from '@/pages/Admin/Access/components/RolesOverviewPanel.vue'
-import AppIcon from '@/components/AppIcon.vue'
-import { useCan } from '@/composables/useCan'
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useCan } from '@core-panel/composables/useCan'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import RoleCreateDialog from '@/pages/Admin/Roles/components/RoleCreateDialog.vue'
 import roleRoutes from '@/routes/core-panel/roles'
-import type { PermissionRecord, RoleRecord } from '@/types/core-panel'
+import type { PermissionRecord, RoleRecord } from '@core-panel/types/core-panel'
 import { useDialog } from 'primevue/usedialog'
 
 type ManagedRoleRecord = {

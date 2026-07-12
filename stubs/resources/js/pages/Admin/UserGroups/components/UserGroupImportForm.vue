@@ -5,7 +5,7 @@ import { inject, ref } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 
 import userGroupRoutes from '@/routes/core-panel/user-groups'
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 
 type DialogRef = {
     close: () => void

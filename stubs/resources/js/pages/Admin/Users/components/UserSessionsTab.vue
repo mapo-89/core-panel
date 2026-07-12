@@ -3,9 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 
 import Message from 'primevue/message'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import userSessionRoutes from '@/routes/core-panel/users/sessions'
-import type { UserSessionRecord } from '@/types/core-panel'
+import type { UserSessionRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     canUpdateUser: boolean

@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import type {
     SocialAccountRecord,
     SocialProviderRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import SocialProviderConnectionCard from './SocialProviderConnectionCard.vue'
 
 const props = defineProps<{

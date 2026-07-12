@@ -3,16 +3,16 @@ import { router } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import { computed, ref } from 'vue'
 
-import githubIcon from '@/assets/icons/github.svg'
-import githubWhiteIcon from '@/assets/icons/github-white.svg'
-import googleIcon from '@/assets/icons/google.png'
-import microsoftIcon from '@/assets/icons/microsoft.svg'
-import AppIcon from '@/components/AppIcon.vue'
+import githubIcon from '@core-panel/assets/icons/github.svg'
+import githubWhiteIcon from '@core-panel/assets/icons/github-white.svg'
+import googleIcon from '@core-panel/assets/icons/google.png'
+import microsoftIcon from '@core-panel/assets/icons/microsoft.svg'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import socialite from '@/routes/socialite'
 import type {
     SocialAccountRecord,
     SocialProviderRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     provider: string

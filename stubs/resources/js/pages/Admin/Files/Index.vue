@@ -4,11 +4,11 @@ import { computed, ref } from 'vue'
 import type { FileUploadUploaderEvent } from 'primevue/fileupload'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import fileRoutes from '@/routes/core-panel/files'
-import AppLayout from '@/layouts/AppLayout.vue'
-import type { FileRecord } from '@/types/core-panel'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
+import type { FileRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     collections: string[]

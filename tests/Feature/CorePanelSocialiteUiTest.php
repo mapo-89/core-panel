@@ -5,9 +5,9 @@ declare(strict_types=1);
 it('ships social login buttons in the login page and linked account actions in security settings', function (): void {
     $login = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Login.vue');
     $authConflictPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/SocialAccountConflict.vue');
-    $avatarSyncDialog = file_get_contents(__DIR__.'/../../stubs/resources/js/components/Auth/SocialAvatarSyncDialog.vue');
-    $conflictDialog = file_get_contents(__DIR__.'/../../stubs/resources/js/components/Auth/SocialAccountConflictDialog.vue');
-    $appLayout = file_get_contents(__DIR__.'/../../stubs/resources/js/layouts/AppLayout.vue');
+    $avatarSyncDialog = file_get_contents(__DIR__.'/../../resources/js/components/Auth/SocialAvatarSyncDialog.vue');
+    $conflictDialog = file_get_contents(__DIR__.'/../../resources/js/components/Auth/SocialAccountConflictDialog.vue');
+    $appLayout = file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
     $connections = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
     $conflictPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/SocialAccountConflict.vue');
     $providerConnectionCard = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue');
@@ -17,9 +17,9 @@ it('ships social login buttons in the login page and linked account actions in s
 
     expect($login)->toContain('socialite.redirect.url(provider.provider)')
         ->and($login)->toContain('socialProviders')
-        ->and($login)->toContain("import githubIcon from '@/assets/icons/github.svg'")
-        ->and($login)->toContain("import githubWhiteIcon from '@/assets/icons/github-white.svg'")
-        ->and($login)->toContain("import googleIcon from '@/assets/icons/google.png'")
+        ->and($login)->toContain("import githubIcon from '@core-panel/assets/icons/github.svg'")
+        ->and($login)->toContain("import githubWhiteIcon from '@core-panel/assets/icons/github-white.svg'")
+        ->and($login)->toContain("import googleIcon from '@core-panel/assets/icons/google.png'")
         ->and($login)->toContain('function providerIcon(provider: string): string | null')
         ->and($login)->toContain('google: googleIcon,')
         ->and($login)->toContain('microsoft: microsoftIcon,')
@@ -47,7 +47,7 @@ it('ships social login buttons in the login page and linked account actions in s
         ->and($conflictDialog)->toContain('resolveConflict.url(props.provider)')
         ->and($avatarSyncDialog)->toContain('resolveAvatarSync.url(props.provider)')
         ->and($avatarSyncDialog)->toContain('social_avatar_sync_title')
-        ->and($appLayout)->toContain("import SocialAvatarSyncDialog from '@/components/Auth/SocialAvatarSyncDialog.vue'")
+        ->and($appLayout)->toContain("import SocialAvatarSyncDialog from '@core-panel/components/Auth/SocialAvatarSyncDialog.vue'")
         ->and($appLayout)->toContain('<SocialAvatarSyncDialog')
         ->and($conflictDialog)->toContain('social_master_conflict_title')
         ->and($conflictDialog)->toContain('social_master_conflict_confirm_link_action')
@@ -63,9 +63,9 @@ it('ships social login buttons in the login page and linked account actions in s
         ->and($providerConnectionCard)->toContain('page-settings.microsoft_send_test_mail')
         ->and($providerConnectionCard)->toContain('page-settings.social_provider_connection_status_label')
         ->and($providerConnectionCard)->toContain('page-settings.social_provider_title')
-        ->and($providerConnectionCard)->toContain("import githubIcon from '@/assets/icons/github.svg'")
-        ->and($providerConnectionCard)->toContain("import githubWhiteIcon from '@/assets/icons/github-white.svg'")
-        ->and($providerConnectionCard)->toContain("import googleIcon from '@/assets/icons/google.png'")
+        ->and($providerConnectionCard)->toContain("import githubIcon from '@core-panel/assets/icons/github.svg'")
+        ->and($providerConnectionCard)->toContain("import githubWhiteIcon from '@core-panel/assets/icons/github-white.svg'")
+        ->and($providerConnectionCard)->toContain("import googleIcon from '@core-panel/assets/icons/google.png'")
         ->and($providerConnectionCard)->toContain('const providerLogo = computed(() => {')
         ->and($providerConnectionCard)->toContain("const isGithubProvider = computed(() => props.provider === 'github')")
         ->and($providerConnectionCard)->toContain('const showProviderLabel = computed(')
@@ -75,7 +75,7 @@ it('ships social login buttons in the login page and linked account actions in s
         ->and($providerConnectionCard)->toContain('githubWhiteIcon')
         ->and($providerConnectionCard)->toContain('dark:text-surface-200')
         ->and($providerConnectionCard)->toContain('dark:bg-surface-800/70 dark:text-surface-200 dark:ring-surface-700')
-        ->and($providerConnectionCard)->toContain("import AppIcon from '@/components/AppIcon.vue'")
+        ->and($providerConnectionCard)->toContain("import AppIcon from '@core-panel/components/AppIcon.vue'")
         ->and($providerConnectionCard)->toContain('<AppIcon')
         ->and($providerConnectionCard)->toContain(":name=\"isConnected ? 'check' : 'ban'\"")
         ->and($providerConnectionCard)->toContain('providerHealth.available')

@@ -7,7 +7,7 @@ import { trans } from 'laravel-vue-i18n'
 import FormRenderer from '@core-panel/components/FormBuilder/FormRenderer.vue'
 import forms from '@/routes/core-panel/forms'
 import publicForms from '@/routes/core-panel/forms/public'
-import type { FormModel, FormRecord } from '@/types/core-panel'
+import type { FormModel, FormRecord } from '@core-panel/types/core-panel'
 
 const props = withDefaults(
     defineProps<{

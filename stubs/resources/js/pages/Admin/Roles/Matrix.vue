@@ -4,11 +4,11 @@ import { computed, ref, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import roleRoutes from '@/routes/core-panel/roles'
 import users from '@/routes/core-panel/users'
-import type { PermissionRecord, RoleRecord } from '@/types/core-panel'
+import type { PermissionRecord, RoleRecord } from '@core-panel/types/core-panel'
 
 type MatrixResource = {
     key: string

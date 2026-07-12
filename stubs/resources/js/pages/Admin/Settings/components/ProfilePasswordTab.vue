@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import FormRenderer from '@core-panel/components/FormBuilder/FormRenderer.vue'
 import {
     passwordMatchMeta,

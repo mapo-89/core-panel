@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ToastMessageOptions } from 'primevue/toast'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 
 type AppToastSeverity = 'success' | 'info' | 'warn' | 'error'
 

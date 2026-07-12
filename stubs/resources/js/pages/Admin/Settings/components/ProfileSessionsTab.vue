@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue'
 
 import { router, useForm } from '@inertiajs/vue3'
-import AppIcon from '@/components/AppIcon.vue'
-import type { UserSessionRecord } from '@/types/core-panel'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import type { UserSessionRecord } from '@core-panel/types/core-panel'
 import profile from '@/routes/profile'
 
 const props = defineProps<{

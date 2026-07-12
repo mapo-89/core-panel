@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import UserAvatar from '@/components/ui/UserAvatar.vue'
+import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 
 const props = withDefaults(
     defineProps<{

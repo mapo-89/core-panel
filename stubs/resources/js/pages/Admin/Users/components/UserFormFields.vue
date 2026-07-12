@@ -12,7 +12,7 @@ import {
 import type { FormSchema } from '@core-panel/components/FormBuilder/types'
 
 import UserAvatarInput from '@/pages/Admin/Users/components/UserAvatarInput.vue'
-import type { RoleRecord, UserCapabilities } from '@/types/core-panel'
+import type { RoleRecord, UserCapabilities } from '@core-panel/types/core-panel'
 
 type UserFormShape = {
     avatar: File | null

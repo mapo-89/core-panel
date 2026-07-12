@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StyleValue } from 'vue'
 
-import BadgeRenderer from '@/components/ui/BadgeRenderer.vue'
+import BadgeRenderer from '@core-panel/components/ui/BadgeRenderer.vue'
 
 type BadgeVariant = 'soft' | 'outlined' | 'filled'
 type TextColorMode = 'readable' | 'shade'

@@ -4,14 +4,14 @@ import { inject } from 'vue'
 
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import UserFormFields from '@/pages/Admin/Users/components/UserFormFields.vue'
 import users from '@/routes/core-panel/users'
 import type {
     RoleRecord,
     UserCapabilities,
     UserRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 type DialogRef = {
     close: () => void

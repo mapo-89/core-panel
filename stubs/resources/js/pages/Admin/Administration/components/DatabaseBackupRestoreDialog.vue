@@ -3,7 +3,7 @@ import { useForm } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 
 type DatabaseBackup = {
     created_at: string

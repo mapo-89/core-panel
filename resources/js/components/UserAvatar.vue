@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UserAvatar from '@/components/ui/UserAvatar.vue'
+import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 </script>
 
 <template>

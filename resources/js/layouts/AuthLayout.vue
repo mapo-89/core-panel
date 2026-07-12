@@ -7,12 +7,12 @@ import {
 import type { MenuItem } from 'primevue/menuitem'
 import { computed, ref, useSlots, watchEffect } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import AppToast from '@/components/AppToast.vue'
-import CorePanelLogo from '@/components/CorePanelLogo.vue'
-import LocaleFlag from '@/components/Locale/LocaleFlag.vue'
-import { useColorMode } from '@/composables/useColorMode'
-import { useRuntimeUiSettings } from '@/composables/useRuntimeUiSettings'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import AppToast from '@core-panel/components/AppToast.vue'
+import CorePanelLogo from '@core-panel/components/CorePanelLogo.vue'
+import LocaleFlag from '@core-panel/components/Locale/LocaleFlag.vue'
+import { useColorMode } from '@core-panel/composables/useColorMode'
+import { useRuntimeUiSettings } from '@core-panel/composables/useRuntimeUiSettings'
 import locale from '@/routes/locale'
 
 withDefaults(

@@ -11,6 +11,8 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../../vendor/mapo-89/core-panel/resources/js/**/*.ts';
+@source '../../vendor/mapo-89/core-panel/resources/js/**/*.vue';
 @source '../views/**/*.blade.php';
 @source '../js/**/*.ts';
 @source '../js/**/*.vue';

@@ -7,7 +7,7 @@ import {
 import { computed } from 'vue'
 
 import locale from '@/routes/locale'
-import type { LocaleOption } from '@/types/core-panel'
+import type { LocaleOption } from '@core-panel/types/core-panel'
 
 const props = withDefaults(
     defineProps<{

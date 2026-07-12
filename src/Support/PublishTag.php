@@ -39,9 +39,7 @@ enum PublishTag: string
     {
         return [
             self::Components->value,
-            self::Lang->value,
             self::Theme->value,
-            self::Views->value,
         ];
     }
 

@@ -101,6 +101,7 @@ Typical flow:
 ## Frontend Bundling
 
 - If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+- For frontend changes, prefer host-level scaffolds, publishable overlays, and supported override paths first. Keep direct changes to vendor-owned CorePanel frontend assets as small as possible and only change them when there is no viable host-side or publishable alternative.
 
 ## Documentation Files
 

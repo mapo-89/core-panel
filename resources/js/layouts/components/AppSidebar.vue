@@ -2,10 +2,10 @@
 import { usePage } from '@inertiajs/vue3'
 import { computed, provide, ref } from 'vue'
 
-import CorePanelLogo from '@/components/CorePanelLogo.vue'
-import { useAdminMenu } from '@/composables/useAdminMenu'
-import SidebarMenuItem from '@/layouts/components/SidebarMenuItem.vue'
-import { APP_RELEASE_VERSION } from '@/support/version'
+import CorePanelLogo from '@core-panel/components/CorePanelLogo.vue'
+import { useAdminMenu } from '@core-panel/composables/useAdminMenu'
+import SidebarMenuItem from '@core-panel/layouts/components/SidebarMenuItem.vue'
+import { APP_RELEASE_VERSION } from '@core-panel/support/version'
 
 const props = defineProps<{
     collapsed: boolean

@@ -10,11 +10,11 @@ import type {
     FormModel,
     FormSchema,
 } from '@core-panel/components/FormBuilder/types'
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import oauthClients from '@/routes/core-panel/oauth-clients'
-import AppLayout from '@/layouts/AppLayout.vue'
-import type { OAuthClientRecord } from '@/types/core-panel'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
+import type { OAuthClientRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     clients: OAuthClientRecord[]

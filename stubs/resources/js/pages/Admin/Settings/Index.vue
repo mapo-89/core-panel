@@ -12,7 +12,7 @@ import {
 
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import ApiSettingsTab from '@/pages/Admin/Settings/components/ApiSettingsTab.vue'
 import AuthSettingsTab from '@/pages/Admin/Settings/components/AuthSettingsTab.vue'
 import GeneralSettingsTab from '@/pages/Admin/Settings/components/GeneralSettingsTab.vue'
@@ -22,7 +22,7 @@ import type {
     ApiTokenManagerPayload,
     SettingGroupRecord,
     TabsSchema,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 const props = withDefaults(
     defineProps<{

@@ -3,8 +3,8 @@ import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Message from 'primevue/message'
 
-import AppIcon from '@/components/AppIcon.vue'
-import AuthLayout from '@/layouts/AuthLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import AuthLayout from '@core-panel/layouts/AuthLayout.vue'
 import verification from '@/routes/verification'
 
 const page = usePage<{

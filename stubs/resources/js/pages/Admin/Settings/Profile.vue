@@ -2,12 +2,12 @@
 import { Head } from '@inertiajs/vue3'
 
 import ProfileWorkspace from '@/pages/Admin/Settings/components/ProfileWorkspace.vue'
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import type {
     SocialAccountRecord,
     SocialProviderRecord,
     UserSessionRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 defineProps<{
     browserSessions: UserSessionRecord[]

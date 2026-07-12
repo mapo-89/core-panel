@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { usePresenceStatus } from '@/composables/usePresenceRealtime'
+import { usePresenceStatus } from '@core-panel/composables/usePresenceRealtime'
 
 const props = withDefaults(
     defineProps<{

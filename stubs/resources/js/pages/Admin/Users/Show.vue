@@ -7,7 +7,7 @@ import { useDialog } from 'primevue/usedialog'
 
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import UserFormDialog from '@/pages/Admin/Users/components/UserFormDialog.vue'
 import users from '@/routes/core-panel/users'
 import type {
@@ -17,7 +17,7 @@ import type {
     TabsSchema,
     UserCapabilities,
     UserRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import UserConnectionsTab from './components/UserConnectionsTab.vue'
 import UserOverviewTab from './components/UserOverviewTab.vue'
 import UserSecurityTab from './components/UserSecurityTab.vue'

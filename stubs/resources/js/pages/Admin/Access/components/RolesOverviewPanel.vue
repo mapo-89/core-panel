@@ -2,11 +2,11 @@
 import { router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
-import { useCan } from '@/composables/useCan'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
+import { useCan } from '@core-panel/composables/useCan'
 import roleRoutes from '@/routes/core-panel/roles'
-import type { PermissionRecord, RoleRecord } from '@/types/core-panel'
+import type { PermissionRecord, RoleRecord } from '@core-panel/types/core-panel'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 import type { DataTableSchema } from '@core-panel/components/TableBuilder/types'
 

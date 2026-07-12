@@ -9,7 +9,7 @@ import {
     resolveFieldLabel,
     resolveFieldPlaceholder,
 } from '../useFormSchema'
-import TranslatedPassword from '@/components/TranslatedPassword.vue'
+import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'
 
 const props = defineProps<{
     disabled?: boolean

@@ -3,8 +3,8 @@ import { useForm } from '@inertiajs/vue3'
 import { computed, inject } from 'vue'
 
 import userGroupRoutes from '@/routes/core-panel/user-groups'
-import AppIcon from '@/components/AppIcon.vue'
-import type { UserGroupRecord } from '@/types/core-panel'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import type { UserGroupRecord } from '@core-panel/types/core-panel'
 
 type DialogRef = {
     close: () => void

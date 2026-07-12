@@ -2,8 +2,8 @@
 import { usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import UserAvatar from '@/components/ui/UserAvatar.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 
 const props = withDefaults(
     defineProps<{

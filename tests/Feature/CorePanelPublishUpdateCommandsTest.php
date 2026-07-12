@@ -97,7 +97,7 @@ it('versions the user record type scaffold with the user management views', func
         'lang/en/system_updates.php',
         'lang/de/page-users.php',
         'lang/en/page-users.php',
-        'resources/js/composables/useAdminMenu.ts',
+        'resources/css/app.css',
         'resources/js/pages/Admin/Administration/Index.vue',
         'resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue',
         'resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue',
@@ -111,11 +111,9 @@ it('versions the user record type scaffold with the user management views', func
         'routes/console.php',
         'resources/js/pages/Admin/Users/Index.vue',
         'resources/js/pages/Admin/Users/Show.vue',
-        'resources/js/layouts/components/AppPageHeader.vue',
         'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
         'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
-        'resources/js/types/core-panel.ts',
         'resources/views/app.blade.php',
     );
 });
@@ -239,6 +237,76 @@ it('creates a backup before force updates overwrite local files', function (): v
     expect($backups)->not->toBeFalse()
         ->and($backups)->not->toBeEmpty()
         ->and(file_get_contents($target))->not->toContain('// local change');
+});
+
+it('migrates unchanged published frontend overlays back to vendor assets', function (): void {
+    $basePath = makePublishBasePath('vendor-first-clean');
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'components',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'theme',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(is_dir($basePath.'/resources/js/components/FormBuilder'))->toBeFalse()
+        ->and(is_dir($basePath.'/resources/js/theme/core-panel'))->toBeFalse()
+        ->and(readManifest($basePath))->not->toContain('core-panel-components')
+        ->and(readManifest($basePath))->not->toContain('core-panel-theme');
+});
+
+it('keeps locally modified published frontend overlays unless vendor-first is forced', function (): void {
+    $basePath = makePublishBasePath('vendor-first-conflict');
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'components',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $target = $basePath.'/resources/js/components/FormBuilder/FormRenderer.vue';
+    file_put_contents($target, (string) file_get_contents($target)."\n<!-- local override -->\n");
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--dry-run' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(1);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(readManifest($basePath))->toContain('core-panel-components');
+});
+
+it('backs up locally modified published frontend overlays before migrating them back to vendor assets', function (): void {
+    $basePath = makePublishBasePath('vendor-first-force');
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'components',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $target = $basePath.'/resources/js/components/FormBuilder/FormRenderer.vue';
+    file_put_contents($target, (string) file_get_contents($target)."\n<!-- local override -->\n");
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--force' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/resources/js/components/FormBuilder/FormRenderer.vue');
+
+    expect(file_exists($target))->toBeFalse()
+        ->and($backups)->not->toBeFalse()
+        ->and($backups)->not->toBeEmpty()
+        ->and(readManifest($basePath))->not->toContain('core-panel-components');
 });
 
 it('adopts unmanaged published assets during force updates', function (): void {
@@ -449,11 +517,12 @@ it('creates explicitly versioned missing application scaffolds during updates', 
 it('fully synchronizes local application scaffolds during updates', function (): void {
     $basePath = makePublishBasePath('local-full-scaffold-sync');
     $originalEnvironment = app()->environment();
-    $existingTarget = $basePath.'/resources/js/components/AppToast.vue';
-    $missingTarget = $basePath.'/resources/js/components/Dialogs/ConfirmActionDialog.vue';
+    $existingTarget = $basePath.'/resources/js/pages/Admin/Administration/Index.vue';
+    $missingTarget = $basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue';
+    $sourcePage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Administration/Index.vue');
 
     mkdir(dirname($existingTarget), 0777, true);
-    file_put_contents($existingTarget, "<template>\n    <div>custom local toast</div>\n</template>\n");
+    file_put_contents($existingTarget, "<template>\n    <div>custom local administration page</div>\n</template>\n");
 
     app()->instance('env', 'local');
 
@@ -466,11 +535,11 @@ it('fully synchronizes local application scaffolds during updates', function ():
     }
 
     expect(file_exists($existingTarget))->toBeTrue()
-        ->and(file_get_contents($existingTarget))->toContain('useToast')
-        ->and(file_get_contents($existingTarget))->not->toContain('custom local toast')
+        ->and(file_get_contents($existingTarget))->toBe($sourcePage)
+        ->and(file_get_contents($existingTarget))->not->toContain('custom local administration page')
         ->and(file_exists($missingTarget))->toBeTrue()
-        ->and(file_get_contents($missingTarget))->toContain('cp-confirm-dialog__message')
-        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/components/AppToast.vue'))
+        ->and(file_get_contents($missingTarget))->toContain('const restoreForm = useForm({')
+        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Administration/Index.vue'))
         ->not->toBeEmpty();
 });
 

@@ -9,7 +9,7 @@ import {
 } from '@/pages/Admin/Logs/components/authenticationLogPresentation'
 import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
 import LogUserAvatar from '@/pages/Admin/Logs/components/LogUserAvatar.vue'
-import type { AuthenticationLogRecord } from '@/types/core-panel'
+import type { AuthenticationLogRecord } from '@core-panel/types/core-panel'
 
 defineProps<{
     data: AuthenticationLogRecord

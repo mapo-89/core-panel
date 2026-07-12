@@ -11,16 +11,16 @@ import type {
     DataTablePagination,
     DataTableSchema,
     FormOptionRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import FormRenderer from '@core-panel/components/FormBuilder/FormRenderer.vue'
 import type {
     FormModel,
     FormSchema,
 } from '@core-panel/components/FormBuilder/types'
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import apiTokens from '@/routes/core-panel/api-tokens'
-import type { ApiTokenRecord } from '@/types/core-panel'
+import type { ApiTokenRecord } from '@core-panel/types/core-panel'
 
 const props = withDefaults(
     defineProps<{

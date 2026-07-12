@@ -2,7 +2,7 @@
 import { useForm } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import {
     applyCorePanelLayoutDensity,
     applyCorePanelRadiusToken,
@@ -17,7 +17,7 @@ import {
 } from '@core-panel/theme/core-panel'
 
 import settings from '@/routes/core-panel/settings'
-import type { SettingFieldRecord, SettingGroupRecord } from '@/types/core-panel'
+import type { SettingFieldRecord, SettingGroupRecord } from '@core-panel/types/core-panel'
 
 type SettingFormValue = boolean | number | string | string[] | null
 

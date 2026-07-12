@@ -3,8 +3,8 @@ import { trans } from 'laravel-vue-i18n'
 import { useToast } from 'primevue/usetoast'
 import { computed } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import AvatarUploadDropzone from '@/components/AvatarUploadDropzone.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import AvatarUploadDropzone from '@core-panel/components/AvatarUploadDropzone.vue'
 
 const props = defineProps<{
     currentAvatarUrl?: string | null

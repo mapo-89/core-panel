@@ -2,7 +2,7 @@
 import { router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
-import AvatarUploadDropzone from '@/components/AvatarUploadDropzone.vue'
+import AvatarUploadDropzone from '@core-panel/components/AvatarUploadDropzone.vue'
 import socialite from '@/routes/socialite'
 
 const props = defineProps<{

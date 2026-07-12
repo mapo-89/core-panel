@@ -5,10 +5,10 @@ import { trans } from 'laravel-vue-i18n'
 
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import RouteListTab from '@/pages/Admin/Developer/components/RouteListTab.vue'
 import developer from '@/routes/core-panel/developer'
-import type { DeveloperRouteTabPayload, TabsSchema } from '@/types/core-panel'
+import type { DeveloperRouteTabPayload, TabsSchema } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     activeTab: 'api' | 'web' | 'service'

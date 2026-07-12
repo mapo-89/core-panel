@@ -3,11 +3,11 @@ import { computed, ref } from 'vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import FormRenderer from '@core-panel/components/FormBuilder/FormRenderer.vue'
 import forms from '@/routes/core-panel/forms'
-import type { FormRecord, FormSchema } from '@/types/core-panel'
+import type { FormRecord, FormSchema } from '@core-panel/types/core-panel'
 
 type FormEditorPayload = {
     name: string

@@ -13,6 +13,7 @@ const props = withDefaults(
         showRequirements?: boolean
     }>(),
     {
+        matchPassword: null,
         minLength: null,
         showRequirements: true,
     },

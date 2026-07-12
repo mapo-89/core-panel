@@ -6,8 +6,8 @@ import { trans } from 'laravel-vue-i18n'
 
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
-import { useCan } from '@/composables/useCan'
-import AppLayout from '@/layouts/AppLayout.vue'
+import { useCan } from '@core-panel/composables/useCan'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import ActivityLogsTab from '@/pages/Admin/Logs/components/ActivityLogsTab.vue'
 import AuthenticationLogsTab from '@/pages/Admin/Logs/components/AuthenticationLogsTab.vue'
 import LogFilesTab from '@/pages/Admin/Logs/components/LogFilesTab.vue'
@@ -16,7 +16,7 @@ import type {
     AuthenticationLogRecord,
     LogFileRecord,
     TabsSchema,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 type ActivityTabPayload = {
     filters: {

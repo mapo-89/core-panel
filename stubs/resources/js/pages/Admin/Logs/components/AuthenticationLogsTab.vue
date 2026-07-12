@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 import { useToast } from 'primevue/usetoast'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import {
     formatAuthenticationDeviceLabel,
     formatAuthenticationMethodLabel,
@@ -20,7 +20,7 @@ import type {
     AuthenticationLogRecord,
     DataTablePagination,
     DataTableSchema,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 

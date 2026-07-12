@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3'
 
-import SocialAccountConflictDialog from '@/components/Auth/SocialAccountConflictDialog.vue'
-import AuthLayout from '@/layouts/AuthLayout.vue'
+import SocialAccountConflictDialog from '@core-panel/components/Auth/SocialAccountConflictDialog.vue'
+import AuthLayout from '@core-panel/layouts/AuthLayout.vue'
 
 defineProps<{
     context: 'connections' | 'login'

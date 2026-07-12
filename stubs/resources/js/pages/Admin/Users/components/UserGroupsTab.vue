@@ -5,12 +5,12 @@ import { computed, ref } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 import { useDialog } from 'primevue/usedialog'
 
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import UserGroupForm from '@/pages/Admin/UserGroups/components/UserGroupForm.vue'
 import userGroupRoutes from '@/routes/core-panel/user-groups'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
-import type { UserGroupRecord } from '@/types/core-panel'
+import type { UserGroupRecord } from '@core-panel/types/core-panel'
 import type { DataTableSchema } from '@core-panel/components/TableBuilder/types'
 
 const props = defineProps<{

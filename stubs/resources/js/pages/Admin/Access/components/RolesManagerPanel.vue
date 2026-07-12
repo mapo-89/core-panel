@@ -6,9 +6,9 @@ import { trans } from 'laravel-vue-i18n'
 import { useConfirm } from 'primevue/useconfirm'
 import { useDialog } from 'primevue/usedialog'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import RoleCreateDialog from '@/pages/Admin/Roles/components/RoleCreateDialog.vue'
-import { useCan } from '@/composables/useCan'
+import { useCan } from '@core-panel/composables/useCan'
 import permissionRoutes from '@/routes/core-panel/permissions'
 import roleRoutes from '@/routes/core-panel/roles'
 import userRoleRoutes from '@/routes/core-panel/users/roles'
@@ -16,7 +16,7 @@ import type {
     AssignableUser,
     PermissionRecord,
     RoleRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 type ManagedRoleRecord = {
     name: string

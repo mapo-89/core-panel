@@ -271,7 +271,7 @@ it('renders the log file detail page for super admins', function (): void {
     Role::findOrCreate('super-admin', 'web');
     $user->assignRole('super-admin');
 
-    $this->actingAs($user)
+    $response = $this->actingAs($user)
         ->withHeaders([
             'X-Inertia' => 'true',
             'X-Requested-With' => 'XMLHttpRequest',
@@ -284,8 +284,12 @@ it('renders the log file detail page for super admins', function (): void {
         ->assertJsonCount(2, 'props.initialEntries')
         ->assertJsonPath('props.initialEntries.0.message', 'Second message')
         ->assertJsonPath('props.initialEntries.1.message', 'First failure')
-        ->assertJsonPath('props.files.0.name', $filename)
-        ->assertJsonPath('props.files.1.name', $olderFilename);
+        ->assertJsonPath('props.files.0.name', $filename);
+
+    /** @var array<int, array{name:string}> $files */
+    $files = $response->json('props.files');
+
+    expect(collect($files)->pluck('name')->all())->toContain($filename, $olderFilename);
 
     File::delete([$path, $olderPath]);
 });

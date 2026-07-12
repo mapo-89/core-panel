@@ -46,7 +46,7 @@ it('ships bulk selection controls and bulk action handling', function (): void {
 });
 
 it('registers the primevue components required by the datatable renderer', function (): void {
-    $entry = file_get_contents(__DIR__.'/../../stubs/resources/js/plugins/core-panel.ts');
+    $entry = file_get_contents(__DIR__.'/../../resources/js/plugins/core-panel.ts');
     $renderer = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/DataTable.vue');
     $pagination = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/TablePagination.vue');
     $tabsRenderer = file_get_contents(__DIR__.'/../../resources/js/components/TabBuilder/TabsRenderer.vue');

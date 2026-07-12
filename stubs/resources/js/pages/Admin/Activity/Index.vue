@@ -6,8 +6,8 @@ import { trans } from 'laravel-vue-i18n'
 import { useToast } from 'primevue/usetoast'
 
 import activity from '@/routes/core-panel/activity'
-import AppLayout from '@/layouts/AppLayout.vue'
-import type { ActivityLogRecord } from '@/types/core-panel'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
+import type { ActivityLogRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     filters: {

@@ -6,7 +6,7 @@ import { trans } from 'laravel-vue-i18n'
 import Message from 'primevue/message'
 import { computed, onMounted, ref } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import passwordConfirm from '@/routes/password/confirm'
 import twoFactorRoutes from '@/routes/two-factor'
 

@@ -1,6 +1,6 @@
 import { trans } from 'laravel-vue-i18n'
 
-import type { AuthenticationLogRecord } from '@/types/core-panel'
+import type { AuthenticationLogRecord } from '@core-panel/types/core-panel'
 
 export type AuthenticationResultTone =
     | 'danger'

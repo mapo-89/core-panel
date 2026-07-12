@@ -4,9 +4,9 @@ import { computed, watch } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 import { useConfirm } from 'primevue/useconfirm'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import settings from '@/routes/core-panel/settings'
-import type { SettingFieldRecord, SettingGroupRecord } from '@/types/core-panel'
+import type { SettingFieldRecord, SettingGroupRecord } from '@core-panel/types/core-panel'
 
 type SettingFormValue = boolean | string | null
 type ProviderCard = {

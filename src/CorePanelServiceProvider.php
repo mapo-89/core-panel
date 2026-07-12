@@ -73,6 +73,7 @@ use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Permissions\RoutePermissionResolver;
 use CorePanel\Support\Publishing\CorePanelPublisher;
 use CorePanel\Support\Publishing\PublishedAssetManifest;
+use CorePanel\Support\Publishing\VendorFirstAssetMigrator;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\Query\QueryBuilderAdapter;
 use CorePanel\Support\Security\SecurityHeaderConfig;
@@ -139,6 +140,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(RoutePermissionResolver::class);
         $this->app->scoped(PublishedAssetManifest::class);
         $this->app->scoped(CorePanelPublisher::class);
+        $this->app->scoped(VendorFirstAssetMigrator::class);
         $this->app->scoped(QueryBuilderAdapter::class);
         $this->app->scoped(RevokeBrowserSession::class);
         $this->app->scoped(SecurityHeaderConfig::class);
@@ -241,7 +243,13 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         ], PublishTag::Config->value);
 
         $this->publishes([
+            __DIR__.'/../resources/js/assets' => resource_path('js/assets'),
             __DIR__.'/../resources/js/components' => resource_path('js/components'),
+            __DIR__.'/../resources/js/composables' => resource_path('js/composables'),
+            __DIR__.'/../resources/js/layouts' => resource_path('js/layouts'),
+            __DIR__.'/../resources/js/plugins' => resource_path('js/plugins'),
+            __DIR__.'/../resources/js/support' => resource_path('js/support'),
+            __DIR__.'/../resources/js/types' => resource_path('js/types'),
         ], PublishTag::Components->value);
 
         $this->publishes([

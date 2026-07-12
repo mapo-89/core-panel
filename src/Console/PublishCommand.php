@@ -19,7 +19,7 @@ final class PublishCommand extends Command
         {--force : Overwrite existing published files}
         {--base-path= : Override the target base path}';
 
-    protected $description = 'Publish Laravel CorePanel package assets by tag.';
+    protected $description = 'Publish optional Laravel CorePanel override assets by tag.';
 
     /**
      * @var list<string>

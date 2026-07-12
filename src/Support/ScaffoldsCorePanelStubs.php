@@ -57,26 +57,8 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/page-users.php',
         'lang/en/page-user-groups.php',
         'lang/en/system_updates.php',
+        'resources/css/app.css',
         'resources/css/theme/_datatable.css',
-        'resources/js/components/AppIcon.vue',
-        'resources/js/components/AppToast.vue',
-        'resources/js/components/Auth/SocialAccountConflictDialog.vue',
-        'resources/js/components/Auth/SocialAvatarSyncDialog.vue',
-        'resources/js/components/AvatarUploadDropzone.vue',
-        'resources/js/components/BadgeRenderer.vue',
-        'resources/js/components/CorePanelLogo.vue',
-        'resources/js/components/Dialogs/ConfirmActionDialog.vue',
-        'resources/js/components/Locale/LocaleFlag.vue',
-        'resources/js/components/TableBuilder/DataTable.vue',
-        'resources/js/components/TableBuilder/TableFilterDropdown.vue',
-        'resources/js/components/TableBuilder/TableFilters.vue',
-        'resources/js/components/TableBuilder/useDataTable.ts',
-        'resources/js/components/UserAvatar.vue',
-        'resources/js/components/ui/BadgeRenderer.vue',
-        'resources/js/components/ui/UserAvatar.vue',
-        'resources/js/composables/useAdminMenu.ts',
-        'resources/js/layouts/components/AppHeader.vue',
-        'resources/js/layouts/components/AppPageHeader.vue',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
         'resources/js/pages/Admin/Administration/Index.vue',
@@ -99,7 +81,6 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
         'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
         'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
-        'resources/js/types/core-panel.ts',
         'routes/web/admin.php',
         'routes/web/admin/administration.php',
         'routes/web/admin/database-backups.php',
@@ -118,7 +99,6 @@ final readonly class ScaffoldsCorePanelStubs
     {
         $stubRoot = realpath(__DIR__.'/../../stubs');
         $packageRoutesRoot = realpath(__DIR__.'/../../routes/web');
-        $packageResourcesRoot = realpath(__DIR__.'/../../resources/js');
         $packageLanguageRoot = realpath(__DIR__.'/../../resources/lang');
         $packageAiRoot = realpath(__DIR__.'/../../.ai');
         $packageAgentsRoot = realpath(__DIR__.'/../../.agents');
@@ -139,10 +119,6 @@ final readonly class ScaffoldsCorePanelStubs
 
         if ($packageRoutesRoot !== false) {
             self::appendPathsFromRoot($paths, $packageRoutesRoot, 'routes/web');
-        }
-
-        if ($packageResourcesRoot !== false) {
-            self::appendPathsFromRoot($paths, $packageResourcesRoot, 'resources/js');
         }
 
         if ($packageLanguageRoot !== false) {

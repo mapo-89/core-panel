@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
 
-import AppIcon from '@/components/AppIcon.vue'
-import { useTranslatedAuthErrors } from '@/composables/useTranslatedAuthErrors'
-import AuthLayout from '@/layouts/AuthLayout.vue'
-import TranslatedPassword from '@/components/TranslatedPassword.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useTranslatedAuthErrors } from '@core-panel/composables/useTranslatedAuthErrors'
+import AuthLayout from '@core-panel/layouts/AuthLayout.vue'
+import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'
 import password from '@/routes/password'
 
 const props = defineProps<{

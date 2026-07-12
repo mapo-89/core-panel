@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import type {
     DataTablePagination,
     DataTableSchema,
     DeveloperRouteRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 
 const props = defineProps<{

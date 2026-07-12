@@ -3,8 +3,8 @@ import { router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
 import logFiles from '@/routes/core-panel/log-files'
 import logsPage from '@/routes/core-panel/logs'
@@ -12,7 +12,7 @@ import type {
     DataTablePagination,
     DataTableSchema,
     LogFileRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 

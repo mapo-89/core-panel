@@ -2,10 +2,10 @@
 import { useForm } from '@inertiajs/vue3'
 import { inject } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import TranslatedPassword from '@/components/TranslatedPassword.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'
 import userPasswordRoutes from '@/routes/core-panel/users/password'
-import type { UserRecord } from '@/types/core-panel'
+import type { UserRecord } from '@core-panel/types/core-panel'
 
 type DialogRef = {
     close: () => void

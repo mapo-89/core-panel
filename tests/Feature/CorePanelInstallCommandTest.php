@@ -535,7 +535,7 @@ it('clears optimized caches after synchronizing the environment and allows seede
     $commandContents = file_get_contents(__DIR__.'/../../src/Console/InstallCommand.php');
     $prepareDatabasePosition = strpos($contents, "runStep(\$command, 'Preparing database connection'");
     $clearCachesPosition = strpos($contents, "runStep(\$command, 'Clearing optimized caches'");
-    $publishAssetsPosition = strpos($contents, "runStep(\$command, 'Publishing package assets'");
+    $publishAssetsPosition = strpos($contents, "runStep(\$command, 'Preparing package runtime assets'");
     $passportClientPosition = strpos($contents, "runStep(\$command, 'Ensuring Passport personal access client'");
 
     expect($prepareDatabasePosition)->not->toBeFalse()

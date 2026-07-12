@@ -6,6 +6,7 @@ namespace CorePanel\Console;
 
 use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\PublishesCorePanelAssets;
+use CorePanel\Support\Publishing\VendorFirstAssetMigrator;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\ScaffoldsCorePanelStubs;
 use CorePanel\Support\SynchronizesEnvironmentFile;
@@ -20,6 +21,7 @@ final class UpdateCommand extends Command
         private readonly ScaffoldsCorePanelStubs $stubs,
         private readonly SynchronizesEnvironmentFile $environment,
         private readonly HostMigrationRunner $migrations,
+        private readonly VendorFirstAssetMigrator $vendorFirstAssets,
     ) {
         parent::__construct();
     }
@@ -29,9 +31,10 @@ final class UpdateCommand extends Command
         {--force : Overwrite published files after creating a backup}
         {--base-path= : Override the target base path}
         {--with-addon-updates : Also run update for installed optional addons}
+        {--vendor-first : Migrate managed CorePanel frontend overlays back to vendor assets where possible}
         {--breaking-changes : Also refresh config files for breaking update paths}';
 
-    protected $description = 'Republish mutable Laravel CorePanel assets after package updates.';
+    protected $description = 'Refresh mutable published Laravel CorePanel overlays after package updates.';
 
     /**
      * @var list<string>
@@ -46,6 +49,7 @@ final class UpdateCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
         $withAddonUpdates = (bool) $this->option('with-addon-updates');
+        $vendorFirst = (bool) $this->option('vendor-first');
         $withBreakingChanges = (bool) $this->option('breaking-changes');
         $localScaffoldSync = $this->shouldFullySynchronizeScaffolds($basePath);
         $tags = PublishTag::updateTags();
@@ -54,13 +58,27 @@ final class UpdateCommand extends Command
             $tags[] = PublishTag::Config->value;
         }
 
-        $result = $this->updatePublishedTags(
-            $tags,
-            $force,
-            $dryRun,
-            $basePath,
-            adoptUnmanagedExisting: $force,
-        );
+        $result = $tags === []
+            ? $this->emptyPublishResult($basePath)
+            : $this->updatePublishedTags(
+                $tags,
+                $force,
+                $dryRun,
+                $basePath,
+                adoptUnmanagedExisting: $force,
+            );
+
+        if ($vendorFirst) {
+            $result = $this->mergePublishResults(
+                $result,
+                $this->vendorFirstAssets->migrate(
+                    [PublishTag::Components->value, PublishTag::Theme->value],
+                    $force,
+                    $dryRun,
+                    $basePath,
+                ),
+            );
+        }
 
         $this->table(
             ['Tag', 'Status', 'Reason', 'Destination'],
@@ -118,6 +136,56 @@ final class UpdateCommand extends Command
     private function shouldFullySynchronizeScaffolds(?string $basePath): bool
     {
         return app()->isLocal();
+    }
+
+    /**
+     * @return array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }
+     */
+    private function emptyPublishResult(?string $basePath): array
+    {
+        $root = $basePath ?? base_path();
+
+        return [
+            'changes' => [],
+            'manifestPath' => $root.'/storage/app/core-panel/published.json',
+            'backupsCreated' => false,
+            'themeMigrationHint' => false,
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }  $left
+     * @param  array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }  $right
+     * @return array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }
+     */
+    private function mergePublishResults(array $left, array $right): array
+    {
+        return [
+            'changes' => [...$left['changes'], ...$right['changes']],
+            'manifestPath' => $right['manifestPath'] !== '' ? $right['manifestPath'] : $left['manifestPath'],
+            'backupsCreated' => $left['backupsCreated'] || $right['backupsCreated'],
+            'themeMigrationHint' => $left['themeMigrationHint'] || $right['themeMigrationHint'],
+        ];
     }
 
     private function updateInstalledOptionalAddons(

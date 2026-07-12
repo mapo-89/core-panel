@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 
 type PasswordRequirementState = 'idle' | 'invalid' | 'valid'
 

@@ -2,9 +2,9 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import Message from 'primevue/message'
 
-import AppIcon from '@/components/AppIcon.vue'
-import { useTranslatedAuthErrors } from '@/composables/useTranslatedAuthErrors'
-import AuthLayout from '@/layouts/AuthLayout.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useTranslatedAuthErrors } from '@core-panel/composables/useTranslatedAuthErrors'
+import AuthLayout from '@core-panel/layouts/AuthLayout.vue'
 import password from '@/routes/password'
 
 const page = usePage<{

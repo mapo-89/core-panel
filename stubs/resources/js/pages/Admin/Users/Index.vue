@@ -6,14 +6,14 @@ import { trans } from 'laravel-vue-i18n'
 import { useDialog } from 'primevue/usedialog'
 
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
-import AppIcon from '@/components/AppIcon.vue'
+import AppIcon from '@core-panel/components/AppIcon.vue'
 import RolesOverviewPanel from '@/pages/Admin/Access/components/RolesOverviewPanel.vue'
-import { useCan } from '@/composables/useCan'
+import { useCan } from '@core-panel/composables/useCan'
 import UserFormDialog from '@/pages/Admin/Users/components/UserFormDialog.vue'
 import RoleCreateDialog from '@/pages/Admin/Roles/components/RoleCreateDialog.vue'
 import UserGroupsTab from '@/pages/Admin/Users/components/UserGroupsTab.vue'
 import UsersTableTab from '@/pages/Admin/Users/components/UsersTableTab.vue'
-import AppLayout from '@/layouts/AppLayout.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import UserGroupForm from '@/pages/Admin/UserGroups/components/UserGroupForm.vue'
 import UserGroupImportForm from '@/pages/Admin/UserGroups/components/UserGroupImportForm.vue'
 import roleRoutes from '@/routes/core-panel/roles'
@@ -27,7 +27,7 @@ import type {
     UserGroupRecord,
     UserCapabilities,
     UserRecord,
-} from '@/types/core-panel'
+} from '@core-panel/types/core-panel'
 
 type ManagedRoleRecord = {
     name: string

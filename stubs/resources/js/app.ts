@@ -4,7 +4,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import { I18n, i18nVue } from 'laravel-vue-i18n'
 import { createApp, h, type DefineComponent } from 'vue'
 
-import { installCorePanelUi } from './plugins/core-panel'
+import { installCorePanelUi } from '@core-panel/plugins/core-panel'
 
 const lazyLanguageModules = import.meta.glob<{
     default: Record<string, string>

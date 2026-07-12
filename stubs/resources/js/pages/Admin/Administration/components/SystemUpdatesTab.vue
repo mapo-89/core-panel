@@ -4,8 +4,8 @@ import { trans } from 'laravel-vue-i18n'
 import PrimePopover from 'primevue/popover'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
-import { useCan } from '@/composables/useCan'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useCan } from '@core-panel/composables/useCan'
 
 type UpdateImage = {
     available_digest: string | null

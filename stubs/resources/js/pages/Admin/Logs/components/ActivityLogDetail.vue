@@ -4,7 +4,7 @@ import { trans } from 'laravel-vue-i18n'
 
 import LogUserAvatar from '@/pages/Admin/Logs/components/LogUserAvatar.vue'
 import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
-import type { ActivityLogRecord } from '@/types/core-panel'
+import type { ActivityLogRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     data: ActivityLogRecord

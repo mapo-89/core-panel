@@ -3,10 +3,10 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import { ref } from 'vue'
 
-import ConfirmActionDialog from '@/components/Dialogs/ConfirmActionDialog.vue'
-import AppLayout from '@/layouts/AppLayout.vue'
+import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
+import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import formRoutes from '@/routes/core-panel/forms'
-import type { FormRecord } from '@/types/core-panel'
+import type { FormRecord } from '@core-panel/types/core-panel'
 
 defineProps<{
     filters: {

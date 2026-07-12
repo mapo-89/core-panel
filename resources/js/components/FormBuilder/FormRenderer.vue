@@ -4,8 +4,8 @@ import { router } from '@inertiajs/vue3'
 import type { RequestPayload } from '@inertiajs/core'
 import { trans } from 'laravel-vue-i18n'
 
-import AppIcon from '@/components/AppIcon.vue'
-import { useCan } from '@/composables/useCan'
+import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useCan } from '@core-panel/composables/useCan'
 
 import CheckboxField from './fields/CheckboxField.vue'
 import DateField from './fields/DateField.vue'

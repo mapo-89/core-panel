@@ -1,7 +1,7 @@
 import { computed, unref, type Ref } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 
-import { useCan } from '@/composables/useCan'
+import { useCan } from '@core-panel/composables/useCan'
 
 export type MenuBuilderItem = {
     anyPermissions?: string[]
