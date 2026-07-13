@@ -432,7 +432,7 @@ it('renders the publishable logs tabs through the shared table builder surface',
         $expectation = expect($contents)->toContain(
             "import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'",
         )->toContain('<TableBuilderDataTable')
-            ->toContain("import LogBadge from '-panel/pages/Admin/Logs/components/LogBadge.vue'")
+            ->toContain("import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'")
             ->toContain('<LogBadge');
 
         if ($component === 'LogFilesTab.vue') {
@@ -454,7 +454,7 @@ it('renders the publishable logs tabs through the shared table builder surface',
         __DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/ActivityLogDetail.vue',
     );
 
-    expect($activityDetail)->toContain("import LogBadge from '-panel/pages/Admin/Logs/components/LogBadge.vue'")
+    expect($activityDetail)->toContain("import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'")
         ->and($activityDetail)->toContain('{{ $t(\'activity.labels.changes\') }}')
         ->and($activityDetail)->toContain('{{ $t(\'activity.labels.properties\') }}')
         ->and($activityDetail)->toContain("const propertiesView = ref<'json' | 'table'>('table')")
@@ -642,8 +642,9 @@ it('keeps route and page frontend scaffolds eligible for managed-only updates', 
     $scaffolder = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
 
     expect($scaffolder)->toContain("'resources/js/routes/core-panel/administration.ts'")
-        ->and($scaffolder)->toContain("'resources/js/pages/Admin/Administration/Index.vue'")
-        ->and($scaffolder)->toContain("'resources/js/pages/Admin/Users/Index.vue'")
+        ->and($scaffolder)->toContain("'resources/css/app.css'")
+        ->and($scaffolder)->not->toContain("'resources/js/pages/Admin/Administration/Index.vue'")
+        ->and($scaffolder)->not->toContain("'resources/js/pages/Admin/Users/Index.vue'")
         ->and($scaffolder)->toContain("'.docker/bin/php-entrypoint.sh'")
         ->and($scaffolder)->toContain("'docker-compose.registry.yml'")
         ->and($scaffolder)->toContain("'docker-compose.portainer.yml'");
@@ -1235,9 +1236,7 @@ it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 br
         ->and($contents)->toContain('return resolveCorePanelImport(importee)')
         ->and($contents)->toContain("const hostCandidate = path.resolve(hostJsPath, 'pages', relativePath)")
         ->and($contents)->toContain('const resolvedHostImport = resolveImportTarget(hostCandidate)')
-        ->and($contents)->toContain(
-            'return resolveImportTarget(path.resolve(packageStubPagesPath, relativePath))',
-        )
+        ->and($contents)->toContain('path.resolve(packageStubPagesPath, relativePath)')
         ->and($contents)->toContain('return resolveImportTarget(path.resolve(packageJsPath, relativePath))')
         ->and($contents)->toContain('function hasCorePanelThemeOverride(): boolean {')
         ->and($contents)->toContain("fs.existsSync(path.resolve(hostThemePath, 'index.ts'))")
@@ -2715,8 +2714,8 @@ it('uses wayfinder-driven permission management endpoints in the roles page', fu
     $managerContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesManagerPanel.vue');
     $matrixContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Roles/Matrix.vue');
 
-    expect($indexContents)->toContain("import RolesOverviewPanel from '-panel/pages/Admin/Access/components/RolesOverviewPanel.vue'")
-        ->and($indexContents)->toContain("import RoleCreateDialog from '-panel/pages/Admin/Roles/components/RoleCreateDialog.vue'")
+    expect($indexContents)->toContain("import RolesOverviewPanel from '@core-panel/pages/Admin/Access/components/RolesOverviewPanel.vue'")
+        ->and($indexContents)->toContain("import RoleCreateDialog from '@core-panel/pages/Admin/Roles/components/RoleCreateDialog.vue'")
         ->and($indexContents)->toContain("import roleRoutes from '@/routes/core-panel/roles'")
         ->and($indexContents)->toContain('const canResyncManagedRoles = computed(')
         ->and($indexContents)->toContain('dialog.open(RoleCreateDialog')
@@ -2836,7 +2835,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
     $adminTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_admin.css');
 
     expect($index)->toContain("import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'")
-        ->and($index)->toContain("import UserFormDialog from '-panel/pages/Admin/Users/components/UserFormDialog.vue'")
+        ->and($index)->toContain("import UserFormDialog from '@core-panel/pages/Admin/Users/components/UserFormDialog.vue'")
         ->and($index)->toContain('const dialog = useDialog()')
         ->and($index)->toContain('onSaved: reloadUsers')
         ->and($index)->not->toContain("from '../../../routes/core-panel/users'")
@@ -2855,7 +2854,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and($edit)->toContain('form.put(users.update.url(props.user.id))')
         ->and($show)->toContain("import users from '@/routes/core-panel/users'")
         ->and($show)->toContain("import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'")
-        ->and($show)->toContain("import UserFormDialog from '-panel/pages/Admin/Users/components/UserFormDialog.vue'")
+        ->and($show)->toContain("import UserFormDialog from '@core-panel/pages/Admin/Users/components/UserFormDialog.vue'")
         ->and($show)->toContain('UserOverviewTab')
         ->and($show)->toContain('UserConnectionsTab')
         ->and($show)->toContain('UserSecurityTab')
@@ -2911,7 +2910,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and($avatarController)->toContain("'max:'.\$maxUploadSize")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import userPasswordRoutes from '@/routes/core-panel/users/password'")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('userPasswordRoutes.resetLink.url(props.user.id)')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import UserPasswordResetDialog from '-panel/pages/Admin/Users/components/UserPasswordResetDialog.vue'")
+        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import UserPasswordResetDialog from '@core-panel/pages/Admin/Users/components/UserPasswordResetDialog.vue'")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('dialog.open(UserPasswordResetDialog, {')
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('<ConfirmActionDialog')
@@ -3050,13 +3049,13 @@ it('surfaces api token management inside the settings workspace', function (): v
     $settingsController = file_get_contents(__DIR__.'/../../src/Http/Controllers/SettingsController.php');
     $settingsSchema = file_get_contents(__DIR__.'/../../src/Support/Settings/SettingsSchema.php');
 
-    expect($settingsIndex)->toContain("import ApiSettingsTab from '-panel/pages/Admin/Settings/components/ApiSettingsTab.vue'")
+    expect($settingsIndex)->toContain("import ApiSettingsTab from '@core-panel/pages/Admin/Settings/components/ApiSettingsTab.vue'")
         ->and($settingsIndex)->toContain("const visibleGroupKeys = ['general', 'appearance', 'auth', 'api']")
         ->and($settingsIndex)->toContain("'ApiSettingsTab'")
         ->and($settingsIndex)->toContain('apiTokenManager: props.apiTokenManager')
         ->and($settingsIndex)->toContain('createRequestKey: apiTokenCreateRequest.value')
         ->and($settingsIndex)->toContain('onRequestCreateToken: requestCreateToken')
-        ->and($apiSettingsTab)->toContain("import ApiTokenManager from '-panel/pages/Admin/ApiTokens/components/ApiTokenManager.vue'")
+        ->and($apiSettingsTab)->toContain("import ApiTokenManager from '@core-panel/pages/Admin/ApiTokens/components/ApiTokenManager.vue'")
         ->and($apiSettingsTab)->toContain("import AppIcon from '@core-panel/components/AppIcon.vue'")
         ->and($apiSettingsTab)->toContain('cp-section__header cp-section__header--split')
         ->and($apiSettingsTab)->not->toContain('cp-section__body')
@@ -3139,19 +3138,19 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
         ->and($developer)->toContain("if (props.logsTab && hasRole('super-admin'))")
         ->and($adminMenu)->toContain("label: 'navigation.logs'")
         ->and($activityTab)->toContain("import logsPage from '@/routes/core-panel/logs'")
-        ->and($activityTab)->toContain("import LogUserAvatar from '-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
+        ->and($activityTab)->toContain("import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
         ->and($activityTab)->toContain('row.causerAvatarUrl ?? null')
-        ->and($activityDetail)->toContain("import LogUserAvatar from '-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
+        ->and($activityDetail)->toContain("import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
         ->and($logsController)->toContain('$request->has(\'per_page\')')
         ->and($logsController)->toContain('$request->has(\'sort\')')
         ->and($authenticationTab)->toContain("import authenticationLogs from '@/routes/core-panel/authentication-logs'")
-        ->and($authenticationTab)->toContain("import LogUserAvatar from '-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
+        ->and($authenticationTab)->toContain("import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
         ->and($authenticationTab)->toContain('formatAuthenticationDeviceLabel')
         ->and($authenticationTab)->toContain('formatAuthenticationMethodLabel')
         ->and($authenticationTab)->toContain('row.userAvatarUrl ?? null')
         ->and($authenticationTab)->toContain('authMethodLabel: formatAuthenticationMethodLabel(log)')
-        ->and($authenticationTab)->toContain("import AuthenticationLogDetail from '-panel/pages/Admin/Logs/components/AuthenticationLogDetail.vue'")
-        ->and($authenticationDetail)->toContain("import LogUserAvatar from '-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
+        ->and($authenticationTab)->toContain("import AuthenticationLogDetail from '@core-panel/pages/Admin/Logs/components/AuthenticationLogDetail.vue'")
+        ->and($authenticationDetail)->toContain("import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'")
         ->and($authenticationDetail)->toContain("trans('page-authentication-logs.user_agent')")
         ->and($authenticationDetail)->toContain("trans('page-authentication-logs.columns.device_type')")
         ->and($authenticationPresentation)->toContain("trans('page-authentication-logs.device_browser_on_platform'")
@@ -3211,7 +3210,7 @@ it('ships a dedicated developer workspace with route inspection and swagger-back
         ->and($menu)->toContain("label: 'navigation.routes'")
         ->and($menu)->toContain("anyPermissions: ['api-routes.view', 'api-docs.view']")
         ->and($page)->toContain("import developer from '@/routes/core-panel/developer'")
-        ->and($page)->toContain("import RouteListTab from '-panel/pages/Admin/Developer/components/RouteListTab.vue'")
+        ->and($page)->toContain("import RouteListTab from '@core-panel/pages/Admin/Developer/components/RouteListTab.vue'")
         ->and($page)->toContain(":title=\"trans('navigation.routes')\"")
         ->and($page)->toContain('page-developer.actions.generate_docs')
         ->and($page)->toContain('developer.regenerateApiDocs.url()')
