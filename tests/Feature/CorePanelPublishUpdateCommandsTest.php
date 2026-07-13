@@ -320,7 +320,11 @@ it('supports dedicated vendor-first cleanup for scaffold-managed frontend overla
     $themeRelativePath = 'resources/js/theme/core-panel/tokens.ts';
     $viewRelativePath = 'resources/views/app.blade.php';
 
-    $jsonContents = (string) file_get_contents(__DIR__.'/../../resources/lang/de.json');
+    $jsonContents = <<<'JSON'
+{
+    "Reset Password": "Passwort zurücksetzen"
+}
+JSON;
     $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
     $cssContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_auth.css');
     $pageContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');

@@ -33,7 +33,8 @@ final class UserInvitationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'core-panel::emails.users.invitation',
+            view: 'core-panel::emails.users.invitation-html',
+            text: 'core-panel::emails.users.invitation-text',
         );
     }
 }

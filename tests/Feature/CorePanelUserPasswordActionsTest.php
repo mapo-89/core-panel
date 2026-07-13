@@ -21,7 +21,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Translation\Translator;
 use Spatie\Permission\Models\Role;
 
 final class VerifiableLocalizedFakeUser extends Authenticatable implements HasLocalePreference, MustVerifyEmail
@@ -55,13 +54,10 @@ beforeEach(function (): void {
     Gate::before(static fn (...$arguments): bool => true);
 });
 
-function useGermanScaffoldJsonTranslations(): void
+function useGermanPackageTranslations(): void
 {
-    /** @var Translator $translator */
-    $translator = app('translator');
-    $translator->addJsonPath(__DIR__.'/../../stubs/lang');
-    $translator->setLoaded([]);
-    $translator->setLocale('de');
+    app('translator')->setLoaded([]);
+    app('translator')->setLocale('de');
     config()->set('app.locale', 'de');
 }
 
@@ -349,8 +345,8 @@ it('exposes the user locale as the preferred notification locale', function (): 
     expect($target->preferredLocale())->toBe('de');
 });
 
-it('translates password reset mail content through the scaffold json locale files', function (): void {
-    useGermanScaffoldJsonTranslations();
+it('translates password reset mail content through package mail translations', function (): void {
+    useGermanPackageTranslations();
 
     $mailMessage = (new ResetPassword('reset-token'))->toMail(new FakeUser([
         'email' => 'target-password-locale@example.test',
@@ -359,18 +355,18 @@ it('translates password reset mail content through the scaffold json locale file
 
     expect($mailMessage->subject)->toBe('Passwort zurücksetzen')
         ->and($mailMessage->actionText)->toBe('Passwort zurücksetzen')
-        ->and(__('Hello!'))->toBe('Hallo!')
-        ->and(__('Regards,'))->toBe('Viele Grüße,')
-        ->and(__('If you\'re having trouble clicking the ":actionText" button, copy and paste the URL below into your web browser:', [
+        ->and(__('account-mail.greeting'))->toBe('Hallo!')
+        ->and(__('account-mail.salutation'))->toBe('Viele Grüße,')
+        ->and(__('account-mail.subcopy', [
             'actionText' => 'Passwort zurücksetzen',
         ]))->toBe('Falls du Probleme beim Klicken auf den Button "Passwort zurücksetzen" hast, kopiere den folgenden Link und füge ihn in deinen Webbrowser ein:')
-        ->and(__('If you\'re having trouble clicking the ":actionText" button, copy and paste the URL below'."\n".'into your web browser:', [
-            'actionText' => 'Passwort zurücksetzen',
-        ]))->toBe('Falls du Probleme beim Klicken auf den Button "Passwort zurücksetzen" hast, kopiere den folgenden Link und füge ihn in deinen Webbrowser ein:');
+        ->and($mailMessage->view)->toBeArray()
+        ->and($mailMessage->view['html'])->toBe('core-panel::emails.notifications.default-html')
+        ->and($mailMessage->view['text'])->toBe('core-panel::emails.notifications.default-text');
 });
 
-it('translates verification mail content through the scaffold json locale files', function (): void {
-    useGermanScaffoldJsonTranslations();
+it('translates verification mail content through package mail translations', function (): void {
+    useGermanPackageTranslations();
 
     if (! Route::has('verification.verify')) {
         Route::get('/email/verify/{id}/{hash}', static fn () => 'ok')->name('verification.verify');
@@ -386,7 +382,10 @@ it('translates verification mail content through the scaffold json locale files'
     $mailMessage = (new VerifyEmail)->toMail($user);
 
     expect($mailMessage->subject)->toBe('Verifiziere deine E-Mail-Adresse')
-        ->and($mailMessage->actionText)->toBe('E-Mail-Adresse verifizieren');
+        ->and($mailMessage->actionText)->toBe('E-Mail-Adresse verifizieren')
+        ->and($mailMessage->view)->toBeArray()
+        ->and($mailMessage->view['html'])->toBe('core-panel::emails.notifications.default-html')
+        ->and($mailMessage->view['text'])->toBe('core-panel::emails.notifications.default-text');
 });
 
 it('forbids direct password resets for non super-admins', function (): void {

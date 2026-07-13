@@ -89,6 +89,11 @@ use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Horizon\Horizon;
@@ -186,8 +191,6 @@ final class CorePanelServiceProvider extends PackageServiceProvider
     {
         $router = $this->app['router'];
 
-        $this->loadJsonTranslationsFrom(lang_path('vendor/core-panel'));
-        $this->loadJsonTranslationsFrom(__DIR__.'/../resources/lang');
         $this->loadTranslationsFrom(lang_path('vendor/core-panel'), null);
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', null);
 
@@ -200,6 +203,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->configureMediaLibrary();
         $this->configureHorizon();
         $this->configurePassport();
+        $this->configureAuthNotificationMail();
         $this->configureSocialiteProviders();
         $roleModel = config('permission.models.role');
         $userGroupModel = config('core-panel.user_group_model');
@@ -333,6 +337,79 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         Passport::tokensExpireIn(now()->addMinutes((int) config('core-panel.auth.passport.token_ttl_minutes', 15)));
         Passport::refreshTokensExpireIn(now()->addDays((int) config('core-panel.auth.passport.refresh_token_ttl_days', 30)));
         Passport::personalAccessTokensExpireIn(now()->addDays((int) config('core-panel.auth.passport.personal_access_token_ttl_days', 180)));
+    }
+
+    private function configureAuthNotificationMail(): void
+    {
+        ResetPassword::toMailUsing(function (CanResetPassword $notifiable, string $token): MailMessage {
+            $callback = ResetPassword::$createUrlCallback;
+
+            $url = $callback !== null
+                ? $callback($notifiable, $token)
+                : url(route('password.reset', [
+                    'token' => $token,
+                    'email' => $notifiable->getEmailForPasswordReset(),
+                ], false));
+
+            return $this->buildAuthNotificationMailMessage(
+                subject: __('account-mail.reset_password.subject'),
+                actionText: __('account-mail.reset_password.action'),
+                actionUrl: $url,
+                introLines: [
+                    __('account-mail.reset_password.intro'),
+                ],
+                outroLines: [
+                    __('account-mail.reset_password.expiry', [
+                        'count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire'),
+                    ]),
+                    __('account-mail.reset_password.outro'),
+                ],
+            );
+        });
+
+        VerifyEmail::toMailUsing(function (MustVerifyEmail $notifiable, string $url): MailMessage {
+            return $this->buildAuthNotificationMailMessage(
+                subject: __('account-mail.verify_email.subject'),
+                actionText: __('account-mail.verify_email.action'),
+                actionUrl: $url,
+                introLines: [
+                    __('account-mail.verify_email.intro'),
+                ],
+                outroLines: [
+                    __('account-mail.verify_email.outro'),
+                ],
+            );
+        });
+    }
+
+    /**
+     * @param  list<string>  $introLines
+     * @param  list<string>  $outroLines
+     */
+    private function buildAuthNotificationMailMessage(
+        string $subject,
+        string $actionText,
+        string $actionUrl,
+        array $introLines,
+        array $outroLines,
+    ): MailMessage {
+        return (new MailMessage)
+            ->subject($subject)
+            ->greeting(__('account-mail.greeting'))
+            ->lines($introLines)
+            ->action($actionText, $actionUrl)
+            ->lines($outroLines)
+            ->salutation(__('account-mail.salutation'))
+            ->view('core-panel::emails.notifications.default-html', [
+                'appName' => (string) config('app.name'),
+                'footer' => __('account-mail.footer'),
+                'subcopy' => __('account-mail.subcopy', ['actionText' => $actionText]),
+            ])
+            ->text('core-panel::emails.notifications.default-text', [
+                'appName' => (string) config('app.name'),
+                'footer' => __('account-mail.footer'),
+                'subcopy' => __('account-mail.subcopy', ['actionText' => $actionText]),
+            ]);
     }
 
     private function configureSocialiteProviders(): void

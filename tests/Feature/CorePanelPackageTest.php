@@ -1214,17 +1214,18 @@ it('ships a package inertia root view that resolves the configured app name befo
         ->and($contents)->toContain('@inertia');
 });
 
-it('ships package json translations instead of scaffolding host json copies', function (): void {
-    $deContents = file_get_contents(__DIR__.'/../../resources/lang/de.json');
-    $enContents = file_get_contents(__DIR__.'/../../resources/lang/en.json');
+it('ships package mail translations instead of scaffolding host json copies', function (): void {
+    $deContents = file_get_contents(__DIR__.'/../../resources/lang/de/account-mail.php');
+    $enContents = file_get_contents(__DIR__.'/../../resources/lang/en/account-mail.php');
     $serviceProvider = file_get_contents(__DIR__.'/../../src/CorePanelServiceProvider.php');
 
     expect(file_exists(__DIR__.'/../../stubs/lang/de.json'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/lang/en.json'))->toBeFalse()
-        ->and($deContents)->toContain('"Reset Password": "Passwort zurücksetzen"')
-        ->and($enContents)->toContain('"Reset Password": "Reset Password"')
-        ->and($serviceProvider)->toContain("\$this->loadJsonTranslationsFrom(lang_path('vendor/core-panel'));")
-        ->and($serviceProvider)->toContain("\$this->loadJsonTranslationsFrom(__DIR__.'/../resources/lang');");
+        ->and($deContents)->toContain("'subject' => 'Passwort zurücksetzen'")
+        ->and($enContents)->toContain("'subject' => 'Reset your password'")
+        ->and($serviceProvider)->not->toContain('loadJsonTranslationsFrom(')
+        ->and($serviceProvider)->toContain("->view('core-panel::emails.notifications.default-html'")
+        ->and($serviceProvider)->toContain("->text('core-panel::emails.notifications.default-text'");
 });
 
 it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 browser origin', function (): void {
