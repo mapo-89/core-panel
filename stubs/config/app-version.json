@@ -1,7 +1,7 @@
 {
-    "release_version": "1.1.8",
-    "display_version": "1.1.8 (4085356)",
-    "image_version": "1.1.8-4085356",
-    "commit": "4085356",
-    "commit_date": "2026-07-11T21:05:08+02:00"
+    "release_version": "1.2.0",
+    "display_version": "1.2.0 (afc1f5e)",
+    "image_version": "1.2.0-afc1f5e",
+    "commit": "afc1f5e",
+    "commit_date": "2026-07-13T15:57:49+02:00"
 }
