@@ -1221,6 +1221,8 @@ it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 br
         ->and($contents)->toContain("name: 'core-panel-vendor-first'")
         ->and($contents)->toContain('resolveId(importee: string) {')
         ->and($contents)->toContain('return resolveCorePanelImport(importee)')
+        ->and($contents)->toContain('return resolveImportTarget(path.resolve(packageJsPath, relativePath))')
+        ->and($contents)->toContain("find: '@core-panel/theme/core-panel'")
         ->and($contents)->toContain('manualChunks(id)')
         ->and($contents)->toContain("return 'vendor-primevue'")
         ->and($contents)->toContain("return 'vendor-vue'")

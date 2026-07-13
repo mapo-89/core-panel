@@ -63,7 +63,7 @@ function resolveCorePanelImport(importee: string): string | null {
         return resolvedHostImport
     }
 
-    return null
+    return resolveImportTarget(path.resolve(packageJsPath, relativePath))
 }
 
 function corePanelVendorFirst() {
@@ -88,10 +88,6 @@ export default defineConfig({
                 replacement: fs.existsSync(hostThemePath)
                     ? hostThemePath
                     : packageThemePath,
-            },
-            {
-                find: '@core-panel',
-                replacement: packageJsPath,
             },
             {
                 find: /^@primeuix\/themes$/,
