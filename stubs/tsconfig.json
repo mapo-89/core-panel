@@ -9,9 +9,26 @@
         "paths": {
             "@/*": ["./resources/js/*"],
             "@core-panel/*": [
+                "../resources/js/*",
                 "./resources/js/*",
                 "./vendor/mapo-89/core-panel/resources/js/*"
-            ]
+            ],
+            "@blade-flags/core/flags/flat": [
+                "./node_modules/@blade-flags/core/dist/flags/flat.d.ts"
+            ],
+            "@inertiajs/core": ["./node_modules/@inertiajs/core"],
+            "@inertiajs/vue3": ["./node_modules/@inertiajs/vue3"],
+            "@primeuix/themes": ["./node_modules/@primeuix/themes"],
+            "@primeuix/themes/aura": [
+                "./node_modules/@primeuix/themes/dist/aura/index.d.ts"
+            ],
+            "@primeuix/themes/types": ["./node_modules/@primeuix/themes/types"],
+            "@vueuse/core": ["./node_modules/@vueuse/core"],
+            "laravel-vue-i18n": ["./node_modules/laravel-vue-i18n"],
+            "lucide-vue-next": ["./node_modules/lucide-vue-next"],
+            "primevue": ["./node_modules/primevue"],
+            "primevue/*": ["./node_modules/primevue/*"],
+            "vue": ["./node_modules/vue"]
         },
         "skipLibCheck": true,
         "strict": true,
