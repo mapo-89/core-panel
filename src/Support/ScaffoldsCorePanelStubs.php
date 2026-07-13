@@ -661,8 +661,56 @@ final readonly class ScaffoldsCorePanelStubs
         }
 
         $this->files->ensureDirectoryExists(dirname($destinationPath));
+        if ($relativePath === 'resources/css/app.css') {
+            $this->files->put($destinationPath, $this->appCssContentsForHost($sourcePath, $root));
+            $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+
+            return;
+        }
+
         $this->files->copy($sourcePath, $destinationPath);
         $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+    }
+
+    private function appCssContentsForHost(string $sourcePath, string $root): string
+    {
+        $sourceContents = (string) $this->files->get($sourcePath);
+        $imports = $this->legacyThemeImports($root);
+
+        if ($imports === []) {
+            return $sourceContents;
+        }
+
+        return rtrim($sourceContents).PHP_EOL.PHP_EOL.implode(PHP_EOL, $imports).PHP_EOL;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function legacyThemeImports(string $root): array
+    {
+        $themeRoot = $root.'/resources/css/theme';
+
+        if (! $this->files->isDirectory($themeRoot)) {
+            return [];
+        }
+
+        if ($this->files->isFile($themeRoot.'/theme.css')) {
+            return ["@import './theme/theme.css';"];
+        }
+
+        $imports = collect($this->files->files($themeRoot))
+            ->map(static fn (\SplFileInfo $file): ?string => $file->getExtension() === 'css'
+                ? $file->getFilename()
+                : null)
+            ->filter()
+            ->sort()
+            ->values()
+            ->map(static fn (string $filename): string => "@import './theme/{$filename}';")
+            ->all();
+
+        /** @var list<string> $imports */
+        return $imports;
     }
 
     private function currentPackageVersion(): ?string

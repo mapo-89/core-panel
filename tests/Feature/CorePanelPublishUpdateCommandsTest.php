@@ -562,6 +562,30 @@ it('does not fail routine updates when locally modified scaffold-managed fronten
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain($relativePath);
 });
 
+it('preserves local theme imports in app css when scaffold-managed theme files are kept on migration conflict', function (): void {
+    $basePath = makePublishBasePath('vendor-first-routine-keep-theme-imports');
+    $themeRelativePath = 'resources/css/theme/_auth.css';
+    $themeTarget = $basePath.'/'.$themeRelativePath;
+    $sourceThemeContents = (string) file_get_contents(__DIR__.'/../../resources/css/theme/_auth.css');
+    $customizedThemeContents = $sourceThemeContents."\n.local-auth-override { color: red; }\n";
+
+    mkdir(dirname($themeTarget), 0777, true);
+    file_put_contents($basePath.'/resources/css/app.css', '/* legacy host app css */'."\n");
+    file_put_contents($themeTarget, $customizedThemeContents);
+    seedScaffoldManifest($basePath, $themeRelativePath, $sourceThemeContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $appCss = (string) file_get_contents($basePath.'/resources/css/app.css');
+
+    expect($appCss)->toContain("@import '@core-panel/theme/core-panel/index.css';")
+        ->and($appCss)->toContain("@import './theme/_auth.css';")
+        ->and(file_get_contents($themeTarget))->toBe($customizedThemeContents)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain($themeRelativePath);
+});
+
 it('backs up locally modified scaffold-managed frontend overlays before migrating them back to vendor assets', function (): void {
     $basePath = makePublishBasePath('vendor-first-scaffold-force');
     $relativePath = 'resources/js/composables/useMenuBuilder.ts';
