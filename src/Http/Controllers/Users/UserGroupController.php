@@ -16,7 +16,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
-use Inertia\Response;
 
 final class UserGroupController extends Controller
 {
@@ -26,7 +25,7 @@ final class UserGroupController extends Controller
         private readonly ActivityLogService $activityLog,
     ) {}
 
-    public function index(Request $request): Response|RedirectResponse
+    public function index(Request $request): RedirectResponse
     {
         Gate::authorize('viewAny', $this->userGroups->modelClass());
 

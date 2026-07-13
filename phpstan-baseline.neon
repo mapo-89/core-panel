@@ -1,82 +1,16 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Negated boolean expression is always true\.$#'
-			identifier: booleanNot.alwaysTrue
-			count: 1
-			path: src/Console/UpdateCommand.php
-
-		-
-			message: '#^Method CorePanel\\Domains\\ActivityLog\\Actions\\ListActivityLogsAction\:\:execute\(\) return type with generic interface Illuminate\\Contracts\\Pagination\\LengthAwarePaginator does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Domains/ActivityLog/Actions/ListActivityLogsAction.php
-
-		-
-			message: '#^Call to function method_exists\(\) with Illuminate\\Database\\Eloquent\\Model and ''getAttribute'' will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 2
-			path: src/Domains/ActivityLog/DTOs/ActivityLogData.php
-
-		-
-			message: '#^Method CorePanel\\Domains\\ActivityLog\\DTOs\\ActivityLogData\:\:fromArray\(\) has parameter \$entry with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Domains/ActivityLog/DTOs/ActivityLogData.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 2
-			path: src/Domains/File/Actions/UploadFileAction.php
-
-		-
-			message: '#^Call to function method_exists\(\) with CorePanel\\Models\\ManagedFile and ''getFirstMedia'' will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: src/Domains/File/DTOs/FileData.php
-
-		-
-			message: '#^Method CorePanel\\Domains\\File\\DTOs\\FileData\:\:__construct\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Domains/File/DTOs/FileData.php
-
-		-
-			message: '#^Method CorePanel\\Domains\\Form\\Policies\\FormPolicy\:\:view\(\) invoked with 1 parameter, 2 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: src/Domains/Form/Policies/FormPolicy.php
-
-		-
 			message: '#^Method CorePanel\\Domains\\OAuthClient\\Actions\\CreateOAuthClientAction\:\:execute\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Domains/OAuthClient/Actions/CreateOAuthClientAction.php
 
 		-
-			message: '#^Parameter \#1 \$array \(list\<int\|string\>\) of array_values is already a list, call has no effect\.$#'
-			identifier: arrayValues.list
-			count: 1
-			path: src/Domains/User/Actions/AssignUserGroupsAction.php
-
-		-
-			message: '#^Parameter \#1 \$user of method CorePanel\\Domains\\User\\Actions\\AssignUserRolesAction\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Domains/User/Actions/CreateUserAction.php
-
-		-
 			message: '#^Parameter \#1 \$user of method CorePanel\\Domains\\User\\Actions\\AssignUserRolesAction\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Domains/User/Actions/UpdateUserAction.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:hasEnabledTwoFactorAuthentication\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Domains/User/DTOs/UserData.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:withTrashed\(\)\.$#'
@@ -115,148 +49,10 @@ parameters:
 			path: src/Http/Controllers/Users/UserController.php
 
 		-
-			message: '#^Method CorePanel\\Http\\Controllers\\Users\\UserGroupController\:\:index\(\) never returns Inertia\\Response so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/Http/Controllers/Users/UserGroupController.php
-
-		-
-			message: '#^Parameter \#1 \$user of method CorePanel\\Support\\Auth\\ListBrowserSessions\:\:forUser\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Http/Controllers/Users/UserSessionsController.php
-
-		-
-			message: '#^Parameter \#1 \$user of method CorePanel\\Support\\Auth\\RevokeBrowserSession\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Http/Controllers/Users/UserSessionsController.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Foundation\\Auth\\User\:\:currentAccessToken\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Http/Resources/ApiUserResource.php
-
-		-
-			message: '#^Cannot call method session\(\) on class\-string\|object\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Http/Responses/LoginResponse.php
-
-		-
-			message: '#^Method CorePanel\\Http\\Responses\\LoginResponse\:\:intendedVerificationRedirect\(\) has parameter \$request with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/Http/Responses/LoginResponse.php
-
-		-
-			message: '#^Cannot call method session\(\) on class\-string\|object\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Http/Responses/TwoFactorLoginResponse.php
-
-		-
-			message: '#^Method CorePanel\\Http\\Responses\\TwoFactorLoginResponse\:\:intendedVerificationRedirect\(\) has parameter \$request with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/Http/Responses/TwoFactorLoginResponse.php
-
-		-
-			message: '#^Method CorePanel\\Models\\FileFolder\:\:files\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/FileFolder.php
-
-		-
-			message: '#^Method CorePanel\\Models\\FileFolder\:\:parent\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/FileFolder.php
-
-		-
-			message: '#^Method CorePanel\\Models\\Form\:\:submissions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/Form.php
-
-		-
-			message: '#^Method CorePanel\\Models\\Form\:\:versions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/Form.php
-
-		-
-			message: '#^Method CorePanel\\Models\\FormSubmission\:\:form\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/FormSubmission.php
-
-		-
-			message: '#^Method CorePanel\\Models\\FormVersion\:\:form\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/FormVersion.php
-
-		-
-			message: '#^Method CorePanel\\Models\\ManagedFile\:\:folder\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/ManagedFile.php
-
-		-
-			message: '#^Method CorePanel\\Models\\SocialAccount\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/SocialAccount.php
-
-		-
-			message: '#^Method CorePanel\\Models\\UserGroup\:\:users\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany does not specify its types\: TRelatedModel, TDeclaringModel, TPivotModel, TAccessor \(2\-4 required\)$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Models/UserGroup.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Contracts\\Pagination\\LengthAwarePaginator\:\:getCollection\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Support/Api/ApiResponseFactory.php
-
-		-
-			message: '#^Method CorePanel\\Support\\Api\\ApiResponseFactory\:\:paginated\(\) has parameter \$paginator with generic interface Illuminate\\Contracts\\Pagination\\LengthAwarePaginator but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Support/Api/ApiResponseFactory.php
-
-		-
-			message: '#^Method CorePanel\\Support\\Api\\ApiResponseFactory\:\:transformPaginatedData\(\) has parameter \$paginator with generic interface Illuminate\\Contracts\\Pagination\\LengthAwarePaginator but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Support/Api/ApiResponseFactory.php
-
-		-
 			message: '#^Method CorePanel\\Support\\Auth\\ListBrowserSessions\:\:forUser\(\) should return Illuminate\\Support\\Collection\<int, array\{id\: string, ip_address\: string\|null, user_agent\: string\|null, last_active\: int, is_current\: bool\}\> but returns Illuminate\\Support\\Collection\<int, array\{id\: string, ip_address\: string\|null, user_agent\: string\|null, last_active\: int, is_current\: bool\}\>\.$#'
 			identifier: return.type
 			count: 1
 			path: src/Support/Auth/ListBrowserSessions.php
-
-		-
-			message: '#^Method CorePanel\\Support\\FormBuilder\\Form\:\:jsonSerialize\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Support/FormBuilder/Form.php
-
-		-
-			message: '#^Method CorePanel\\Support\\FormBuilder\\Form\:\:messages\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Support/FormBuilder/Form.php
-
-		-
-			message: '#^Method CorePanel\\Support\\FormBuilder\\Form\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Support/FormBuilder/Form.php
 
 		-
 			message: '#^Method CorePanel\\Support\\FormBuilder\\Form\:\:toArray\(\) return type has no value type specified in iterable type array\.$#'
@@ -630,17 +426,7 @@ parameters:
 			count: 1
 			path: src/Support/Users/UserModelManager.php
 
-		-
-			message: '#^Method CorePanel\\Support\\Users\\UserModelManager\:\:query\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Support/Users/UserModelManager.php
 
-		-
-			message: '#^Method CorePanel\\Support\\Users\\UserModelManager\:\:visibleQuery\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Support/Users/UserModelManager.php
 
 		-
 			message: '#^PHPDoc tag @return with type Illuminate\\Support\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> is incompatible with native type bool\.$#'

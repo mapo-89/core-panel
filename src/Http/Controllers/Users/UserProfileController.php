@@ -15,7 +15,6 @@ use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Socialite\SocialiteProviderRegistry;
 use CorePanel\Support\UserGroups\UserGroupModelManager;
 use CorePanel\Support\Users\UserModelManager;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,9 +57,7 @@ final class UserProfileController extends Controller
                 ->values()
                 ->all(),
             'sessionsEnabled' => config('session.driver') === 'database',
-            'socialAccounts' => $this->socialite->linkedAccountsFor(
-                $target instanceof Authenticatable ? $target : null
-            ),
+            'socialAccounts' => $this->socialite->linkedAccountsFor($target),
             'socialProviders' => $this->socialite->enabledProviders(),
             'userGroupOptions' => $this->userGroupOptions(),
             'user' => UserResource::make($target)->resolve(),

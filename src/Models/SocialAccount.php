@@ -44,6 +44,7 @@ class SocialAccount extends Model
         ];
     }
 
+    /** @return BelongsTo<Model, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo($this->userModelClass(), 'user_id');

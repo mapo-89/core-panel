@@ -23,6 +23,6 @@ final class AssignUserGroupsAction
             return;
         }
 
-        $relation->sync(array_values($userGroupIds));
+        $relation->sync($userGroupIds);
     }
 }

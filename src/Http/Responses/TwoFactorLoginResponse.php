@@ -7,6 +7,7 @@ namespace CorePanel\Http\Responses;
 use CorePanel\Support\Auth\ResolveLoginDestination;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse as TwoFactorLoginResponseContract;
 
@@ -43,9 +44,9 @@ final readonly class TwoFactorLoginResponse implements TwoFactorLoginResponseCon
         return redirect()->to($result['destination']);
     }
 
-    private function intendedVerificationRedirect($request): ?string
+    private function intendedVerificationRedirect(Request $request): ?string
     {
-        if (! method_exists($request, 'hasSession') || ! $request->hasSession()) {
+        if (! $request->hasSession()) {
             return null;
         }
 

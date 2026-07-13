@@ -10,6 +10,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final readonly class FileData
 {
+    /**
+     * @param  array<string, mixed>  $meta
+     */
     public function __construct(
         public string $id,
         public ?string $folderId,
@@ -29,7 +32,7 @@ final readonly class FileData
     public static function fromModel(ManagedFile $file, MediaService $mediaService): self
     {
         /** @var Media|null $media */
-        $media = method_exists($file, 'getFirstMedia') ? $file->getFirstMedia($file->getAttribute('collection') ?: 'files') : null;
+        $media = $file->getFirstMedia($file->getAttribute('collection') ?: 'files');
 
         $url = $media instanceof Media ? $mediaService->url($media) : null;
 

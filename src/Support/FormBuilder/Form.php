@@ -38,16 +38,25 @@ final class Form implements JsonSerializable
         return $this;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return $this->schema->rules();
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function messages(?string $locale = null): array
     {
         return $this->schema->messages($locale);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function jsonSerialize(): array
     {
         return $this->toArray();

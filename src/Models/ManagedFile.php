@@ -47,6 +47,7 @@ class ManagedFile extends Model implements HasMedia
         ];
     }
 
+    /** @return BelongsTo<FileFolder, $this> */
     public function folder(): BelongsTo
     {
         return $this->belongsTo(FileFolder::class, 'folder_id');

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\Api;
 
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 final readonly class ApiResponseFactory
 {
@@ -58,6 +58,9 @@ final readonly class ApiResponseFactory
     }
 
     /**
+     * @template TValue
+     *
+     * @param  LengthAwarePaginator<int, TValue>  $paginator
      * @param  JsonResource|class-string<JsonResource>|null  $resource
      */
     public function paginated(LengthAwarePaginator $paginator, JsonResource|string|null $resource = null): JsonResponse
@@ -98,6 +101,9 @@ final readonly class ApiResponseFactory
     }
 
     /**
+     * @template TValue
+     *
+     * @param  LengthAwarePaginator<int, TValue>  $paginator
      * @param  JsonResource|class-string<JsonResource>|null  $resource
      */
     private function transformPaginatedData(LengthAwarePaginator $paginator, JsonResource|string|null $resource): mixed

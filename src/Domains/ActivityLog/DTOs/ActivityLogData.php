@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CorePanel\Domains\ActivityLog\DTOs;
 
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Models\Activity;
 
 final readonly class ActivityLogData
@@ -30,6 +31,9 @@ final readonly class ActivityLogData
         public ?string $createdAt,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $entry
+     */
     public static function fromArray(array $entry): self
     {
         $properties = (array) ($entry['properties'] ?? []);
@@ -73,7 +77,7 @@ final readonly class ActivityLogData
             logName: $activity->getAttribute('log_name') !== null ? (string) $activity->getAttribute('log_name') : null,
             subjectType: $activity->getAttribute('subject_type') !== null ? (string) $activity->getAttribute('subject_type') : null,
             subjectId: $activity->getAttribute('subject_id') !== null ? (string) $activity->getAttribute('subject_id') : null,
-            subjectLabel: $subject !== null && method_exists($subject, 'getAttribute')
+            subjectLabel: $subject instanceof Model
                 ? (string) ($subject->getAttribute('name') ?? $subject->getAttribute('title') ?? $subject->getKey())
                 : null,
             systemCauser: $systemCauser,
@@ -83,7 +87,7 @@ final readonly class ActivityLogData
             causerAvatarUrl: null,
             causerName: $systemCauser
                 ? null
-                : ($causer !== null && method_exists($causer, 'getAttribute')
+                : ($causer instanceof Model
                     ? (string) ($causer->getAttribute('name') ?? $causer->getAttribute('email') ?? $causer->getKey())
                     : null),
             properties: $properties,

@@ -13,22 +13,26 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class UserModelManager
 {
     /**
-     * @return class-string<Model>
+     * @return class-string<Model&Authenticatable>
      */
     public function modelClass(): string
     {
-        /** @var class-string<Model> $modelClass */
+        /** @var class-string<Model&Authenticatable> $modelClass */
         $modelClass = (string) config('core-panel.user_model', config('auth.providers.users.model'));
 
         return $modelClass;
     }
 
+    /**
+     * @return Model&Authenticatable
+     */
     public function newModel(): Model
     {
         $modelClass = $this->modelClass();
@@ -36,6 +40,9 @@ final class UserModelManager
         return new $modelClass;
     }
 
+    /**
+     * @return Builder<Model>
+     */
     public function query(bool $withTrashed = false): Builder
     {
         $modelClass = $this->modelClass();
@@ -48,14 +55,30 @@ final class UserModelManager
         return $query;
     }
 
+    /**
+     * @return Builder<Model>
+     */
     public function visibleQuery(bool $withTrashed = false): Builder
     {
         return $this->query($withTrashed);
     }
 
+    /**
+     * @return Model&Authenticatable
+     */
     public function findOrFail(int|string $userId, bool $withTrashed = false): Model
     {
-        return $this->query($withTrashed)->with($this->relations())->findOrFail($userId);
+        $user = $this->query($withTrashed)->with($this->relations())->findOrFail($userId);
+
+        if (! $user instanceof Authenticatable) {
+            throw new RuntimeException(sprintf(
+                'Configured user model [%s] must implement [%s].',
+                $user::class,
+                Authenticatable::class,
+            ));
+        }
+
+        return $user;
     }
 
     /**

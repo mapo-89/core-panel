@@ -23,7 +23,10 @@ final class ApiUserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $token = $request->user()?->currentAccessToken();
+        $requestUser = $request->user();
+        $token = is_object($requestUser) && method_exists($requestUser, 'currentAccessToken')
+            ? $requestUser->currentAccessToken()
+            : null;
         $abilities = is_object($token) && property_exists($token, 'abilities')
             ? (array) $token->abilities
             : ['*'];

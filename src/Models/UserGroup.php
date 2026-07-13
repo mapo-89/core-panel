@@ -20,6 +20,7 @@ final class UserGroup extends Model
         'color',
     ];
 
+    /** @return BelongsToMany<Model, $this> */
     public function users(): BelongsToMany
     {
         /** @var class-string<Model> $userModel */

@@ -28,11 +28,13 @@ class FileFolder extends Model
         'slug',
     ];
 
+    /** @return HasMany<ManagedFile, $this> */
     public function files(): HasMany
     {
         return $this->hasMany(ManagedFile::class, 'folder_id');
     }
 
+    /** @return BelongsTo<self, $this> */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');

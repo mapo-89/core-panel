@@ -115,6 +115,9 @@ final readonly class UserData
         $firstName = (string) ($user->getAttribute('first_name') ?? '');
         $lastName = (string) ($user->getAttribute('last_name') ?? '');
         $name = $users->composeDisplayName($firstName, $lastName);
+        $twoFactorEnabled = $users->supportsTwoFactor($user) && method_exists($user, 'hasEnabledTwoFactorAuthentication')
+            ? (bool) $user->hasEnabledTwoFactorAuthentication()
+            : false;
 
         return new self(
             id: (string) $user->getKey(),
@@ -129,7 +132,7 @@ final readonly class UserData
             presenceStatus: $users->presenceStatus($user),
             roles: $users->roleNames($user),
             userGroups: $userGroups,
-            twoFactorEnabled: $users->supportsTwoFactor($user) ? (bool) $user->hasEnabledTwoFactorAuthentication() : false,
+            twoFactorEnabled: $twoFactorEnabled,
             createdAt: $createdAt instanceof \DateTimeInterface ? $createdAt->format(DATE_ATOM) : null,
             emailVerifiedAt: $emailVerifiedAt instanceof \DateTimeInterface ? $emailVerifiedAt->format(DATE_ATOM) : null,
             deletedAt: $deletedAt instanceof \DateTimeInterface ? $deletedAt->format(DATE_ATOM) : null,

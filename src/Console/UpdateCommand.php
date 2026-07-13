@@ -106,28 +106,26 @@ final class UpdateCommand extends Command
             $this->components->warn('Theme files changed. Review token changes and rebuild frontend assets.');
         }
 
-        if (! $dryRun) {
-            $this->stubs->scaffold(
-                force: $localScaffoldSync,
-                basePath: $basePath,
-                pruneHostScaffolds: false,
-                mergeExisting: ! $localScaffoldSync,
-                onlyManagedChanges: ! $localScaffoldSync,
+        $this->stubs->scaffold(
+            force: $localScaffoldSync,
+            basePath: $basePath,
+            pruneHostScaffolds: false,
+            mergeExisting: ! $localScaffoldSync,
+            onlyManagedChanges: ! $localScaffoldSync,
+        );
+        $this->syncEnvironmentDefaults($basePath);
+
+        if ($withAddonUpdates) {
+            $this->updateInstalledOptionalAddons(
+                $basePath,
+                $withBreakingChanges,
+                $force,
             );
-            $this->syncEnvironmentDefaults($basePath);
-
-            if ($withAddonUpdates) {
-                $this->updateInstalledOptionalAddons(
-                    $basePath,
-                    $withBreakingChanges,
-                    $force,
-                );
-            }
-
-            $this->runMigrations($basePath);
-            $this->generateWayfinderRoutes();
-            $this->generateSwaggerDocs();
         }
+
+        $this->runMigrations($basePath);
+        $this->generateWayfinderRoutes();
+        $this->generateSwaggerDocs();
 
         return collect($result['changes'])->contains(static fn (array $change): bool => $change['status'] === 'conflict')
             ? self::FAILURE

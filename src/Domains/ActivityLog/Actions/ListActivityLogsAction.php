@@ -12,6 +12,9 @@ final readonly class ListActivityLogsAction
 {
     public function __construct(private ActivityLogService $activityLog) {}
 
+    /**
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
     public function execute(Request $request): LengthAwarePaginator
     {
         return $this->activityLog->list($request);

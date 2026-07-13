@@ -33,14 +33,17 @@ final readonly class UploadFileAction
 
         return DB::transaction(function () use ($collection, $file, $folderId): ManagedFile {
             $record = $this->files->newFile();
+            $fileSize = $file->getSize();
+            $mimeType = $file->getMimeType();
+
             $record->forceFill([
                 'collection' => $collection,
                 'disk' => $this->config->files->disk,
                 'extension' => $file->getClientOriginalExtension(),
                 'folder_id' => $folderId,
-                'mime_type' => $file->getMimeType(),
+                'mime_type' => is_string($mimeType) ? $mimeType : null,
                 'name' => $file->getClientOriginalName(),
-                'size' => $file->getSize() ?? 0,
+                'size' => is_int($fileSize) ? $fileSize : 0,
                 'uploaded_by' => $this->auth->guard()->id(),
             ]);
             $record->save();
@@ -68,9 +71,10 @@ final readonly class UploadFileAction
     private function guardMimeType(UploadedFile $file): void
     {
         $allowed = array_values((array) $this->settings->get('files', 'allowed_mime_types', $this->config->files->allowedMimeTypes));
-        $mimeType = (string) ($file->getMimeType() ?? '');
+        $mimeType = $file->getMimeType();
+        $normalizedMimeType = is_string($mimeType) ? $mimeType : '';
 
-        if ($mimeType === '' || ! in_array($mimeType, $allowed, true)) {
+        if ($normalizedMimeType === '' || ! in_array($normalizedMimeType, $allowed, true)) {
             throw ValidationException::withMessages([
                 'file' => __('validation.mimetypes', ['values' => implode(', ', $allowed)]),
             ]);
@@ -80,7 +84,8 @@ final readonly class UploadFileAction
     private function guardSize(UploadedFile $file): void
     {
         $maxKilobytes = (int) $this->settings->get('files', 'max_upload_size', $this->config->files->maxUploadSize);
-        $sizeKilobytes = (int) ceil(($file->getSize() ?? 0) / 1024);
+        $fileSize = $file->getSize();
+        $sizeKilobytes = (int) ceil((is_int($fileSize) ? $fileSize : 0) / 1024);
 
         if ($sizeKilobytes > $maxKilobytes) {
             throw ValidationException::withMessages([

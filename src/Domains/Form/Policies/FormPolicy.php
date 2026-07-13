@@ -34,6 +34,6 @@ final readonly class FormPolicy
 
     public function viewAny(Authenticatable $user): bool
     {
-        return $this->view($user);
+        return $this->permissions->userHas($user, 'forms.view');
     }
 }
