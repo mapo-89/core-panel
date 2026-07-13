@@ -34,7 +34,7 @@ final class VendorFirstCleanupCommand extends Command
             : null;
 
         $result = $this->vendorFirstAssets->migrate(
-            [PublishTag::Components->value, PublishTag::Theme->value],
+            [PublishTag::Components->value, PublishTag::Lang->value, PublishTag::Theme->value, PublishTag::Views->value],
             (bool) $this->option('force'),
             (bool) $this->option('dry-run'),
             $basePath,

@@ -13,6 +13,8 @@ final readonly class VendorFirstAssetMigrator
      * @var array<string, string>
      */
     private const LEGACY_SCAFFOLD_PREFIX_TAGS = [
+        'lang/de.json' => 'core-panel-lang',
+        'lang/en.json' => 'core-panel-lang',
         'resources/js/assets/' => 'core-panel-components',
         'resources/css/theme/' => 'core-panel-theme',
         'resources/js/components/' => 'core-panel-components',
@@ -23,6 +25,7 @@ final readonly class VendorFirstAssetMigrator
         'resources/js/support/' => 'core-panel-components',
         'resources/js/theme/core-panel/' => 'core-panel-theme',
         'resources/js/types/' => 'core-panel-components',
+        'resources/views/app.blade.php' => 'core-panel-views',
     ];
 
     public function __construct(

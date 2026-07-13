@@ -102,7 +102,6 @@ it('versions the managed update scaffolds that still require host copies', funct
         'routes/web/admin/administration.php',
         'routes/web/admin/logs.php',
         'routes/console.php',
-        'resources/views/app.blade.php',
     );
 });
 
@@ -314,21 +313,27 @@ it('supports dedicated vendor-first cleanup without running the full update work
 
 it('supports dedicated vendor-first cleanup for scaffold-managed frontend overlays', function (): void {
     $basePath = makePublishBasePath('vendor-first-command-scaffold');
+    $jsonRelativePath = 'lang/de.json';
     $componentRelativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';
     $cssRelativePath = 'resources/css/theme/_auth.css';
     $pageRelativePath = 'resources/js/pages/Admin/Dashboard/Index.vue';
     $themeRelativePath = 'resources/js/theme/core-panel/tokens.ts';
+    $viewRelativePath = 'resources/views/app.blade.php';
 
+    $jsonContents = (string) file_get_contents(__DIR__.'/../../resources/lang/de.json');
     $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
     $cssContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_auth.css');
     $pageContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
     $themeContents = (string) file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/tokens.ts');
+    $viewContents = (string) file_get_contents(__DIR__.'/../../resources/views/app.blade.php');
 
     foreach ([
+        $jsonRelativePath => $jsonContents,
         $componentRelativePath => $componentContents,
         $cssRelativePath => $cssContents,
         $pageRelativePath => $pageContents,
         $themeRelativePath => $themeContents,
+        $viewRelativePath => $viewContents,
     ] as $relativePath => $contents) {
         $target = $basePath.'/'.$relativePath;
 
@@ -337,24 +342,30 @@ it('supports dedicated vendor-first cleanup for scaffold-managed frontend overla
     }
 
     seedScaffoldManifestFiles($basePath, [
+        $jsonRelativePath => $jsonContents,
         $componentRelativePath => $componentContents,
         $cssRelativePath => $cssContents,
         $pageRelativePath => $pageContents,
         $themeRelativePath => $themeContents,
+        $viewRelativePath => $viewContents,
     ]);
 
     $this->artisan('core-panel:vendor-first', [
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($basePath.'/'.$componentRelativePath))->toBeFalse()
+    expect(file_exists($basePath.'/'.$jsonRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$componentRelativePath))->toBeFalse()
         ->and(file_exists($basePath.'/'.$cssRelativePath))->toBeFalse()
         ->and(file_exists($basePath.'/'.$pageRelativePath))->toBeFalse()
         ->and(file_exists($basePath.'/'.$themeRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$viewRelativePath))->toBeFalse()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($jsonRelativePath)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($componentRelativePath)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($cssRelativePath)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($pageRelativePath)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($themeRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($viewRelativePath)
         ->and(file_exists($basePath.'/routes/console.php'))->toBeFalse();
 });
 

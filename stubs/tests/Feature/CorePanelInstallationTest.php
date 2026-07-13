@@ -16,12 +16,13 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertFileExists(base_path('config/core-panel-access.php'));
         $this->assertFileExists(base_path('lang/de/page-layout.php'));
         $this->assertFileExists(base_path('lang/en/page-layout.php'));
-        $this->assertFileExists(base_path('lang/vendor/core-panel/de/navigation.php'));
-        $this->assertFileExists(base_path('lang/vendor/core-panel/en/navigation.php'));
+        $this->assertFileDoesNotExist(base_path('lang/de.json'));
+        $this->assertFileDoesNotExist(base_path('lang/en.json'));
         $this->assertFileExists(base_path('resources/css/app.css'));
         $this->assertFileDoesNotExist(base_path('resources/css/theme/theme.css'));
         $this->assertFileDoesNotExist(base_path('resources/css/theme/_auth.css'));
         $this->assertFileExists(base_path('resources/js/app.ts'));
+        $this->assertFileDoesNotExist(base_path('resources/views/app.blade.php'));
         $this->assertFileDoesNotExist(base_path('resources/js/plugins/core-panel.ts'));
         $this->assertFileDoesNotExist(base_path('resources/js/components/AppIcon.vue'));
         $this->assertFileDoesNotExist(base_path('resources/js/components/Locale/LocaleFlag.vue'));

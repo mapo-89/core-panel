@@ -186,6 +186,8 @@ final class CorePanelServiceProvider extends PackageServiceProvider
     {
         $router = $this->app['router'];
 
+        $this->loadJsonTranslationsFrom(lang_path('vendor/core-panel'));
+        $this->loadJsonTranslationsFrom(__DIR__.'/../resources/lang');
         $this->loadTranslationsFrom(lang_path('vendor/core-panel'), null);
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', null);
 

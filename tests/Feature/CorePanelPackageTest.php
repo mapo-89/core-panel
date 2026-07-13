@@ -1200,14 +1200,8 @@ it('keeps tenancy-only frontend types out of the core scaffold', function (): vo
     expect($corePanelTypes)->not->toContain('export type CorePanelTenancyContext = {');
 });
 
-it('ships an inertia root view template for the host application', function (): void {
-    $contents = file_get_contents(__DIR__.'/../../stubs/resources/views/app.blade.php');
-
-    expect($contents)->toContain("@vite(['resources/css/app.css', 'resources/js/app.ts'])")
-        ->and($contents)->toContain('$publicSettings = app(\CorePanel\Support\Settings\SettingsRepository::class)->public();')
-        ->and($contents)->toContain('<title inertia>{{ $resolvedAppName }}</title>')
-        ->and($contents)->toContain('<x-inertia::head />')
-        ->and($contents)->toContain('<x-inertia::app />');
+it('keeps the inertia root view in the package instead of scaffolding a host copy', function (): void {
+    expect(file_exists(__DIR__.'/../../stubs/resources/views/app.blade.php'))->toBeFalse();
 });
 
 it('ships a package inertia root view that resolves the configured app name before hydration', function (): void {
@@ -1218,6 +1212,19 @@ it('ships a package inertia root view that resolves the configured app name befo
         ->and($contents)->not->toContain("config('core-panel.name', 'Laravel CorePanel')")
         ->and($contents)->toContain('@inertiaHead')
         ->and($contents)->toContain('@inertia');
+});
+
+it('ships package json translations instead of scaffolding host json copies', function (): void {
+    $deContents = file_get_contents(__DIR__.'/../../resources/lang/de.json');
+    $enContents = file_get_contents(__DIR__.'/../../resources/lang/en.json');
+    $serviceProvider = file_get_contents(__DIR__.'/../../src/CorePanelServiceProvider.php');
+
+    expect(file_exists(__DIR__.'/../../stubs/lang/de.json'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/lang/en.json'))->toBeFalse()
+        ->and($deContents)->toContain('"Reset Password": "Passwort zurücksetzen"')
+        ->and($enContents)->toContain('"Reset Password": "Reset Password"')
+        ->and($serviceProvider)->toContain("\$this->loadJsonTranslationsFrom(lang_path('vendor/core-panel'));")
+        ->and($serviceProvider)->toContain("\$this->loadJsonTranslationsFrom(__DIR__.'/../resources/lang');");
 });
 
 it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 browser origin', function (): void {
@@ -1694,7 +1701,9 @@ BLADE);
         ->and(file_exists($temporaryBasePath.'/resources/views/welcome.blade.php'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/js/app.js'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/js/app.ts'))->toBeTrue()
-        ->and(file_exists($temporaryBasePath.'/resources/views/app.blade.php'))->toBeTrue();
+        ->and(file_exists($temporaryBasePath.'/resources/views/app.blade.php'))->toBeFalse()
+        ->and(file_exists($temporaryBasePath.'/lang/de.json'))->toBeFalse()
+        ->and(file_exists($temporaryBasePath.'/lang/en.json'))->toBeFalse();
 });
 
 it('removes legacy sass theme files when scaffolding a host application', function (): void {
@@ -2096,6 +2105,16 @@ it('registers the package commands', function (): void {
         ->and($commands['core-panel:publish']->getAliases())->toContain('core:publish')
         ->and($commands['core-panel:update']->getAliases())->toContain('core:update')
         ->and($commands['core-panel:vendor-first']->getAliases())->toContain('core:vendor-first');
+});
+
+it('keeps stub dependency artifacts out of the scaffold path list', function (): void {
+    $paths = ScaffoldsCorePanelStubs::paths();
+
+    foreach ($paths as $path) {
+        expect($path)
+            ->not->toStartWith('node_modules/')
+            ->not->toStartWith('public/build/');
+    }
 });
 
 it('ships the optional tenancy addon package scaffold', function (): void {

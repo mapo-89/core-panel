@@ -19,8 +19,11 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VENDOR_FIRST_SCAFFOLD_PREFIXES = [
+        'lang/de.json',
+        'lang/en.json',
         'resources/css/theme/',
         'resources/js/pages/',
+        'resources/views/app.blade.php',
     ];
 
     /**
@@ -77,7 +80,6 @@ final readonly class ScaffoldsCorePanelStubs
         'routes/web/admin/logs.php',
         'routes/web/admin/system-updates.php',
         'routes/console.php',
-        'resources/views/app.blade.php',
     ];
 
     public function __construct(private Filesystem $files, private BackupManager $backups) {}

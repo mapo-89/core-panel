@@ -61,7 +61,7 @@ final class UpdateCommand extends Command
         $result = $this->mergePublishResults(
             $result,
             $this->vendorFirstAssets->migrate(
-                [PublishTag::Components->value, PublishTag::Theme->value],
+                [PublishTag::Components->value, PublishTag::Lang->value, PublishTag::Theme->value, PublishTag::Views->value],
                 $force,
                 $dryRun,
                 $basePath,
