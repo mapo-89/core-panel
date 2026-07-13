@@ -13,6 +13,7 @@
 @source '../../storage/framework/views/*.php';
 @source '../../vendor/mapo-89/core-panel/resources/js/**/*.ts';
 @source '../../vendor/mapo-89/core-panel/resources/js/**/*.vue';
+@source '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue';
 @source '../views/**/*.blade.php';
 @source '../js/**/*.ts';
 @source '../js/**/*.vue';

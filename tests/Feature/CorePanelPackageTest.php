@@ -1711,6 +1711,7 @@ it('removes legacy sass theme files when scaffolding a host application', functi
     expect(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '@core-panel/theme/core-panel/index.css';")
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/**/*.ts';")
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/**/*.vue';")
+        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue';")
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.scss'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/theme.scss'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.css'))->toBeTrue()
