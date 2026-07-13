@@ -186,7 +186,7 @@ it('does not change files or manifest on update dry-run', function (): void {
         ->and(readManifest($basePath))->toBe($beforeManifest);
 });
 
-it('detects conflicts during update', function (): void {
+it('reports but does not fail routine update dry-runs when published frontend overrides are kept', function (): void {
     $basePath = makePublishBasePath('conflict');
 
     $this->artisan('core-panel:publish', [
@@ -200,7 +200,10 @@ it('detects conflicts during update', function (): void {
     $this->artisan('core-panel:update', [
         '--dry-run' => true,
         '--base-path' => $basePath,
-    ])->assertExitCode(1);
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(readManifest($basePath))->toContain('core-panel-components');
 });
 
 it('creates a backup before force updates remove local published frontend overrides', function (): void {
@@ -267,6 +270,27 @@ it('keeps locally modified published frontend overlays unless vendor-first is fo
     ])->assertExitCode(1);
 
     expect(file_exists($target))->toBeTrue()
+        ->and(readManifest($basePath))->toContain('core-panel-components');
+});
+
+it('does not fail routine updates when locally modified published frontend overlays are intentionally kept', function (): void {
+    $basePath = makePublishBasePath('vendor-first-routine-keep-published');
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'components',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $target = $basePath.'/resources/js/components/FormBuilder/FormRenderer.vue';
+    $customizedContents = (string) file_get_contents($target)."\n<!-- local override -->\n";
+    file_put_contents($target, $customizedContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(file_get_contents($target))->toBe($customizedContents)
         ->and(readManifest($basePath))->toContain('core-panel-components');
 });
 
@@ -515,6 +539,26 @@ it('keeps locally modified scaffold-managed frontend overlays unless vendor-firs
     ])->assertExitCode(1);
 
     expect(file_exists($target))->toBeTrue()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain($relativePath);
+});
+
+it('does not fail routine updates when locally modified scaffold-managed frontend overlays are intentionally kept', function (): void {
+    $basePath = makePublishBasePath('vendor-first-routine-keep-scaffold');
+    $relativePath = 'resources/js/layouts/AppLayout.vue';
+    $target = $basePath.'/'.$relativePath;
+    $contents = (string) file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
+    $customizedContents = $contents."\n<!-- local scaffold override -->\n";
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $customizedContents);
+    seedScaffoldManifest($basePath, $relativePath, $contents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(file_get_contents($target))->toBe($customizedContents)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain($relativePath);
 });
 

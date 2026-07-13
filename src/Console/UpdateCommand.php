@@ -48,37 +48,36 @@ final class UpdateCommand extends Command
             : null;
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
+        $explicitVendorFirst = (bool) $this->option('vendor-first');
         $withAddonUpdates = (bool) $this->option('with-addon-updates');
         $withBreakingChanges = (bool) $this->option('breaking-changes');
         $localScaffoldSync = $this->shouldFullySynchronizeScaffolds($basePath);
         $tags = PublishTag::updateTags();
         $result = $this->emptyPublishResult($basePath);
+        $vendorFirstResult = $this->emptyPublishResult($basePath);
+        $publishedTagsResult = $this->emptyPublishResult($basePath);
 
         if ($withBreakingChanges) {
             $tags[] = PublishTag::Config->value;
         }
 
-        $result = $this->mergePublishResults(
-            $result,
-            $this->vendorFirstAssets->migrate(
-                [PublishTag::Components->value, PublishTag::Lang->value, PublishTag::Theme->value, PublishTag::Views->value],
+        $vendorFirstResult = $this->vendorFirstAssets->migrate(
+            [PublishTag::Components->value, PublishTag::Lang->value, PublishTag::Theme->value, PublishTag::Views->value],
+            $force,
+            $dryRun,
+            $basePath,
+        );
+        $result = $this->mergePublishResults($result, $vendorFirstResult);
+
+        if ($tags !== []) {
+            $publishedTagsResult = $this->updatePublishedTags(
+                $tags,
                 $force,
                 $dryRun,
                 $basePath,
-            ),
-        );
-
-        if ($tags !== []) {
-            $result = $this->mergePublishResults(
-                $result,
-                $this->updatePublishedTags(
-                    $tags,
-                    $force,
-                    $dryRun,
-                    $basePath,
-                    adoptUnmanagedExisting: $force,
-                ),
+                adoptUnmanagedExisting: $force,
             );
+            $result = $this->mergePublishResults($result, $publishedTagsResult);
         }
 
         $this->table(
@@ -96,10 +95,14 @@ final class UpdateCommand extends Command
 
         $this->components->info('Manifest: '.$result['manifestPath']);
 
+        $shouldFailForConflicts = $this->shouldFailForConflicts(
+            $vendorFirstResult,
+            $publishedTagsResult,
+            $explicitVendorFirst,
+        );
+
         if ($dryRun) {
-            return collect($result['changes'])->contains(static fn (array $change): bool => $change['status'] === 'conflict')
-                ? self::FAILURE
-                : self::SUCCESS;
+            return $shouldFailForConflicts ? self::FAILURE : self::SUCCESS;
         }
 
         if ($result['themeMigrationHint']) {
@@ -127,9 +130,7 @@ final class UpdateCommand extends Command
         $this->generateWayfinderRoutes();
         $this->generateSwaggerDocs();
 
-        return collect($result['changes'])->contains(static fn (array $change): bool => $change['status'] === 'conflict')
-            ? self::FAILURE
-            : self::SUCCESS;
+        return $shouldFailForConflicts ? self::FAILURE : self::SUCCESS;
     }
 
     private function shouldFullySynchronizeScaffolds(?string $basePath): bool
@@ -185,6 +186,46 @@ final class UpdateCommand extends Command
             'backupsCreated' => $left['backupsCreated'] || $right['backupsCreated'],
             'themeMigrationHint' => $left['themeMigrationHint'] || $right['themeMigrationHint'],
         ];
+    }
+
+    /**
+     * @param  array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }  $vendorFirstResult
+     * @param  array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }  $publishedTagsResult
+     */
+    private function shouldFailForConflicts(
+        array $vendorFirstResult,
+        array $publishedTagsResult,
+        bool $explicitVendorFirst,
+    ): bool {
+        if ($this->containsConflicts($publishedTagsResult)) {
+            return true;
+        }
+
+        return $explicitVendorFirst && $this->containsConflicts($vendorFirstResult);
+    }
+
+    /**
+     * @param  array{
+     *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
+     *     manifestPath:string,
+     *     backupsCreated:bool,
+     *     themeMigrationHint:bool
+     * }  $result
+     */
+    private function containsConflicts(array $result): bool
+    {
+        return collect($result['changes'])
+            ->contains(static fn (array $change): bool => $change['status'] === 'conflict');
     }
 
     private function updateInstalledOptionalAddons(
