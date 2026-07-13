@@ -14,6 +14,7 @@ final readonly class VendorFirstAssetMigrator
      */
     private const LEGACY_SCAFFOLD_PREFIX_TAGS = [
         'resources/js/assets/' => 'core-panel-components',
+        'resources/css/theme/' => 'core-panel-theme',
         'resources/js/components/' => 'core-panel-components',
         'resources/js/composables/' => 'core-panel-components',
         'resources/js/layouts/' => 'core-panel-components',

@@ -64,32 +64,31 @@ CorePanel is designed vendor-first where Laravel supports it:
 
 - package config is loaded by default and only needs publishing when the host app wants to override it
 - translations and Blade views are loaded from the package first and can be overridden through the normal Laravel vendor paths when needed
-- only mutable frontend overlays and host scaffolds are refreshed through `core-panel:update`
+- `core-panel:update` keeps frontend overlays vendor-first by default and only refreshes host scaffolds plus explicit opt-in overrides
 
 ### What To Watch For In Existing Installations
 
 If the application previously published CorePanel frontend directories such as `resources/js/components`, `resources/js/layouts`, `resources/js/composables`, `resources/js/plugins`, `resources/js/support`, `resources/js/types`, `resources/js/assets`, or `resources/js/theme/core-panel`, you have two options:
 
-- if you want to keep the local overrides, continue updating normally with `php artisan core-panel:update --force`
-- if you want to move back to vendor-first wherever possible, run `php artisan core-panel:update --vendor-first` once
+- if you want to keep the local overrides, leave them in place and do not force the migration
+- if you want to move back to vendor-first wherever possible, run `php artisan core-panel:update` once
 
-The `--vendor-first` migration is intentionally conservative:
+The default frontend migration is intentionally conservative:
 
 - unchanged published CorePanel frontend files are removed from the host and resolved directly from `vendor` again
 - locally modified published files stay in place
-- with `--vendor-first --force`, even locally modified published files are removed after a backup so the vendor files take over again
+- with `--force`, even locally modified published files are removed after a backup so the vendor files take over again
 - rebuild the frontend afterwards, at minimum with `npm run build` or `npm run dev`
 
 ### What To Watch For In Future Updates
 
-Once an application has been migrated to vendor-first, you usually do not need to run `--vendor-first` again on every update.
-The normal update flow becomes:
+Once an application has been migrated to vendor-first, the normal update flow becomes:
 
 - update the package through Composer
 - run `php artisan core-panel:update --force`
 - rebuild the frontend
 
-After that, `--vendor-first` is only needed again if you later publish `components` or `theme` and want to migrate those local overlays back to the vendor-managed state.
+If you later publish `components` or `theme` again, the next `core-panel:update` will try to migrate those overlays back to vendor-first automatically.
 
 Refresh published CorePanel assets after upgrading the package:
 
@@ -101,7 +100,7 @@ php artisan core-panel:update --force
 If you want to migrate previously published CorePanel frontend overlays back to vendor assets, run:
 
 ```bash
-php artisan core-panel:update --vendor-first
+php artisan core-panel:update
 ```
 
 Use `--force` only when you intentionally want to remove local overlay changes after creating a backup.
@@ -238,7 +237,7 @@ Publish only the parts the host application really needs to own:
 - `stubs`: internal generator stubs for advanced customization
 
 Normal package usage does not require publishing `lang` or `views`, because both are resolved vendor-first by Laravel.
-Published `components` and `theme` overrides can be migrated back to package assets later with `php artisan core-panel:update --vendor-first`.
+Published `components` and `theme` overrides can be migrated back to package assets later with `php artisan core-panel:update`.
 Bei Neuinstallationen solltest du `components` und `theme` nach Möglichkeit gar nicht publishen. Solange der Host keine lokalen Änderungen an diesen Bausteinen braucht, ist vendor-first der vorgesehene Standard.
 
 ```bash

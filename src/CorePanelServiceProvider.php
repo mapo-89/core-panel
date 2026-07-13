@@ -19,6 +19,7 @@ use CorePanel\Console\RunAutomaticSystemUpdateCommand;
 use CorePanel\Console\SyncAccessCommand;
 use CorePanel\Console\SyncEnvironmentCommand;
 use CorePanel\Console\UpdateCommand;
+use CorePanel\Console\VendorFirstCleanupCommand;
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Contracts\LocaleResolver;
 use CorePanel\Contracts\SettingsLogoUrlGenerator;
@@ -177,6 +178,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
                 SyncEnvironmentCommand::class,
                 SyncAccessCommand::class,
                 UpdateCommand::class,
+                VendorFirstCleanupCommand::class,
             ]);
     }
 

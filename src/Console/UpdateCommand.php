@@ -31,7 +31,7 @@ final class UpdateCommand extends Command
         {--force : Overwrite published files after creating a backup}
         {--base-path= : Override the target base path}
         {--with-addon-updates : Also run update for installed optional addons}
-        {--vendor-first : Migrate managed CorePanel frontend overlays back to vendor assets where possible}
+        {--vendor-first : Deprecated alias for the default vendor-first frontend migration}
         {--breaking-changes : Also refresh config files for breaking update paths}';
 
     protected $description = 'Refresh mutable published Laravel CorePanel overlays after package updates.';
@@ -49,7 +49,6 @@ final class UpdateCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
         $withAddonUpdates = (bool) $this->option('with-addon-updates');
-        $vendorFirst = (bool) $this->option('vendor-first');
         $withBreakingChanges = (bool) $this->option('breaking-changes');
         $localScaffoldSync = $this->shouldFullySynchronizeScaffolds($basePath);
         $tags = PublishTag::updateTags();
@@ -59,25 +58,15 @@ final class UpdateCommand extends Command
             $tags[] = PublishTag::Config->value;
         }
 
-        if ($vendorFirst) {
-            $result = $this->mergePublishResults(
-                $result,
-                $this->vendorFirstAssets->migrate(
-                    [PublishTag::Components->value, PublishTag::Theme->value],
-                    $force,
-                    $dryRun,
-                    $basePath,
-                ),
-            );
-
-            $tags = array_values(array_filter(
-                $tags,
-                static fn (string $tag): bool => ! in_array($tag, [
-                    PublishTag::Components->value,
-                    PublishTag::Theme->value,
-                ], true),
-            ));
-        }
+        $result = $this->mergePublishResults(
+            $result,
+            $this->vendorFirstAssets->migrate(
+                [PublishTag::Components->value, PublishTag::Theme->value],
+                $force,
+                $dryRun,
+                $basePath,
+            ),
+        );
 
         if ($tags !== []) {
             $result = $this->mergePublishResults(

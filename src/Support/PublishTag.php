@@ -37,10 +37,7 @@ enum PublishTag: string
      */
     public static function updateTags(): array
     {
-        return [
-            self::Components->value,
-            self::Theme->value,
-        ];
+        return [];
     }
 
     public static function normalize(string $tag): ?string

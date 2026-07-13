@@ -204,7 +204,7 @@ it('detects conflicts during update', function (): void {
     ])->assertExitCode(1);
 });
 
-it('creates a backup before force updates overwrite local files', function (): void {
+it('creates a backup before force updates remove local published frontend overrides', function (): void {
     $basePath = makePublishBasePath('force');
 
     $this->artisan('core-panel:publish', [
@@ -224,10 +224,10 @@ it('creates a backup before force updates overwrite local files', function (): v
 
     expect($backups)->not->toBeFalse()
         ->and($backups)->not->toBeEmpty()
-        ->and(file_get_contents($target))->not->toContain('// local change');
+        ->and(file_exists($target))->toBeFalse();
 });
 
-it('migrates unchanged published frontend overlays back to vendor assets', function (): void {
+it('migrates unchanged published frontend overlays back to vendor assets by default', function (): void {
     $basePath = makePublishBasePath('vendor-first-clean');
 
     $this->artisan('core-panel:publish', [
@@ -241,7 +241,6 @@ it('migrates unchanged published frontend overlays back to vendor assets', funct
     ])->assertExitCode(0);
 
     $this->artisan('core-panel:update', [
-        '--vendor-first' => true,
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
@@ -270,6 +269,93 @@ it('keeps locally modified published frontend overlays unless vendor-first is fo
 
     expect(file_exists($target))->toBeTrue()
         ->and(readManifest($basePath))->toContain('core-panel-components');
+});
+
+it('accepts the vendor-first flag as an alias for the default frontend migration', function (): void {
+    $basePath = makePublishBasePath('vendor-first-flag-alias');
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'components',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(is_dir($basePath.'/resources/js/components/FormBuilder'))->toBeFalse()
+        ->and(readManifest($basePath))->not->toContain('core-panel-components');
+});
+
+it('supports dedicated vendor-first cleanup without running the full update workflow', function (): void {
+    $basePath = makePublishBasePath('vendor-first-command-cleanup');
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'components',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $this->artisan('core-panel:publish', [
+        '--tag' => 'theme',
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $this->artisan('core-panel:vendor-first', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(is_dir($basePath.'/resources/js/components/FormBuilder'))->toBeFalse()
+        ->and(is_dir($basePath.'/resources/js/theme/core-panel'))->toBeFalse()
+        ->and(file_exists($basePath.'/routes/console.php'))->toBeFalse()
+        ->and(readManifest($basePath))->not->toContain('core-panel-components')
+        ->and(readManifest($basePath))->not->toContain('core-panel-theme');
+});
+
+it('supports dedicated vendor-first cleanup for scaffold-managed frontend overlays', function (): void {
+    $basePath = makePublishBasePath('vendor-first-command-scaffold');
+    $componentRelativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';
+    $cssRelativePath = 'resources/css/theme/_auth.css';
+    $pageRelativePath = 'resources/js/pages/Admin/Dashboard/Index.vue';
+    $themeRelativePath = 'resources/js/theme/core-panel/tokens.ts';
+
+    $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
+    $cssContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_auth.css');
+    $pageContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
+    $themeContents = (string) file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/tokens.ts');
+
+    foreach ([
+        $componentRelativePath => $componentContents,
+        $cssRelativePath => $cssContents,
+        $pageRelativePath => $pageContents,
+        $themeRelativePath => $themeContents,
+    ] as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        mkdir(dirname($target), 0777, true);
+        file_put_contents($target, $contents);
+    }
+
+    seedScaffoldManifestFiles($basePath, [
+        $componentRelativePath => $componentContents,
+        $cssRelativePath => $cssContents,
+        $pageRelativePath => $pageContents,
+        $themeRelativePath => $themeContents,
+    ]);
+
+    $this->artisan('core-panel:vendor-first', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($basePath.'/'.$componentRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$cssRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$pageRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$themeRelativePath))->toBeFalse()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($componentRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($cssRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($pageRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($themeRelativePath)
+        ->and(file_exists($basePath.'/routes/console.php'))->toBeFalse();
 });
 
 it('backs up locally modified published frontend overlays before migrating them back to vendor assets', function (): void {
@@ -441,7 +527,7 @@ it('backs up locally modified scaffold-managed frontend overlays before migratin
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($relativePath);
 });
 
-it('adopts unmanaged published assets during force updates', function (): void {
+it('leaves unmanaged legacy frontend overlays untouched during force updates', function (): void {
     $basePath = makePublishBasePath('force-adopt-unmanaged');
     $target = $basePath.'/resources/js/components/FormBuilder/FormRenderer.vue';
 
@@ -451,8 +537,7 @@ it('adopts unmanaged published assets during force updates', function (): void {
     $this->artisan('core-panel:update', [
         '--dry-run' => true,
         '--base-path' => $basePath,
-    ])->expectsOutputToContain('destination is not managed by the publish manifest')
-        ->assertExitCode(0);
+    ])->assertExitCode(0);
 
     expect(file_exists($basePath.'/storage/app/core-panel/published.json'))->toBeFalse();
 
@@ -463,10 +548,9 @@ it('adopts unmanaged published assets during force updates', function (): void {
 
     $backups = glob($basePath.'/.core-panel-backups/*/resources/js/components/FormBuilder/FormRenderer.vue');
 
-    expect($backups)->not->toBeFalse()
-        ->and($backups)->not->toBeEmpty()
-        ->and(file_get_contents($target))->not->toContain('legacy local component')
-        ->and(readManifest($basePath))->toContain('core-panel-components');
+    expect($backups)->toBeEmpty()
+        ->and(file_get_contents($target))->toContain('legacy local component')
+        ->and(readManifest($basePath))->not->toContain('core-panel-components');
 });
 
 it('does not overwrite application scaffolds during force updates', function (): void {

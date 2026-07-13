@@ -8,6 +8,7 @@ use CorePanel\Console\PublishCommand;
 use CorePanel\Console\RunAutomaticDatabaseBackupCommand;
 use CorePanel\Console\SyncEnvironmentCommand;
 use CorePanel\Console\UpdateCommand;
+use CorePanel\Console\VendorFirstCleanupCommand;
 use CorePanel\CorePanelServiceProvider;
 use CorePanel\Http\Responses\ResetPasswordResponse;
 use CorePanel\Support\Config\CorePanelConfig;
@@ -349,13 +350,12 @@ it('registers the theme publish tag', function (): void {
 
 it('keeps internal stubs and vendor-first assets out of the default install and update publish groups', function (): void {
     expect(PublishTag::installTags())->toBe([])
-        ->and(PublishTag::updateTags())->toBe([
-            PublishTag::Components->value,
-            PublishTag::Theme->value,
-        ])
+        ->and(PublishTag::updateTags())->toBe([])
         ->and(PublishTag::updateTags())->not->toContain(PublishTag::Stubs->value)
         ->and(PublishTag::updateTags())->not->toContain(PublishTag::Lang->value)
-        ->and(PublishTag::updateTags())->not->toContain(PublishTag::Views->value);
+        ->and(PublishTag::updateTags())->not->toContain(PublishTag::Views->value)
+        ->and(PublishTag::updateTags())->not->toContain(PublishTag::Components->value)
+        ->and(PublishTag::updateTags())->not->toContain(PublishTag::Theme->value);
 });
 
 it('registers a vendor-first asset migrator', function (): void {
@@ -1712,10 +1712,12 @@ it('removes legacy sass theme files when scaffolding a host application', functi
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/**/*.ts';")
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/**/*.vue';")
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue';")
+        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '../../vendor/mapo-89/core-panel/stubs/resources/css/theme/theme.css';")
+        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '../../vendor/mapo-89/core-panel/stubs/resources/css/theme/utilities.css';")
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.scss'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/theme.scss'))->toBeFalse()
-        ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.css'))->toBeTrue()
-        ->and(file_exists($temporaryBasePath.'/resources/css/theme/theme.css'))->toBeTrue();
+        ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.css'))->toBeFalse()
+        ->and(file_exists($temporaryBasePath.'/resources/css/theme/theme.css'))->toBeFalse();
 });
 
 it('merges the scaffold package.json into an existing host package.json', function (): void {
@@ -2080,6 +2082,7 @@ it('registers the package commands', function (): void {
         'core-panel:install',
         'core-panel:publish',
         'core-panel:update',
+        'core-panel:vendor-first',
     ])
         ->and($commands['database-backups:auto'])->toBeInstanceOf(RunAutomaticDatabaseBackupCommand::class)
         ->and($commands['core-panel:activity:clean'])->toBeInstanceOf(CleanActivityLogsCommand::class)
@@ -2087,10 +2090,12 @@ it('registers the package commands', function (): void {
         ->and($commands['core-panel:install'])->toBeInstanceOf(InstallCommand::class)
         ->and($commands['core-panel:publish'])->toBeInstanceOf(PublishCommand::class)
         ->and($commands['core-panel:update'])->toBeInstanceOf(UpdateCommand::class)
+        ->and($commands['core-panel:vendor-first'])->toBeInstanceOf(VendorFirstCleanupCommand::class)
         ->and($commands['core-panel:env:sync']->getAliases())->toContain('core:env:sync')
         ->and($commands['core-panel:install']->getAliases())->toContain('core:install')
         ->and($commands['core-panel:publish']->getAliases())->toContain('core:publish')
-        ->and($commands['core-panel:update']->getAliases())->toContain('core:update');
+        ->and($commands['core-panel:update']->getAliases())->toContain('core:update')
+        ->and($commands['core-panel:vendor-first']->getAliases())->toContain('core:vendor-first');
 });
 
 it('ships the optional tenancy addon package scaffold', function (): void {

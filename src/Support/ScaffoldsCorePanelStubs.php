@@ -19,6 +19,7 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VENDOR_FIRST_SCAFFOLD_PREFIXES = [
+        'resources/css/theme/',
         'resources/js/pages/',
     ];
 
@@ -68,7 +69,6 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/page-user-groups.php',
         'lang/en/system_updates.php',
         'resources/css/app.css',
-        'resources/css/theme/_datatable.css',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
         'routes/web/admin.php',
