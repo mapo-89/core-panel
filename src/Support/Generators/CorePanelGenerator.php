@@ -10,6 +10,10 @@ use RuntimeException;
 
 final readonly class CorePanelGenerator
 {
+    private const HOST_TEMPLATE_ROOT = 'stubs/core-panel/generators';
+
+    private const PACKAGE_TEMPLATE_ROOT = __DIR__.'/../../../resources/generators';
+
     public function __construct(
         private Filesystem $files,
     ) {}
@@ -279,19 +283,19 @@ final readonly class CorePanelGenerator
 
     private function resolveTemplatePath(string $stub, string $basePath): string
     {
-        foreach ($this->templateCandidates($stub, $basePath.'/stubs/core-panel/generators') as $candidate) {
+        foreach ($this->templateCandidates($stub, $basePath.'/'.self::HOST_TEMPLATE_ROOT) as $candidate) {
             if ($this->files->exists($candidate)) {
                 return $candidate;
             }
         }
 
-        foreach ($this->templateCandidates($stub, __DIR__.'/../../../stubs/core-panel/generators') as $candidate) {
+        foreach ($this->templateCandidates($stub, self::PACKAGE_TEMPLATE_ROOT) as $candidate) {
             if ($this->files->exists($candidate)) {
                 return $candidate;
             }
         }
 
-        return __DIR__.'/../../../stubs/core-panel/generators/'.$stub.'.stub';
+        return self::PACKAGE_TEMPLATE_ROOT.'/'.$stub.'.stub';
     }
 
     /**

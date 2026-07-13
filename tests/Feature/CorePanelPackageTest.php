@@ -1152,9 +1152,9 @@ it('ships a visible domain scaffold structure for host applications', function (
         ->and(is_file(__DIR__.'/../../stubs/app/Providers/HorizonServiceProvider.php'))->toBeTrue();
 });
 
-it('uses readable generator template filenames and still avoids legacy package stub suffixes in defaults', function (): void {
-    $generatorTemplates = glob(__DIR__.'/../../stubs/core-panel/generators/*') ?: [];
-    $crudTemplates = glob(__DIR__.'/../../stubs/core-panel/generators/crud/*') ?: [];
+it('keeps generator defaults in package resources while preserving readable template filenames', function (): void {
+    $generatorTemplates = glob(__DIR__.'/../../resources/generators/*') ?: [];
+    $crudTemplates = glob(__DIR__.'/../../resources/generators/crud/*') ?: [];
 
     foreach (array_merge($generatorTemplates, $crudTemplates) as $path) {
         if (is_dir($path)) {
@@ -1163,6 +1163,8 @@ it('uses readable generator template filenames and still avoids legacy package s
 
         expect($path)->not->toEndWith('.stub');
     }
+
+    expect(is_dir(__DIR__.'/../../stubs/core-panel/generators'))->toBeFalse();
 });
 
 it('ships host route templates that can be composed by the tenancy addon', function (): void {
