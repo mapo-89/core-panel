@@ -6,7 +6,10 @@ import { useConfirm } from 'primevue/useconfirm'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import settings from '@/routes/core-panel/settings'
-import type { SettingFieldRecord, SettingGroupRecord } from '@core-panel/types/core-panel'
+import type {
+    SettingFieldRecord,
+    SettingGroupRecord,
+} from '@core-panel/types/core-panel'
 
 type SettingFormValue = boolean | string | null
 type ProviderCard = {

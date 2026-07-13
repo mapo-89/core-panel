@@ -4,7 +4,10 @@ import { trans } from 'laravel-vue-i18n'
 
 import forms from '@/routes/core-panel/forms'
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import type { FormRecord, FormSubmissionRecord } from '@core-panel/types/core-panel'
+import type {
+    FormRecord,
+    FormSubmissionRecord,
+} from '@core-panel/types/core-panel'
 
 defineProps<{
     form: FormRecord

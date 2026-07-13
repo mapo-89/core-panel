@@ -9,7 +9,10 @@ import LocaleFlag from '@core-panel/components/Locale/LocaleFlag.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 
 import settings from '@/routes/core-panel/settings'
-import type { SettingFieldRecord, SettingGroupRecord } from '@core-panel/types/core-panel'
+import type {
+    SettingFieldRecord,
+    SettingGroupRecord,
+} from '@core-panel/types/core-panel'
 
 type SettingFormValue = boolean | number | string | string[] | null
 

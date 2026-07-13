@@ -3,7 +3,10 @@ import { Head } from '@inertiajs/vue3'
 
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import ApiTokenManager from '@/pages/Admin/ApiTokens/components/ApiTokenManager.vue'
-import type { ApiTokenRecord, FormOptionRecord } from '@core-panel/types/core-panel'
+import type {
+    ApiTokenRecord,
+    FormOptionRecord,
+} from '@core-panel/types/core-panel'
 
 const props = defineProps<{
     abilities: string[] | FormOptionRecord[]

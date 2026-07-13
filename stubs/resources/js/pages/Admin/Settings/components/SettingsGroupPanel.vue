@@ -10,7 +10,10 @@ import type {
 } from '@core-panel/components/FormBuilder/types'
 
 import settings from '@/routes/core-panel/settings'
-import type { SettingFieldRecord, SettingGroupRecord } from '@core-panel/types/core-panel'
+import type {
+    SettingFieldRecord,
+    SettingGroupRecord,
+} from '@core-panel/types/core-panel'
 
 type SettingFormValue = boolean | number | string | string[] | null
 

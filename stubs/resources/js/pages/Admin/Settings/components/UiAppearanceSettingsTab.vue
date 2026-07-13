@@ -17,7 +17,10 @@ import {
 } from '@core-panel/theme/core-panel'
 
 import settings from '@/routes/core-panel/settings'
-import type { SettingFieldRecord, SettingGroupRecord } from '@core-panel/types/core-panel'
+import type {
+    SettingFieldRecord,
+    SettingGroupRecord,
+} from '@core-panel/types/core-panel'
 
 type SettingFormValue = boolean | number | string | string[] | null
 

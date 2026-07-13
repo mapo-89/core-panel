@@ -34,12 +34,12 @@ final readonly class VendorFirstAssetMigrator
         $themeMigrationHint = false;
 
         foreach ($manifest['files'] as $destination => $entry) {
-            if (! is_array($entry) || ! in_array($entry['tag'] ?? null, $tags, true)) {
+            if (! in_array($entry['tag'], $tags, true)) {
                 continue;
             }
 
-            $tag = (string) ($entry['tag'] ?? '');
-            $source = (string) ($entry['source'] ?? '');
+            $tag = $entry['tag'];
+            $source = $entry['source'];
 
             if (! $this->files->exists($destination)) {
                 unset($updatedManifest['files'][$destination]);
@@ -60,8 +60,8 @@ final readonly class VendorFirstAssetMigrator
             }
 
             $destinationHash = $this->hash($destination);
-            $managedHash = $entry['destination_hash'] ?? null;
-            $hasLocalChanges = ! is_string($managedHash) || $managedHash !== $destinationHash;
+            $managedHash = $entry['destination_hash'];
+            $hasLocalChanges = $managedHash !== $destinationHash;
 
             if ($hasLocalChanges && ! $force) {
                 $changes[] = $this->change(
