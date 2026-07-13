@@ -1797,9 +1797,10 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($hostEntry)->toContain(
             '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue',
         )
-        ->and($hostEntry)->toContain('function resolvePage(name: string): DefineComponent | undefined {')
+        ->and($hostEntry)->toContain('function resolvePage(name: string): DefineComponent {')
         ->and($hostEntry)->toContain('return hostPage.default')
         ->and($hostEntry)->toContain('vendorPageModules[')
+        ->and($hostEntry)->toContain('throw new Error(`Unable to resolve Inertia page [${name}].`)')
         ->and($hostEntry)->toContain('const loader =')
         ->and($hostEntry)->toContain('lazyLanguageModules[`../../lang/php_${lang}.json`]')
         ->and($hostEntry)->toContain('await I18n.getSharedInstance(i18nOptions).loadLanguageAsync(')
@@ -1836,6 +1837,28 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($profileSecurityTab)->toContain("from '@/routes/password/confirm'")
         ->and($profileConnectionsTab)->not->toContain('LinkSocialAccountController')
         ->and($profileConnectionsTab)->not->toContain('UnlinkSocialAccountController');
+});
+
+it('ships scaffold installation tests that expect vendor-first frontend assets', function (): void {
+    $contents = file_get_contents(__DIR__.'/../../stubs/tests/Feature/CorePanelInstallationTest.php');
+
+    expect($contents)->toContain(
+        "\$this->assertFileDoesNotExist(base_path('resources/js/plugins/core-panel.ts'));",
+    )
+        ->and($contents)->toContain(
+            "\$this->assertFileDoesNotExist(base_path('resources/js/components/AppIcon.vue'));",
+        )
+        ->and($contents)->toContain(
+            "\$this->assertFileDoesNotExist(base_path('resources/js/layouts/AppLayout.vue'));",
+        )
+        ->and($contents)->toContain(
+            "import { installCorePanelUi } from '@core-panel/plugins/core-panel'",
+        )
+        ->and($contents)->not->toContain(
+            "import { installCorePanelUi } from './plugins/core-panel'",
+        )
+        ->and($contents)->not->toContain("\$pluginEntry = file_get_contents(base_path('resources/js/plugins/core-panel.ts'));")
+        ->and($contents)->not->toContain("\$layoutEntry = file_get_contents(base_path('resources/js/layouts/AppLayout.vue'));");
 });
 
 it('renders the forgot-password action after the submit button while shifting with a status message', function (): void {

@@ -21,15 +21,16 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertFileExists(base_path('resources/css/app.css'));
         $this->assertFileExists(base_path('resources/css/theme/theme.css'));
         $this->assertFileExists(base_path('resources/js/app.ts'));
-        $this->assertFileExists(base_path('resources/js/plugins/core-panel.ts'));
-        $this->assertFileExists(base_path('resources/js/components/AppIcon.vue'));
-        $this->assertFileExists(base_path('resources/js/components/Locale/LocaleFlag.vue'));
-        $this->assertFileExists(base_path('resources/js/components/UserAvatar.vue'));
-        $this->assertFileExists(base_path('resources/js/layouts/components/AppHeader.vue'));
-        $this->assertFileExists(base_path('resources/js/layouts/components/AppFooter.vue'));
-        $this->assertFileExists(base_path('resources/js/layouts/components/AppPageHeader.vue'));
-        $this->assertFileExists(base_path('resources/js/layouts/components/AppSidebar.vue'));
-        $this->assertFileExists(base_path('resources/js/composables/useSidebar.ts'));
+        $this->assertFileDoesNotExist(base_path('resources/js/plugins/core-panel.ts'));
+        $this->assertFileDoesNotExist(base_path('resources/js/components/AppIcon.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/components/Locale/LocaleFlag.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/components/UserAvatar.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/layouts/AppLayout.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/layouts/components/AppHeader.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/layouts/components/AppFooter.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/layouts/components/AppPageHeader.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/layouts/components/AppSidebar.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/composables/useSidebar.ts'));
         $this->assertFileDoesNotExist(base_path('resources/js/pages/Admin/Administration/Index.vue'));
         $this->assertFileDoesNotExist(base_path('resources/js/pages/Admin/Dashboard/Index.vue'));
         $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
@@ -42,23 +43,17 @@ final class CorePanelInstallationTest extends TestCase
     public function test_it_ships_primevue_bootstrap_and_theme_setup(): void
     {
         $appEntry = file_get_contents(base_path('resources/js/app.ts'));
-        $pluginEntry = file_get_contents(base_path('resources/js/plugins/core-panel.ts'));
         $themeEntry = file_get_contents(base_path('resources/js/theme/core-panel/index.ts'));
-        $layoutEntry = file_get_contents(base_path('resources/js/layouts/AppLayout.vue'));
 
-        $this->assertStringContainsString("import { installCorePanelUi } from './plugins/core-panel'", $appEntry);
+        $this->assertStringContainsString("import { installCorePanelUi } from '@core-panel/plugins/core-panel'", $appEntry);
         $this->assertStringContainsString('const lazyLanguageModules = import.meta.glob<{', $appEntry);
         $this->assertStringContainsString('default: Record<string, string>', $appEntry);
         $this->assertStringContainsString('`../../lang/php_${lang}.json`', $appEntry);
+        $this->assertStringContainsString('const hostPageModules = import.meta.glob<{ default: DefineComponent }>(', $appEntry);
         $this->assertStringContainsString('const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(', $appEntry);
         $this->assertStringContainsString('../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue', $appEntry);
+        $this->assertStringContainsString('throw new Error(`Unable to resolve Inertia page [${name}].`)', $appEntry);
         $this->assertStringContainsString('resolve: (name) => resolvePage(name)', $appEntry);
-        $this->assertStringContainsString('ToastService', $pluginEntry);
-        $this->assertStringContainsString('ConfirmationService', $pluginEntry);
-        $this->assertStringContainsString("import AppHeader from '@/layouts/components/AppHeader.vue'", $layoutEntry);
-        $this->assertStringContainsString("import AppFooter from '@/layouts/components/AppFooter.vue'", $layoutEntry);
-        $this->assertStringContainsString("import AppPageHeader from '@/layouts/components/AppPageHeader.vue'", $layoutEntry);
-        $this->assertStringContainsString("import AppSidebar from '@/layouts/components/AppSidebar.vue'", $layoutEntry);
         $this->assertStringContainsString('core-panel-dark', $themeEntry);
     }
 
@@ -85,7 +80,8 @@ final class CorePanelInstallationTest extends TestCase
         ])->assertSuccessful();
 
         $this->assertFileExists(base_path('resources/js/app.ts'));
-        $this->assertFileExists(base_path('resources/js/plugins/core-panel.ts'));
+        $this->assertFileDoesNotExist(base_path('resources/js/plugins/core-panel.ts'));
+        $this->assertFileDoesNotExist(base_path('resources/js/layouts/AppLayout.vue'));
         $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
     }
 }
