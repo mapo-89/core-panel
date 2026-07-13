@@ -349,6 +349,26 @@ it('migrates unchanged scaffold-managed frontend overlays back to vendor assets'
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($themeRelativePath);
 });
 
+it('migrates stale scaffold-managed frontend overlays before publish updates can report vendor-first conflicts', function (): void {
+    $basePath = makePublishBasePath('vendor-first-scaffold-before-publish');
+    $relativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';
+    $target = $basePath.'/'.$relativePath;
+    $legacyContents = "<template>\n    <div>legacy scaffolded renderer</div>\n</template>\n";
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $legacyContents);
+    seedScaffoldManifest($basePath, $relativePath, $legacyContents);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeFalse()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($relativePath)
+        ->and(readManifest($basePath))->not->toContain('core-panel-components');
+});
+
 it('keeps locally modified scaffold-managed frontend overlays unless vendor-first is forced', function (): void {
     $basePath = makePublishBasePath('vendor-first-scaffold-conflict');
     $relativePath = 'resources/js/layouts/AppLayout.vue';

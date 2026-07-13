@@ -53,20 +53,11 @@ final class UpdateCommand extends Command
         $withBreakingChanges = (bool) $this->option('breaking-changes');
         $localScaffoldSync = $this->shouldFullySynchronizeScaffolds($basePath);
         $tags = PublishTag::updateTags();
+        $result = $this->emptyPublishResult($basePath);
 
         if ($withBreakingChanges) {
             $tags[] = PublishTag::Config->value;
         }
-
-        $result = $tags === []
-            ? $this->emptyPublishResult($basePath)
-            : $this->updatePublishedTags(
-                $tags,
-                $force,
-                $dryRun,
-                $basePath,
-                adoptUnmanagedExisting: $force,
-            );
 
         if ($vendorFirst) {
             $result = $this->mergePublishResults(
@@ -76,6 +67,27 @@ final class UpdateCommand extends Command
                     $force,
                     $dryRun,
                     $basePath,
+                ),
+            );
+
+            $tags = array_values(array_filter(
+                $tags,
+                static fn (string $tag): bool => ! in_array($tag, [
+                    PublishTag::Components->value,
+                    PublishTag::Theme->value,
+                ], true),
+            ));
+        }
+
+        if ($tags !== []) {
+            $result = $this->mergePublishResults(
+                $result,
+                $this->updatePublishedTags(
+                    $tags,
+                    $force,
+                    $dryRun,
+                    $basePath,
+                    adoptUnmanagedExisting: $force,
                 ),
             );
         }
