@@ -8,7 +8,7 @@ import { useDialog } from 'primevue/usedialog'
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import UserFormDialog from '@/pages/Admin/Users/components/UserFormDialog.vue'
+import UserFormDialog from '@core-panel/pages/Admin/Users/components/UserFormDialog.vue'
 import users from '@/routes/core-panel/users'
 import type {
     RoleRecord,

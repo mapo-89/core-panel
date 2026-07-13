@@ -5,7 +5,7 @@ import { useDialog } from 'primevue/usedialog'
 import { ref } from 'vue'
 
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
-import UserPasswordResetDialog from '@/pages/Admin/Users/components/UserPasswordResetDialog.vue'
+import UserPasswordResetDialog from '@core-panel/pages/Admin/Users/components/UserPasswordResetDialog.vue'
 import userPasswordRoutes from '@/routes/core-panel/users/password'
 import users from '@/routes/core-panel/users'
 import type { UserCapabilities, UserRecord } from '@core-panel/types/core-panel'

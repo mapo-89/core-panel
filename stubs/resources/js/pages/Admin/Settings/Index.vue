@@ -13,11 +13,11 @@ import {
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import ApiSettingsTab from '@/pages/Admin/Settings/components/ApiSettingsTab.vue'
-import AuthSettingsTab from '@/pages/Admin/Settings/components/AuthSettingsTab.vue'
-import GeneralSettingsTab from '@/pages/Admin/Settings/components/GeneralSettingsTab.vue'
-import UiAppearanceSettingsTab from '@/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue'
-import SettingsGroupPanel from '@/pages/Admin/Settings/components/SettingsGroupPanel.vue'
+import ApiSettingsTab from '@core-panel/pages/Admin/Settings/components/ApiSettingsTab.vue'
+import AuthSettingsTab from '@core-panel/pages/Admin/Settings/components/AuthSettingsTab.vue'
+import GeneralSettingsTab from '@core-panel/pages/Admin/Settings/components/GeneralSettingsTab.vue'
+import UiAppearanceSettingsTab from '@core-panel/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue'
+import SettingsGroupPanel from '@core-panel/pages/Admin/Settings/components/SettingsGroupPanel.vue'
 import type {
     ApiTokenManagerPayload,
     SettingGroupRecord,

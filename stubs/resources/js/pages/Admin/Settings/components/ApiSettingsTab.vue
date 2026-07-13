@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '@core-panel/components/AppIcon.vue'
-import ApiTokenManager from '@/pages/Admin/ApiTokens/components/ApiTokenManager.vue'
+import ApiTokenManager from '@core-panel/pages/Admin/ApiTokens/components/ApiTokenManager.vue'
 import type { ApiTokenManagerPayload } from '@core-panel/types/core-panel'
 
 const props = withDefaults(

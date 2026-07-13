@@ -9,6 +9,14 @@ import { installCorePanelUi } from '@core-panel/plugins/core-panel'
 const lazyLanguageModules = import.meta.glob<{
     default: Record<string, string>
 }>('../../lang/*.json')
+const hostPageModules = import.meta.glob<{ default: DefineComponent }>(
+    './pages/**/*.vue',
+    { eager: true },
+)
+const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(
+    '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue',
+    { eager: true },
+)
 let currentAppName = 'CorePanel'
 
 function resolveAppName(props: Record<string, unknown>): string {
@@ -19,6 +27,31 @@ function resolveAppName(props: Record<string, unknown>): string {
         : 'CorePanel'
 }
 
+function resolvePage(name: string): DefineComponent {
+    const hostPage =
+        hostPageModules[`./pages/${name}.vue`] ??
+        hostPageModules[`./pages/Admin/${name}.vue`]
+
+    if (hostPage !== undefined) {
+        return hostPage.default
+    }
+
+    const vendorPage = (
+        vendorPageModules[
+            `../../vendor/mapo-89/core-panel/stubs/resources/js/pages/${name}.vue`
+        ] ??
+        vendorPageModules[
+            `../../vendor/mapo-89/core-panel/stubs/resources/js/pages/Admin/${name}.vue`
+        ]
+    )?.default
+
+    if (vendorPage !== undefined) {
+        return vendorPage
+    }
+
+    throw new Error(`Unable to resolve Inertia page [${name}].`)
+}
+
 createInertiaApp({
     title: (title) => {
         const activeAppName =
@@ -26,16 +59,7 @@ createInertiaApp({
 
         return title ? `${title} - ${activeAppName}` : activeAppName
     },
-    resolve: (name) => {
-        const pages = import.meta.glob<{ default: DefineComponent }>(
-            './pages/**/*.vue',
-            { eager: true },
-        )
-
-        return (
-            pages[`./pages/${name}.vue`] ?? pages[`./pages/Admin/${name}.vue`]
-        )?.default
-    },
+    resolve: (name) => resolvePage(name),
     async setup({ el, App, props, plugin }) {
         const app = createApp({ render: () => h(App, props) })
         const initialPageProps = props.initialPage.props as Record<

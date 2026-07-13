@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3'
 
-import ProfileWorkspace from '@/pages/Admin/Settings/components/ProfileWorkspace.vue'
+import ProfileWorkspace from '@core-panel/pages/Admin/Settings/components/ProfileWorkspace.vue'
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
 import type {
     SocialAccountRecord,

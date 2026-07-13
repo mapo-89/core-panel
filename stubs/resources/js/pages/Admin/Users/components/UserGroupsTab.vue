@@ -7,7 +7,7 @@ import { useDialog } from 'primevue/usedialog'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
-import UserGroupForm from '@/pages/Admin/UserGroups/components/UserGroupForm.vue'
+import UserGroupForm from '@core-panel/pages/Admin/UserGroups/components/UserGroupForm.vue'
 import userGroupRoutes from '@/routes/core-panel/user-groups'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
 import type { UserGroupRecord } from '@core-panel/types/core-panel'

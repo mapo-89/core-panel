@@ -13,6 +13,16 @@ use Symfony\Component\Process\Process;
 final readonly class ScaffoldsCorePanelStubs
 {
     /**
+     * Host files that should stay absent once an application resolves them
+     * directly from the package runtime.
+     *
+     * @var list<string>
+     */
+    private const VENDOR_FIRST_SCAFFOLD_PREFIXES = [
+        'resources/js/pages/',
+    ];
+
+    /**
      * Scaffold files that were introduced after existing applications may already
      * have installed CorePanel without a scaffold baseline manifest.
      *
@@ -61,26 +71,6 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/css/theme/_datatable.css',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
-        'resources/js/pages/Admin/Administration/Index.vue',
-        'resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue',
-        'resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue',
-        'resources/js/pages/Admin/Administration/components/DatabaseBackupsTab.vue',
-        'resources/js/pages/Admin/Administration/components/HorizonTab.vue',
-        'resources/js/pages/Admin/Administration/components/SystemUpdatesTab.vue',
-        'resources/js/pages/Admin/Forms/Preview.vue',
-        'resources/js/pages/Admin/Logs/File.vue',
-        'resources/js/pages/Admin/Logs/Index.vue',
-        'resources/js/pages/Admin/Logs/components/LogFilesTab.vue',
-        'resources/js/pages/Admin/Logs/components/LogUserAvatar.vue',
-        'resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue',
-        'resources/js/pages/Admin/Users/Index.vue',
-        'resources/js/pages/Admin/Users/Show.vue',
-        'resources/js/pages/Admin/Users/components/UserFormFields.vue',
-        'resources/js/pages/Admin/Users/components/UserGroupsTab.vue',
-        'resources/js/pages/Admin/Users/components/UserOverviewTab.vue',
-        'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
-        'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
-        'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
         'routes/web/admin.php',
         'routes/web/admin/administration.php',
         'routes/web/admin/database-backups.php',
@@ -172,6 +162,10 @@ final readonly class ScaffoldsCorePanelStubs
             $destinationPath = $root.'/'.$relativePath;
             $destinationExists = $this->files->exists($destinationPath);
 
+            if (! $destinationExists && $this->isVendorFirstScaffold($relativePath)) {
+                continue;
+            }
+
             if ($relativePath === 'package.json' && $destinationExists) {
                 if ($onlyManagedChanges && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
                     continue;
@@ -216,6 +210,17 @@ final readonly class ScaffoldsCorePanelStubs
             $this->files->copy($sourcePath, $destinationPath);
             $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
         }
+    }
+
+    private function isVendorFirstScaffold(string $relativePath): bool
+    {
+        foreach (self::VENDOR_FIRST_SCAFFOLD_PREFIXES as $prefix) {
+            if (str_starts_with($relativePath, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

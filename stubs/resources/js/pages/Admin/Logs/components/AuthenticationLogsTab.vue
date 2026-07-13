@@ -10,10 +10,10 @@ import {
     formatAuthenticationMethodLabel,
     formatAuthenticationResultLabel,
     resolveAuthenticationResultTone,
-} from '@/pages/Admin/Logs/components/authenticationLogPresentation'
-import AuthenticationLogDetail from '@/pages/Admin/Logs/components/AuthenticationLogDetail.vue'
-import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
-import LogUserAvatar from '@/pages/Admin/Logs/components/LogUserAvatar.vue'
+} from '@core-panel/pages/Admin/Logs/components/authenticationLogPresentation'
+import AuthenticationLogDetail from '@core-panel/pages/Admin/Logs/components/AuthenticationLogDetail.vue'
+import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
+import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'
 import authenticationLogs from '@/routes/core-panel/authentication-logs'
 import logsPage from '@/routes/core-panel/logs'
 import type {

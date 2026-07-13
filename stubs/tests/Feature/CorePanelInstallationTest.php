@@ -30,8 +30,8 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertFileExists(base_path('resources/js/layouts/components/AppPageHeader.vue'));
         $this->assertFileExists(base_path('resources/js/layouts/components/AppSidebar.vue'));
         $this->assertFileExists(base_path('resources/js/composables/useSidebar.ts'));
-        $this->assertFileExists(base_path('resources/js/pages/Admin/Administration/Index.vue'));
-        $this->assertFileExists(base_path('resources/js/pages/Admin/Dashboard/Index.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/pages/Admin/Administration/Index.vue'));
+        $this->assertFileDoesNotExist(base_path('resources/js/pages/Admin/Dashboard/Index.vue'));
         $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
         $this->assertFileExists(base_path('app/Http/Middleware/TrackUserPresence.php'));
         $this->assertFileExists(base_path('database/migrations/users/0001_01_01_000000_create_users_table.php'));
@@ -50,7 +50,9 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertStringContainsString('const lazyLanguageModules = import.meta.glob<{', $appEntry);
         $this->assertStringContainsString('default: Record<string, string>', $appEntry);
         $this->assertStringContainsString('`../../lang/php_${lang}.json`', $appEntry);
-        $this->assertStringContainsString('pages[`./pages/Admin/${name}.vue`]', $appEntry);
+        $this->assertStringContainsString('const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(', $appEntry);
+        $this->assertStringContainsString('../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue', $appEntry);
+        $this->assertStringContainsString('resolve: (name) => resolvePage(name)', $appEntry);
         $this->assertStringContainsString('ToastService', $pluginEntry);
         $this->assertStringContainsString('ConfirmationService', $pluginEntry);
         $this->assertStringContainsString("import AppHeader from '@/layouts/components/AppHeader.vue'", $layoutEntry);

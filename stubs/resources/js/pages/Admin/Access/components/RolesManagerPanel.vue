@@ -7,7 +7,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useDialog } from 'primevue/usedialog'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
-import RoleCreateDialog from '@/pages/Admin/Roles/components/RoleCreateDialog.vue'
+import RoleCreateDialog from '@core-panel/pages/Admin/Roles/components/RoleCreateDialog.vue'
 import { useCan } from '@core-panel/composables/useCan'
 import permissionRoutes from '@/routes/core-panel/permissions'
 import roleRoutes from '@/routes/core-panel/roles'

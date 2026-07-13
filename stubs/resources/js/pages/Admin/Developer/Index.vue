@@ -6,7 +6,7 @@ import { trans } from 'laravel-vue-i18n'
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import RouteListTab from '@/pages/Admin/Developer/components/RouteListTab.vue'
+import RouteListTab from '@core-panel/pages/Admin/Developer/components/RouteListTab.vue'
 import developer from '@/routes/core-panel/developer'
 import type {
     DeveloperRouteTabPayload,

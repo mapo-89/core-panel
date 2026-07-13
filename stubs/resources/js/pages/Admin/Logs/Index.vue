@@ -8,9 +8,9 @@ import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
 import { useCan } from '@core-panel/composables/useCan'
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import ActivityLogsTab from '@/pages/Admin/Logs/components/ActivityLogsTab.vue'
-import AuthenticationLogsTab from '@/pages/Admin/Logs/components/AuthenticationLogsTab.vue'
-import LogFilesTab from '@/pages/Admin/Logs/components/LogFilesTab.vue'
+import ActivityLogsTab from '@core-panel/pages/Admin/Logs/components/ActivityLogsTab.vue'
+import AuthenticationLogsTab from '@core-panel/pages/Admin/Logs/components/AuthenticationLogsTab.vue'
+import LogFilesTab from '@core-panel/pages/Admin/Logs/components/LogFilesTab.vue'
 import type {
     ActivityLogRecord,
     AuthenticationLogRecord,

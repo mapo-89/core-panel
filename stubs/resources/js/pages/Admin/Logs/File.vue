@@ -8,7 +8,7 @@ import { useToast } from 'primevue/usetoast'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
+import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
 import logFiles from '@/routes/core-panel/log-files'
 import logsPage from '@/routes/core-panel/logs'
 import type {

@@ -7,9 +7,9 @@ import { useToast } from 'primevue/usetoast'
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import activity from '@/routes/core-panel/activity'
 import logsPage from '@/routes/core-panel/logs'
-import ActivityLogDetail from '@/pages/Admin/Logs/components/ActivityLogDetail.vue'
-import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
-import LogUserAvatar from '@/pages/Admin/Logs/components/LogUserAvatar.vue'
+import ActivityLogDetail from '@core-panel/pages/Admin/Logs/components/ActivityLogDetail.vue'
+import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
+import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'
 import type {
     ActivityLogRecord,
     DataTablePagination,

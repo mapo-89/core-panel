@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3'
 
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import ApiTokenManager from '@/pages/Admin/ApiTokens/components/ApiTokenManager.vue'
+import ApiTokenManager from '@core-panel/pages/Admin/ApiTokens/components/ApiTokenManager.vue'
 import type {
     ApiTokenRecord,
     FormOptionRecord,

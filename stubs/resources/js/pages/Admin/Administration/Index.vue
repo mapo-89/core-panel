@@ -6,9 +6,9 @@ import { computed, markRaw, ref } from 'vue'
 import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'
 
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
-import DatabaseBackupsTab from '@/pages/Admin/Administration/components/DatabaseBackupsTab.vue'
-import HorizonTab from '@/pages/Admin/Administration/components/HorizonTab.vue'
-import SystemUpdatesTab from '@/pages/Admin/Administration/components/SystemUpdatesTab.vue'
+import DatabaseBackupsTab from '@core-panel/pages/Admin/Administration/components/DatabaseBackupsTab.vue'
+import HorizonTab from '@core-panel/pages/Admin/Administration/components/HorizonTab.vue'
+import SystemUpdatesTab from '@core-panel/pages/Admin/Administration/components/SystemUpdatesTab.vue'
 import type { TabsSchema } from '@core-panel/types/core-panel'
 
 type DatabaseBackup = {

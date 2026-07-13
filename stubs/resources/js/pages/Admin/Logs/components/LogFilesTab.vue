@@ -5,7 +5,7 @@ import { trans } from 'laravel-vue-i18n'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
-import LogBadge from '@/pages/Admin/Logs/components/LogBadge.vue'
+import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
 import logFiles from '@/routes/core-panel/log-files'
 import logsPage from '@/routes/core-panel/logs'
 import type {

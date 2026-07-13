@@ -17,6 +17,7 @@ final readonly class VendorFirstAssetMigrator
         'resources/js/components/' => 'core-panel-components',
         'resources/js/composables/' => 'core-panel-components',
         'resources/js/layouts/' => 'core-panel-components',
+        'resources/js/pages/' => 'core-panel-components',
         'resources/js/plugins/' => 'core-panel-components',
         'resources/js/support/' => 'core-panel-components',
         'resources/js/theme/core-panel/' => 'core-panel-theme',

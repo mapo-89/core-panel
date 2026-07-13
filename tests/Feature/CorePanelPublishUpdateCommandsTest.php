@@ -82,7 +82,7 @@ function versionedUpdateScaffoldPaths(): array
     return $paths[1];
 }
 
-it('versions the user record type scaffold with the user management views', function (): void {
+it('versions the managed update scaffolds that still require host copies', function (): void {
     expect(versionedUpdateScaffoldPaths())->toContain(
         '.env.example',
         'bootstrap/app.php',
@@ -98,58 +98,46 @@ it('versions the user record type scaffold with the user management views', func
         'lang/de/page-users.php',
         'lang/en/page-users.php',
         'resources/css/app.css',
-        'resources/js/pages/Admin/Administration/Index.vue',
-        'resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue',
-        'resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue',
-        'resources/js/pages/Admin/Administration/components/HorizonTab.vue',
-        'resources/js/pages/Admin/Logs/File.vue',
-        'resources/js/pages/Admin/Logs/Index.vue',
-        'resources/js/pages/Admin/Logs/components/LogFilesTab.vue',
         'resources/js/routes/core-panel/log-files.ts',
         'routes/web/admin/administration.php',
         'routes/web/admin/logs.php',
         'routes/console.php',
-        'resources/js/pages/Admin/Users/Index.vue',
-        'resources/js/pages/Admin/Users/Show.vue',
-        'resources/js/pages/Admin/Users/components/UserSecurityTab.vue',
-        'resources/js/pages/Admin/Users/components/UserSessionsTab.vue',
-        'resources/js/pages/Admin/Users/components/UsersTableTab.vue',
         'resources/views/app.blade.php',
     );
 });
 
-it('creates missing administration scaffolds during update for existing applications', function (): void {
+it('keeps vendor-first administration pages absent during update for existing applications', function (): void {
     $basePath = makePublishBasePath('administration-missing-scaffold');
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($basePath.'/resources/js/pages/Admin/Administration/Index.vue'))->toBeTrue()
-        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue'))->toBeTrue()
-        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue'))->toBeTrue()
-        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/HorizonTab.vue'))->toBeTrue()
+    expect(file_exists($basePath.'/resources/js/pages/Admin/Administration/Index.vue'))->toBeFalse()
+        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue'))->toBeFalse()
+        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue'))->toBeFalse()
+        ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/HorizonTab.vue'))->toBeFalse()
         ->and(file_exists($basePath.'/routes/web/admin/administration.php'))->toBeTrue()
         ->and(file_exists($basePath.'/routes/console.php'))->toBeTrue();
 });
 
-it('updates untracked administration scaffolds with a backup during versioned updates', function (): void {
+it('updates untracked administration route scaffolds with a backup during versioned updates', function (): void {
     $basePath = makePublishBasePath('administration-untracked-scaffold');
-    $target = $basePath.'/resources/js/pages/Admin/Administration/Index.vue';
+    $target = $basePath.'/routes/web/admin/administration.php';
 
     mkdir(dirname($target), 0777, true);
-    file_put_contents($target, "<template>\n    <div>legacy administration page</div>\n</template>\n");
+    file_put_contents($target, "<?php\n\n// legacy administration route scaffold\n");
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    $backups = glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Administration/Index.vue');
+    $backups = glob($basePath.'/.core-panel-backups/*/routes/web/admin/administration.php');
 
     expect($backups)->not->toBeFalse()
         ->and($backups)->not->toBeEmpty()
-        ->and(file_get_contents($target))->toContain("trans('administration.title')")
-        ->and(file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain('resources/js/pages/Admin/Administration/Index.vue');
+        ->and(file_get_contents($target))->toContain('AdministrationController::class')
+        ->and(file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain('routes/web/admin/administration.php');
 });
 
 it('publishes a single config tag', function (): void {
@@ -313,15 +301,18 @@ it('migrates unchanged scaffold-managed frontend overlays back to vendor assets'
     $basePath = makePublishBasePath('vendor-first-scaffold-clean');
     $componentRelativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';
     $layoutRelativePath = 'resources/js/layouts/AppLayout.vue';
+    $pageRelativePath = 'resources/js/pages/Admin/Dashboard/Index.vue';
     $themeRelativePath = 'resources/js/theme/core-panel/tokens.ts';
 
     $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
     $layoutContents = (string) file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
+    $pageContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
     $themeContents = (string) file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/tokens.ts');
 
     foreach ([
         $componentRelativePath => $componentContents,
         $layoutRelativePath => $layoutContents,
+        $pageRelativePath => $pageContents,
         $themeRelativePath => $themeContents,
     ] as $relativePath => $contents) {
         $target = $basePath.'/'.$relativePath;
@@ -333,6 +324,7 @@ it('migrates unchanged scaffold-managed frontend overlays back to vendor assets'
     seedScaffoldManifestFiles($basePath, [
         $componentRelativePath => $componentContents,
         $layoutRelativePath => $layoutContents,
+        $pageRelativePath => $pageContents,
         $themeRelativePath => $themeContents,
     ]);
 
@@ -343,9 +335,11 @@ it('migrates unchanged scaffold-managed frontend overlays back to vendor assets'
 
     expect(file_exists($basePath.'/'.$componentRelativePath))->toBeFalse()
         ->and(file_exists($basePath.'/'.$layoutRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$pageRelativePath))->toBeFalse()
         ->and(file_exists($basePath.'/'.$themeRelativePath))->toBeFalse()
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($componentRelativePath)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($layoutRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($pageRelativePath)
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($themeRelativePath);
 });
 
@@ -655,12 +649,12 @@ it('creates explicitly versioned missing application scaffolds during updates', 
 it('fully synchronizes local application scaffolds during updates', function (): void {
     $basePath = makePublishBasePath('local-full-scaffold-sync');
     $originalEnvironment = app()->environment();
-    $existingTarget = $basePath.'/resources/js/pages/Admin/Administration/Index.vue';
-    $missingTarget = $basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue';
-    $sourcePage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Administration/Index.vue');
+    $existingTarget = $basePath.'/routes/web/admin/administration.php';
+    $missingTarget = $basePath.'/routes/web/admin/system-updates.php';
+    $sourcePage = file_get_contents(__DIR__.'/../../routes/web/admin/administration.php');
 
     mkdir(dirname($existingTarget), 0777, true);
-    file_put_contents($existingTarget, "<template>\n    <div>custom local administration page</div>\n</template>\n");
+    file_put_contents($existingTarget, "<?php\n\n// custom local administration routes\n");
 
     app()->instance('env', 'local');
 
@@ -674,10 +668,10 @@ it('fully synchronizes local application scaffolds during updates', function ():
 
     expect(file_exists($existingTarget))->toBeTrue()
         ->and(file_get_contents($existingTarget))->toBe($sourcePage)
-        ->and(file_get_contents($existingTarget))->not->toContain('custom local administration page')
+        ->and(file_get_contents($existingTarget))->not->toContain('custom local administration routes')
         ->and(file_exists($missingTarget))->toBeTrue()
-        ->and(file_get_contents($missingTarget))->toContain('const restoreForm = useForm({')
-        ->and(glob($basePath.'/.core-panel-backups/*/resources/js/pages/Admin/Administration/Index.vue'))
+        ->and(file_get_contents($missingTarget))->toContain('SystemUpdateController::class')
+        ->and(glob($basePath.'/.core-panel-backups/*/routes/web/admin/administration.php'))
         ->not->toBeEmpty();
 });
 

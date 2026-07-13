@@ -11,7 +11,7 @@ import {
 } from '@core-panel/components/FormBuilder/passwordRequirements'
 import type { FormSchema } from '@core-panel/components/FormBuilder/types'
 
-import UserAvatarInput from '@/pages/Admin/Users/components/UserAvatarInput.vue'
+import UserAvatarInput from '@core-panel/pages/Admin/Users/components/UserAvatarInput.vue'
 import type { RoleRecord, UserCapabilities } from '@core-panel/types/core-panel'
 
 type UserFormShape = {

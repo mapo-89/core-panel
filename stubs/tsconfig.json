@@ -8,6 +8,10 @@
         "noEmit": true,
         "paths": {
             "@/*": ["./resources/js/*"],
+            "@core-panel/pages/*": [
+                "./resources/js/pages/*",
+                "./vendor/mapo-89/core-panel/stubs/resources/js/pages/*"
+            ],
             "@core-panel/*": [
                 "../resources/js/*",
                 "./resources/js/*",

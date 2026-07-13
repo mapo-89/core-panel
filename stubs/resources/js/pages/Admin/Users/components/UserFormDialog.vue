@@ -5,7 +5,7 @@ import { inject } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
-import UserFormFields from '@/pages/Admin/Users/components/UserFormFields.vue'
+import UserFormFields from '@core-panel/pages/Admin/Users/components/UserFormFields.vue'
 import users from '@/routes/core-panel/users'
 import type {
     RoleRecord,

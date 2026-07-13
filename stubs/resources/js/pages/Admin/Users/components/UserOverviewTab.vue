@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
-import ProfileAvatarUpload from '@/pages/Admin/Settings/components/ProfileAvatarUpload.vue'
+import ProfileAvatarUpload from '@core-panel/pages/Admin/Settings/components/ProfileAvatarUpload.vue'
 import type { UserCapabilities, UserRecord } from '@core-panel/types/core-panel'
 
 const props = defineProps<{
