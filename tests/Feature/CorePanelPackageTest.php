@@ -1230,6 +1230,21 @@ it('ships package mail translations instead of scaffolding host json copies', fu
         ->and($serviceProvider)->toContain("->text('core-panel::emails.notifications.default-text'");
 });
 
+it('keeps auth password and validation translations in package resources instead of stub lang sources', function (): void {
+    expect(file_exists(__DIR__.'/../../stubs/lang/de/auth.php'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/lang/de/passwords.php'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/lang/de/validation.php'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/lang/en/auth.php'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/lang/en/passwords.php'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../stubs/lang/en/validation.php'))->toBeFalse()
+        ->and(file_exists(__DIR__.'/../../resources/lang/de/auth.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../resources/lang/de/passwords.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../resources/lang/de/validation.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../resources/lang/en/auth.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../resources/lang/en/passwords.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../resources/lang/en/validation.php'))->toBeTrue();
+});
+
 it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 browser origin', function (): void {
     $contents = file_get_contents(__DIR__.'/../../stubs/vite.config.ts');
 
