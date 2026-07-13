@@ -9,10 +9,25 @@ use Illuminate\Filesystem\Filesystem;
 
 final readonly class VendorFirstAssetMigrator
 {
+    /**
+     * @var array<string, string>
+     */
+    private const LEGACY_SCAFFOLD_PREFIX_TAGS = [
+        'resources/js/assets/' => 'core-panel-components',
+        'resources/js/components/' => 'core-panel-components',
+        'resources/js/composables/' => 'core-panel-components',
+        'resources/js/layouts/' => 'core-panel-components',
+        'resources/js/plugins/' => 'core-panel-components',
+        'resources/js/support/' => 'core-panel-components',
+        'resources/js/theme/core-panel/' => 'core-panel-theme',
+        'resources/js/types/' => 'core-panel-components',
+    ];
+
     public function __construct(
         private Filesystem $files,
         private BackupManager $backups,
         private PublishedAssetManifest $manifest,
+        private ScaffoldManifest $scaffolds,
     ) {}
 
     /**
@@ -29,6 +44,8 @@ final readonly class VendorFirstAssetMigrator
         $root = $basePath ?? base_path();
         $manifest = $this->manifest->read($root);
         $updatedManifest = $manifest;
+        $scaffoldManifest = $this->scaffolds->read($root);
+        $updatedScaffoldManifest = $scaffoldManifest;
         $changes = [];
         $backupsCreated = false;
         $themeMigrationHint = false;
@@ -104,8 +121,84 @@ final readonly class VendorFirstAssetMigrator
             }
         }
 
+        foreach ($scaffoldManifest['files'] as $relativePath => $entry) {
+            $tag = $this->scaffoldTag($relativePath);
+
+            if ($tag === null || ! in_array($tag, $tags, true)) {
+                continue;
+            }
+
+            $destination = $root.'/'.$relativePath;
+            $source = $this->scaffoldSourcePath($relativePath, $root, $entry['snapshot']);
+
+            if (! $this->files->exists($destination)) {
+                unset($updatedScaffoldManifest['files'][$relativePath]);
+
+                $changes[] = $this->change(
+                    $tag,
+                    'pruned',
+                    $source,
+                    $destination,
+                    'legacy scaffold override already absent; vendor asset will be used',
+                );
+
+                if ($tag === 'core-panel-theme') {
+                    $themeMigrationHint = true;
+                }
+
+                continue;
+            }
+
+            $destinationHash = $this->scaffoldHash($destination);
+            $hasLocalChanges = $entry['destination_hash'] !== $destinationHash;
+
+            if ($hasLocalChanges && ! $force) {
+                $changes[] = $this->change(
+                    $tag,
+                    'conflict',
+                    $source,
+                    $destination,
+                    'local scaffold changes detected; keeping host override',
+                );
+
+                continue;
+            }
+
+            $status = $hasLocalChanges ? 'remove' : 'delete';
+            $reason = $hasLocalChanges
+                ? 'local scaffold override removed after backup; vendor asset will be used'
+                : 'legacy scaffold override removed; vendor asset will be used';
+
+            if ($dryRun) {
+                $changes[] = $this->change($tag, $status, $source, $destination, $reason);
+
+                if ($tag === 'core-panel-theme') {
+                    $themeMigrationHint = true;
+                }
+
+                continue;
+            }
+
+            if ($hasLocalChanges) {
+                $this->backups->backupPaths([$source => $destination], $root);
+                $backupsCreated = true;
+            }
+
+            $this->deletePath($destination);
+            unset($updatedScaffoldManifest['files'][$relativePath]);
+            $changes[] = $this->change($tag, $status, $source, $destination, $reason);
+
+            if ($tag === 'core-panel-theme') {
+                $themeMigrationHint = true;
+            }
+        }
+
         if (! $dryRun) {
             $this->manifest->write($root, $updatedManifest);
+
+            if ($updatedScaffoldManifest !== $scaffoldManifest) {
+                $this->scaffolds->write($root, $updatedScaffoldManifest);
+            }
         }
 
         return [
@@ -139,6 +232,33 @@ final readonly class VendorFirstAssetMigrator
         }
 
         return md5((string) $this->files->get($path));
+    }
+
+    private function scaffoldHash(string $path): string
+    {
+        return hash('sha256', (string) $this->files->get($path));
+    }
+
+    private function scaffoldTag(string $relativePath): ?string
+    {
+        foreach (self::LEGACY_SCAFFOLD_PREFIX_TAGS as $prefix => $tag) {
+            if (str_starts_with($relativePath, $prefix)) {
+                return $tag;
+            }
+        }
+
+        return null;
+    }
+
+    private function scaffoldSourcePath(string $relativePath, string $root, string $snapshot): string
+    {
+        $packagePath = dirname(__DIR__, 3).'/'.$relativePath;
+
+        if ($this->files->exists($packagePath)) {
+            return $packagePath;
+        }
+
+        return $root.'/'.$snapshot;
     }
 
     /**

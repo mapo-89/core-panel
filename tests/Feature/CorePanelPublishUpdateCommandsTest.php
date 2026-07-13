@@ -309,6 +309,90 @@ it('backs up locally modified published frontend overlays before migrating them 
         ->and(readManifest($basePath))->not->toContain('core-panel-components');
 });
 
+it('migrates unchanged scaffold-managed frontend overlays back to vendor assets', function (): void {
+    $basePath = makePublishBasePath('vendor-first-scaffold-clean');
+    $componentRelativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';
+    $layoutRelativePath = 'resources/js/layouts/AppLayout.vue';
+    $themeRelativePath = 'resources/js/theme/core-panel/tokens.ts';
+
+    $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
+    $layoutContents = (string) file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
+    $themeContents = (string) file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/tokens.ts');
+
+    foreach ([
+        $componentRelativePath => $componentContents,
+        $layoutRelativePath => $layoutContents,
+        $themeRelativePath => $themeContents,
+    ] as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        mkdir(dirname($target), 0777, true);
+        file_put_contents($target, $contents);
+    }
+
+    seedScaffoldManifestFiles($basePath, [
+        $componentRelativePath => $componentContents,
+        $layoutRelativePath => $layoutContents,
+        $themeRelativePath => $themeContents,
+    ]);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($basePath.'/'.$componentRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$layoutRelativePath))->toBeFalse()
+        ->and(file_exists($basePath.'/'.$themeRelativePath))->toBeFalse()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($componentRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($layoutRelativePath)
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($themeRelativePath);
+});
+
+it('keeps locally modified scaffold-managed frontend overlays unless vendor-first is forced', function (): void {
+    $basePath = makePublishBasePath('vendor-first-scaffold-conflict');
+    $relativePath = 'resources/js/layouts/AppLayout.vue';
+    $target = $basePath.'/'.$relativePath;
+    $contents = (string) file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $contents."\n<!-- local scaffold override -->\n");
+    seedScaffoldManifest($basePath, $relativePath, $contents);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--dry-run' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(1);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain($relativePath);
+});
+
+it('backs up locally modified scaffold-managed frontend overlays before migrating them back to vendor assets', function (): void {
+    $basePath = makePublishBasePath('vendor-first-scaffold-force');
+    $relativePath = 'resources/js/composables/useMenuBuilder.ts';
+    $target = $basePath.'/'.$relativePath;
+    $contents = (string) file_get_contents(__DIR__.'/../../resources/js/composables/useMenuBuilder.ts');
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $contents."\n// local scaffold override\n");
+    seedScaffoldManifest($basePath, $relativePath, $contents);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--force' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+    expect(file_exists($target))->toBeFalse()
+        ->and($backups)->not->toBeFalse()
+        ->and($backups)->not->toBeEmpty()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($relativePath);
+});
+
 it('adopts unmanaged published assets during force updates', function (): void {
     $basePath = makePublishBasePath('force-adopt-unmanaged');
     $target = $basePath.'/resources/js/components/FormBuilder/FormRenderer.vue';
