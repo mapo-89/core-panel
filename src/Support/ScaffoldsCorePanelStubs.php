@@ -55,6 +55,7 @@ final readonly class ScaffoldsCorePanelStubs
         'updater/Dockerfile',
         'updater/go.mod',
         'updater/main.go',
+        'lang/de/account-mail.php',
         'lang/de/administration.php',
         'lang/de/common.php',
         'lang/de/database_backups.php',
@@ -63,6 +64,7 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/de/page-users.php',
         'lang/de/page-user-groups.php',
         'lang/de/system_updates.php',
+        'lang/en/account-mail.php',
         'lang/en/administration.php',
         'lang/en/common.php',
         'lang/en/database_backups.php',
@@ -208,9 +210,7 @@ final readonly class ScaffoldsCorePanelStubs
                 $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
             }
 
-            $this->files->ensureDirectoryExists(dirname($destinationPath));
-            $this->files->copy($sourcePath, $destinationPath);
-            $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+            $this->writeScaffoldFile($relativePath, $sourcePath, $destinationPath, $root);
         }
     }
 
@@ -660,7 +660,17 @@ final readonly class ScaffoldsCorePanelStubs
             $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
         }
 
+        $this->writeScaffoldFile($relativePath, $sourcePath, $destinationPath, $root);
+    }
+
+    private function writeScaffoldFile(
+        string $relativePath,
+        string $sourcePath,
+        string $destinationPath,
+        string $root,
+    ): void {
         $this->files->ensureDirectoryExists(dirname($destinationPath));
+
         if ($relativePath === 'resources/css/app.css') {
             $this->files->put($destinationPath, $this->appCssContentsForHost($sourcePath, $root));
             $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);

@@ -90,8 +90,10 @@ it('versions the managed update scaffolds that still require host copies', funct
         'updater/Dockerfile',
         'updater/go.mod',
         'updater/main.go',
+        'lang/de/account-mail.php',
         'lang/de/administration.php',
         'lang/de/page-log-files.php',
+        'lang/en/account-mail.php',
         'lang/en/administration.php',
         'lang/en/page-log-files.php',
         'lang/en/system_updates.php',
@@ -842,6 +844,37 @@ it('fully synchronizes local application scaffolds during updates', function ():
         ->not->toBeEmpty();
 });
 
+it('preserves local theme imports in app css during local full scaffold sync updates', function (): void {
+    $basePath = makePublishBasePath('local-full-scaffold-sync-theme-imports');
+    $originalEnvironment = app()->environment();
+    $themeRelativePath = 'resources/css/theme/_auth.css';
+    $themeTarget = $basePath.'/'.$themeRelativePath;
+    $sourceThemeContents = (string) file_get_contents(__DIR__.'/../../resources/css/theme/_auth.css');
+    $customizedThemeContents = $sourceThemeContents."\n.local-auth-override { color: red; }\n";
+
+    mkdir(dirname($themeTarget), 0777, true);
+    file_put_contents($basePath.'/resources/css/app.css', '/* legacy host app css */'."\n");
+    file_put_contents($themeTarget, $customizedThemeContents);
+    seedScaffoldManifest($basePath, $themeRelativePath, $sourceThemeContents);
+
+    app()->instance('env', 'local');
+
+    try {
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+    } finally {
+        app()->instance('env', $originalEnvironment);
+    }
+
+    $appCss = (string) file_get_contents($basePath.'/resources/css/app.css');
+
+    expect($appCss)->toContain("@import '@core-panel/theme/core-panel/index.css';")
+        ->and($appCss)->toContain("@import './theme/_auth.css';")
+        ->and(file_get_contents($themeTarget))->toBe($customizedThemeContents)
+        ->and(glob($basePath.'/.core-panel-backups/*/resources/css/app.css'))->not->toBeEmpty();
+});
+
 it('creates explicitly versioned missing application scaffolds without per-file current manifest entries', function (): void {
     $basePath = makePublishBasePath('missing-versioned-scaffold-no-file-entry');
     $managedContents = "<?php\n\n// current managed console scaffold\n";
@@ -888,6 +921,23 @@ it('creates the versioned page-users translation scaffolds during updates', func
         ->and(file_get_contents($englishTarget))->toContain("'groups' => 'Groups'")
         ->and(file_exists($germanTarget))->toBeTrue()
         ->and(file_get_contents($germanTarget))->toContain("'groups' => 'Gruppen'");
+});
+
+it('creates the versioned account-mail translation scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-account-mail-translations');
+    $englishTarget = $basePath.'/lang/en/account-mail.php';
+    $germanTarget = $basePath.'/lang/de/account-mail.php';
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($englishTarget))->toBeTrue()
+        ->and(file_get_contents($englishTarget))->toContain("'subject' => 'Reset your password'")
+        ->and(file_exists($germanTarget))->toBeTrue()
+        ->and(file_get_contents($germanTarget))->toContain("'subject' => 'Passwort zurücksetzen'");
 });
 
 it('updates explicitly versioned existing application scaffolds without a previous baseline', function (): void {

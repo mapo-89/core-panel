@@ -265,10 +265,6 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         ], PublishTag::Theme->value);
 
         $this->publishes([
-            __DIR__.'/../stubs/core-panel' => base_path('stubs/core-panel'),
-        ], PublishTag::Stubs->value);
-
-        $this->publishes([
             __DIR__.'/../resources/views' => resource_path('views/vendor/core-panel'),
         ], PublishTag::Views->value);
     }

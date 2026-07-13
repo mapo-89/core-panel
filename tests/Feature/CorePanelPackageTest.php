@@ -351,7 +351,6 @@ it('registers the theme publish tag', function (): void {
 it('keeps internal stubs and vendor-first assets out of the default install and update publish groups', function (): void {
     expect(PublishTag::installTags())->toBe([])
         ->and(PublishTag::updateTags())->toBe([])
-        ->and(PublishTag::updateTags())->not->toContain(PublishTag::Stubs->value)
         ->and(PublishTag::updateTags())->not->toContain(PublishTag::Lang->value)
         ->and(PublishTag::updateTags())->not->toContain(PublishTag::Views->value)
         ->and(PublishTag::updateTags())->not->toContain(PublishTag::Components->value)

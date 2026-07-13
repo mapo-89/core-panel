@@ -15,7 +15,7 @@ final class PublishCommand extends Command
 
     protected $signature = 'core-panel:publish
         {tag? : Publish one CorePanel tag instead of all tags}
-        {--tag= : config|lang|components|theme|stubs|views}
+        {--tag= : config|lang|components|theme|views}
         {--force : Overwrite existing published files}
         {--base-path= : Override the target base path}';
 
