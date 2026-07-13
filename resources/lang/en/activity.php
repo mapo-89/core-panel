@@ -11,6 +11,7 @@ return [
         'subject_type' => 'Model',
     ],
     'created' => 'Created',
+    'database_backups.deleted' => 'Backup deleted',
     'description' => 'Audit trail for users, roles, tokens, forms, and access changes.',
     'deleted' => 'Deleted',
     'details_load_failed' => 'Activity details could not be loaded.',

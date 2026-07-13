@@ -11,6 +11,7 @@ return [
         'subject_type' => 'Modell',
     ],
     'created' => 'Erstellt',
+    'database_backups.deleted' => 'Backup gelöscht',
     'description' => 'Audit-Trail für Benutzer, Rollen, Tokens, Formulare und Zugriffsänderungen.',
     'deleted' => 'Gelöscht',
     'details_load_failed' => 'Aktivitätsdetails konnten nicht geladen werden.',

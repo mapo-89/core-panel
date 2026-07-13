@@ -76,6 +76,13 @@ function corePanelVendorFirst() {
     }
 }
 
+function hasCorePanelThemeOverride(): boolean {
+    return (
+        fs.existsSync(path.resolve(hostThemePath, 'index.ts')) &&
+        fs.existsSync(path.resolve(hostThemePath, 'index.css'))
+    )
+}
+
 export default defineConfig({
     resolve: {
         alias: [
@@ -85,7 +92,7 @@ export default defineConfig({
             },
             {
                 find: '@core-panel/theme/core-panel',
-                replacement: fs.existsSync(hostThemePath)
+                replacement: hasCorePanelThemeOverride()
                     ? hostThemePath
                     : packageThemePath,
             },
