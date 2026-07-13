@@ -349,6 +349,40 @@ it('migrates unchanged scaffold-managed frontend overlays back to vendor assets'
         ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($themeRelativePath);
 });
 
+it('migrates unchanged scaffold-managed frontend overlays from legacy flat scaffold manifests', function (): void {
+    $basePath = makePublishBasePath('vendor-first-scaffold-flat-manifest');
+    $relativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';
+    $contents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
+    $target = $basePath.'/'.$relativePath;
+    $sourceHash = hash('sha256', $contents);
+    $snapshotPath = 'storage/app/core-panel/scaffolds/'.$sourceHash;
+
+    mkdir(dirname($target), 0777, true);
+    mkdir(dirname($basePath.'/'.$snapshotPath), 0777, true);
+
+    file_put_contents($target, $contents);
+    file_put_contents($basePath.'/'.$snapshotPath, $contents);
+    file_put_contents($basePath.'/storage/app/core-panel/scaffolds.json', json_encode([
+        '_meta' => [
+            'package_version' => '1.0.0',
+        ],
+        $relativePath => [
+            'destination_hash' => $sourceHash,
+            'package_version' => '1.0.0',
+            'snapshot' => $snapshotPath,
+            'source_hash' => $sourceHash,
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--vendor-first' => true,
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeFalse()
+        ->and((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->not->toContain($relativePath);
+});
+
 it('migrates stale scaffold-managed frontend overlays before publish updates can report vendor-first conflicts', function (): void {
     $basePath = makePublishBasePath('vendor-first-scaffold-before-publish');
     $relativePath = 'resources/js/components/FormBuilder/FormRenderer.vue';

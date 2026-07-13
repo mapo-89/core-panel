@@ -32,21 +32,56 @@ final readonly class ScaffoldManifest
             ];
         }
 
-        /** @var array{
-         *     _meta?: array{package_version?: string|null},
-         *     files?: array<string, array{
-         *         destination_hash:string,
-         *         package_version:string,
-         *         snapshot:string,
-         *         source_hash:string
-         *     }>
-         * } $decoded
-         */
+        /** @var array<string, mixed> $decoded */
         $decoded = json_decode((string) $this->files->get($path), true, flags: JSON_THROW_ON_ERROR);
 
+        $meta = $decoded['_meta'] ?? null;
+        $packageVersion = is_array($meta) && is_string($meta['package_version'] ?? null)
+            ? $meta['package_version']
+            : null;
+        $nestedFiles = $decoded['files'] ?? null;
+
+        if (is_array($nestedFiles)) {
+            return [
+                'package_version' => $packageVersion,
+                'files' => $nestedFiles,
+            ];
+        }
+
+        $files = [];
+
+        foreach ($decoded as $relativePath => $entry) {
+            if ($relativePath === '_meta' || ! is_array($entry)) {
+                continue;
+            }
+
+            $normalizedEntry = array_filter(
+                $entry,
+                static fn (mixed $value): bool => is_string($value),
+            );
+
+            if (
+                ! isset(
+                    $normalizedEntry['destination_hash'],
+                    $normalizedEntry['package_version'],
+                    $normalizedEntry['snapshot'],
+                    $normalizedEntry['source_hash'],
+                )
+            ) {
+                continue;
+            }
+
+            $files[$relativePath] = [
+                'destination_hash' => $normalizedEntry['destination_hash'],
+                'package_version' => $normalizedEntry['package_version'],
+                'snapshot' => $normalizedEntry['snapshot'],
+                'source_hash' => $normalizedEntry['source_hash'],
+            ];
+        }
+
         return [
-            'package_version' => $decoded['_meta']['package_version'] ?? null,
-            'files' => $decoded['files'] ?? [],
+            'package_version' => $packageVersion,
+            'files' => $files,
         ];
     }
 
