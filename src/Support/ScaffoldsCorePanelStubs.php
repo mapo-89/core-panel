@@ -303,6 +303,10 @@ final readonly class ScaffoldsCorePanelStubs
             return __DIR__.'/../../'.$relativePath;
         }
 
+        if (str_starts_with($relativePath, 'resources/css/')) {
+            return __DIR__.'/../../'.$relativePath;
+        }
+
         if (str_starts_with($relativePath, 'lang/')) {
             return __DIR__.'/../../resources/'.$relativePath;
         }

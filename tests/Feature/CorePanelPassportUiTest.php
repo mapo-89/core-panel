@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 it('ships an oauth clients page that uses wayfinder and the shared form renderer', function (): void {
-    $page = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/OAuthClients/Index.vue');
+    $page = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/OAuthClients/Index.vue');
 
     expect($page)->toContain("import oauthClients from '@/routes/core-panel/oauth-clients'")
         ->and($page)->toContain('<DataTable')

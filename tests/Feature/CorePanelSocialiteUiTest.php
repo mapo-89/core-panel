@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 it('ships social login buttons in the login page and linked account actions in security settings', function (): void {
-    $login = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Login.vue');
-    $authConflictPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/SocialAccountConflict.vue');
+    $login = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Login.vue');
+    $authConflictPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/SocialAccountConflict.vue');
     $avatarSyncDialog = file_get_contents(__DIR__.'/../../resources/js/components/Auth/SocialAvatarSyncDialog.vue');
     $conflictDialog = file_get_contents(__DIR__.'/../../resources/js/components/Auth/SocialAccountConflictDialog.vue');
     $appLayout = file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
-    $connections = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
-    $conflictPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/SocialAccountConflict.vue');
-    $providerConnectionCard = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue');
-    $authSettingsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
+    $connections = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
+    $conflictPage = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/SocialAccountConflict.vue');
+    $providerConnectionCard = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue');
+    $authSettingsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
     $fortifyProvider = file_get_contents(__DIR__.'/../../stubs/app/Providers/FortifyServiceProvider.php');
     $callbackController = file_get_contents(__DIR__.'/../../src/Http/Controllers/Auth/SocialiteCallbackController.php');
 

@@ -326,8 +326,8 @@ it('supports dedicated vendor-first cleanup for scaffold-managed frontend overla
 }
 JSON;
     $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
-    $cssContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_auth.css');
-    $pageContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
+    $cssContents = (string) file_get_contents(__DIR__.'/../../resources/css/theme/_auth.css');
+    $pageContents = (string) file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Dashboard/Index.vue');
     $themeContents = (string) file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/tokens.ts');
     $viewContents = (string) file_get_contents(__DIR__.'/../../resources/views/app.blade.php');
 
@@ -407,7 +407,7 @@ it('migrates unchanged scaffold-managed frontend overlays back to vendor assets'
 
     $componentContents = (string) file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
     $layoutContents = (string) file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
-    $pageContents = (string) file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
+    $pageContents = (string) file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Dashboard/Index.vue');
     $themeContents = (string) file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/tokens.ts');
 
     foreach ([

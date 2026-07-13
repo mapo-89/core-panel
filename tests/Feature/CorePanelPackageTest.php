@@ -56,10 +56,10 @@ function publishedJavascriptAssetDirectories(string $basePath): array
         'resources/js/components/FormBuilder' => $basePath.'/resources/js/components/FormBuilder',
         'resources/js/components/TabBuilder' => $basePath.'/resources/js/components/TabBuilder',
         'resources/js/components/TableBuilder' => $basePath.'/resources/js/components/TableBuilder',
-        'stubs/resources/js/pages/Admin/Users/components' => $basePath.'/resources/js/pages/Admin/Users/components',
+        'resources/js/pages/Admin/Users/components' => $basePath.'/resources/js/pages/Admin/Users/components',
         'resources/js/composables' => $basePath.'/resources/js/composables',
         'resources/js/layouts' => $basePath.'/resources/js/layouts',
-        'stubs/resources/js/pages' => $basePath.'/resources/js/pages',
+        'resources/js/pages' => $basePath.'/resources/js/pages',
         'resources/js/plugins' => $basePath.'/resources/js/plugins',
         'stubs/resources/js/routes' => $basePath.'/resources/js/routes',
         'resources/js/support' => $basePath.'/resources/js/support',
@@ -170,7 +170,7 @@ it('ships tenancy route helpers in the core scaffold', function (): void {
 });
 
 it('retranslates held login validation errors on locale changes in the auth scaffold', function (): void {
-    $contents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Login.vue');
+    $contents = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Login.vue');
     $helper = file_get_contents(__DIR__.'/../../resources/js/composables/useTranslatedAuthErrors.ts');
 
     expect($helper)->toContain('export function useTranslatedAuthErrors<TField extends string>(')
@@ -197,7 +197,7 @@ it('uses the translated auth error helper across publishable auth pages', functi
     ];
 
     foreach ($pages as $page) {
-        $contents = file_get_contents(__DIR__."/../../stubs/resources/js/pages/Auth/{$page}");
+        $contents = file_get_contents(__DIR__."/../../resources/js/pages/Auth/{$page}");
 
         expect($contents)->toContain("import { useTranslatedAuthErrors } from '@core-panel/composables/useTranslatedAuthErrors'")
             ->and($contents)->toContain('translatedAuthError(');
@@ -426,7 +426,7 @@ it('renders the publishable logs tabs through the shared table builder surface',
         'LogFilesTab.vue',
     ] as $component) {
         $contents = file_get_contents(
-            __DIR__."/../../stubs/resources/js/pages/Admin/Logs/components/{$component}",
+            __DIR__."/../../resources/js/pages/Admin/Logs/components/{$component}",
         );
 
         $expectation = expect($contents)->toContain(
@@ -451,7 +451,7 @@ it('renders the publishable logs tabs through the shared table builder surface',
     }
 
     $activityDetail = file_get_contents(
-        __DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/ActivityLogDetail.vue',
+        __DIR__.'/../../resources/js/pages/Admin/Logs/components/ActivityLogDetail.vue',
     );
 
     expect($activityDetail)->toContain("import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'")
@@ -464,7 +464,7 @@ it('renders the publishable logs tabs through the shared table builder surface',
 
     $logsController = file_get_contents(__DIR__.'/../../src/Http/Controllers/Logs/LogController.php');
     $activityTab = file_get_contents(
-        __DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/ActivityLogsTab.vue',
+        __DIR__.'/../../resources/js/pages/Admin/Logs/components/ActivityLogsTab.vue',
     );
 
     expect($logsController)->toContain("return __('activity.models.user');")
@@ -476,10 +476,10 @@ it('renders the publishable logs tabs through the shared table builder surface',
 
 it('renders the publishable logs page with the vertical side-tab layout', function (): void {
     $contents = file_get_contents(
-        __DIR__.'/../../stubs/resources/js/pages/Admin/Logs/Index.vue',
+        __DIR__.'/../../resources/js/pages/Admin/Logs/Index.vue',
     );
     $tabsTheme = file_get_contents(
-        __DIR__.'/../../stubs/resources/css/theme/_tabs.css',
+        __DIR__.'/../../resources/css/theme/_tabs.css',
     );
 
     expect($contents)->toContain(":title=\"trans('page-logs.title')\"")
@@ -576,7 +576,7 @@ it('persists and toggles dark mode in the publishable layout assets', function (
 it('keeps publishable vue assets free of hardcoded color values', function (): void {
     $files = [
         __DIR__.'/../../resources/js/layouts/AppLayout.vue',
-        __DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue',
+        __DIR__.'/../../resources/js/pages/Admin/Dashboard/Index.vue',
     ];
 
     foreach ($files as $file) {
@@ -597,7 +597,7 @@ it('allows the host application to override the published theme', function (): v
 
 it('registers the PrimeVue toggle switch used by the auth settings tab', function (): void {
     $entry = file_get_contents(__DIR__.'/../../resources/js/plugins/core-panel.ts');
-    $authSettingsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
+    $authSettingsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
 
     expect($authSettingsTab)->toContain('<ToggleSwitch')
         ->and($entry)->toContain("import ToggleSwitch from 'primevue/toggleswitch'")
@@ -1023,11 +1023,9 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($frontendQualityScript)->toContain('copy_vendor_first_core_panel_runtime()')
         ->and($frontendQualityScript)->toContain('mkdir -p "${workspace}/vendor/mapo-89/core-panel/resources"')
         ->and($frontendQualityScript)->toContain('"${workspace}/vendor/mapo-89/core-panel/config"')
-        ->and($frontendQualityScript)->toContain('"${workspace}/vendor/mapo-89/core-panel/stubs/resources/js"')
         ->and($frontendQualityScript)->toContain('packages/core-panel/resources/js')
         ->and($frontendQualityScript)->toContain('${workspace}/vendor/mapo-89/core-panel/resources/')
-        ->and($frontendQualityScript)->toContain('packages/core-panel/stubs/resources/js/pages')
-        ->and($frontendQualityScript)->toContain('${workspace}/vendor/mapo-89/core-panel/stubs/resources/js/')
+        ->and($frontendQualityScript)->toContain('packages/core-panel/resources/css')
         ->and($frontendQualityScript)->toContain('packages/core-panel/config/app-version.json')
         ->and($frontendQualityScript)->toContain('${workspace}/vendor/mapo-89/core-panel/config/app-version.json')
         ->and($frontendQualityScript)->toContain('tar -C "${repo_root}/packages/core-panel-tenancy/stubs" -cf - . | tar -C "${workspace}" -xf -')
@@ -1255,13 +1253,13 @@ it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 br
         ->and($contents)->toContain("find: '@'")
         ->and($contents)->toContain("replacement: path.resolve(__dirname, 'resources/js')")
         ->and($contents)->toContain('vendor/mapo-89/core-panel/resources/js')
-        ->and($contents)->toContain('vendor/mapo-89/core-panel/stubs/resources/js/pages')
+        ->and($contents)->toContain('vendor/mapo-89/core-panel/resources/js/pages')
         ->and($contents)->toContain("name: 'core-panel-vendor-first'")
         ->and($contents)->toContain('resolveId(importee: string) {')
         ->and($contents)->toContain('return resolveCorePanelImport(importee)')
         ->and($contents)->toContain("const hostCandidate = path.resolve(hostJsPath, 'pages', relativePath)")
         ->and($contents)->toContain('const resolvedHostImport = resolveImportTarget(hostCandidate)')
-        ->and($contents)->toContain('path.resolve(packageStubPagesPath, relativePath)')
+        ->and($contents)->toContain('path.resolve(packagePagesPath, relativePath)')
         ->and($contents)->toContain('return resolveImportTarget(path.resolve(packageJsPath, relativePath))')
         ->and($contents)->toContain('function hasCorePanelThemeOverride(): boolean {')
         ->and($contents)->toContain("fs.existsSync(path.resolve(hostThemePath, 'index.ts'))")
@@ -1738,9 +1736,9 @@ it('removes legacy sass theme files when scaffolding a host application', functi
     expect(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '@core-panel/theme/core-panel/index.css';")
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/**/*.ts';")
         ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/**/*.vue';")
-        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue';")
-        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '../../vendor/mapo-89/core-panel/stubs/resources/css/theme/theme.css';")
-        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '../../vendor/mapo-89/core-panel/stubs/resources/css/theme/utilities.css';")
+        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@source '../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue';")
+        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '../../vendor/mapo-89/core-panel/resources/css/theme/theme.css';")
+        ->and(file_get_contents($temporaryBasePath.'/resources/css/app.css'))->toContain("@import '../../vendor/mapo-89/core-panel/resources/css/theme/utilities.css';")
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.scss'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/theme.scss'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/resources/css/theme/_auth.css'))->toBeFalse()
@@ -1806,15 +1804,15 @@ it('scaffolds ai, agent and claude support files into a host application', funct
 
 it('uses host-aware theme import paths in published javascript assets', function (): void {
     $appEntry = file_get_contents(__DIR__.'/../../resources/js/plugins/core-panel.ts');
-    $baseStyles = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_base.css');
+    $baseStyles = file_get_contents(__DIR__.'/../../resources/css/theme/_base.css');
     $colorModeComposable = file_get_contents(__DIR__.'/../../resources/js/composables/useColorMode.ts');
     $hostEntry = file_get_contents(__DIR__.'/../../stubs/resources/js/app.ts');
-    $forgotPasswordPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/ForgotPassword.vue');
-    $dashboardPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
-    $loginPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Login.vue');
-    $registerPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Register.vue');
-    $profileConnectionsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
-    $profileSecurityTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileSecurityTab.vue');
+    $forgotPasswordPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/ForgotPassword.vue');
+    $dashboardPage = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Dashboard/Index.vue');
+    $loginPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Login.vue');
+    $registerPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Register.vue');
+    $profileConnectionsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
+    $profileSecurityTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileSecurityTab.vue');
 
     expect($appEntry)->toContain("from '@core-panel/theme/core-panel'")
         ->and($colorModeComposable)->toContain("from '@core-panel/theme/core-panel'")
@@ -1824,7 +1822,7 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($hostEntry)->toContain('const hostPageModules = import.meta.glob<{ default: DefineComponent }>(')
         ->and($hostEntry)->toContain('const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(')
         ->and($hostEntry)->toContain(
-            '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue',
+            '../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue',
         )
         ->and($hostEntry)->toContain('function resolvePage(name: string): DefineComponent {')
         ->and($hostEntry)->toContain('return hostPage.default')
@@ -1858,11 +1856,11 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($loginPage)->toContain("from '@/routes/socialite'")
         ->and($loginPage)->not->toContain("from '@/routes/password'")
         ->and($loginPage)->toContain('href="/forgot-password"')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/TwoFactorChallenge.vue'))->toContain("import twoFactorLoginRoutes from '@/routes/two-factor/login'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Auth/TwoFactorChallenge.vue'))->toContain("import twoFactorLoginRoutes from '@/routes/two-factor/login'")
         ->and($registerPage)->not->toContain("from '@/routes/auth'")
         ->and($registerPage)->toContain('href="/login"')
         ->and($loginPage)->not->toContain('SocialiteRedirectController')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue'))->toContain("from '@/routes/socialite'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue'))->toContain("from '@/routes/socialite'")
         ->and($profileSecurityTab)->toContain("from '@/routes/password/confirm'")
         ->and($profileConnectionsTab)->not->toContain('LinkSocialAccountController')
         ->and($profileConnectionsTab)->not->toContain('UnlinkSocialAccountController');
@@ -1891,8 +1889,8 @@ it('ships scaffold installation tests that expect vendor-first frontend assets',
 });
 
 it('renders the forgot-password action after the submit button while shifting with a status message', function (): void {
-    $loginPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Login.vue');
-    $authStyles = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_auth.css');
+    $loginPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Login.vue');
+    $authStyles = file_get_contents(__DIR__.'/../../resources/css/theme/_auth.css');
 
     expect($loginPage)->not->toBeFalse()
         ->and($authStyles)->not->toBeFalse();
@@ -1924,7 +1922,7 @@ it('renders the forgot-password action after the submit button while shifting wi
 });
 
 it('styles the two-factor otp inputs with readable sizing in the auth theme', function (): void {
-    $authStyles = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_auth.css');
+    $authStyles = file_get_contents(__DIR__.'/../../resources/css/theme/_auth.css');
 
     expect($authStyles)->toContain('.auth-form .p-inputotp {')
         ->and($authStyles)->toContain('.auth-form .p-inputotp-input.p-inputtext {')
@@ -1940,11 +1938,11 @@ it('ships shared live password requirement feedback for auth and admin password 
     $passwordRequirementsHelper = file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/passwordRequirements.ts');
     $formRenderer = file_get_contents(__DIR__.'/../../resources/js/components/FormBuilder/FormRenderer.vue');
     $translatedPassword = file_get_contents(__DIR__.'/../../resources/js/components/TranslatedPassword.vue');
-    $registerPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Register.vue');
-    $resetPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/ResetPassword.vue');
-    $profilePasswordTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfilePasswordTab.vue');
-    $userFormFields = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserFormFields.vue');
-    $utilitiesStyles = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/utilities.css');
+    $registerPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Register.vue');
+    $resetPage = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/ResetPassword.vue');
+    $profilePasswordTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfilePasswordTab.vue');
+    $userFormFields = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserFormFields.vue');
+    $utilitiesStyles = file_get_contents(__DIR__.'/../../resources/css/theme/utilities.css');
     $commonEn = file_get_contents(__DIR__.'/../../resources/lang/en/common.php');
     $commonDe = file_get_contents(__DIR__.'/../../resources/lang/de/common.php');
 
@@ -2285,38 +2283,38 @@ it('ships auth and settings inertia pages in the publishable package assets', fu
         'resources/js/assets/icons/microsoft.svg',
         'resources/js/components/Locale/LocaleSwitcher.vue',
         'resources/js/layouts/AuthLayout.vue',
-        'stubs/resources/js/pages/Admin/ApiTokens/Index.vue',
-        'stubs/resources/js/pages/Admin/Activity/Index.vue',
-        'stubs/resources/js/pages/Admin/Files/Index.vue',
-        'stubs/resources/js/pages/Auth/Login.vue',
-        'stubs/resources/js/pages/Auth/Register.vue',
-        'stubs/resources/js/pages/Auth/ForgotPassword.vue',
-        'stubs/resources/js/pages/Auth/ResetPassword.vue',
-        'stubs/resources/js/pages/Auth/VerifyEmail.vue',
-        'stubs/resources/js/pages/Auth/TwoFactorChallenge.vue',
-        'stubs/resources/js/pages/Admin/Roles/Index.vue',
-        'stubs/resources/js/pages/Admin/Users/Index.vue',
-        'stubs/resources/js/pages/Admin/Users/Create.vue',
-        'stubs/resources/js/pages/Admin/Users/Edit.vue',
-        'stubs/resources/js/pages/Admin/Users/Show.vue',
-        'stubs/resources/js/pages/Admin/Settings/Index.vue',
-        'stubs/resources/js/pages/Admin/Settings/Profile.vue',
-        'stubs/resources/js/pages/Admin/Settings/Security.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfileAvatarUpload.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfileInfoTab.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfilePasswordTab.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfileSecurityTab.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfileSessionsTab.vue',
-        'stubs/resources/js/pages/Admin/Settings/components/ProfileWorkspace.vue',
+        'resources/js/pages/Admin/ApiTokens/Index.vue',
+        'resources/js/pages/Admin/Activity/Index.vue',
+        'resources/js/pages/Admin/Files/Index.vue',
+        'resources/js/pages/Auth/Login.vue',
+        'resources/js/pages/Auth/Register.vue',
+        'resources/js/pages/Auth/ForgotPassword.vue',
+        'resources/js/pages/Auth/ResetPassword.vue',
+        'resources/js/pages/Auth/VerifyEmail.vue',
+        'resources/js/pages/Auth/TwoFactorChallenge.vue',
+        'resources/js/pages/Admin/Roles/Index.vue',
+        'resources/js/pages/Admin/Users/Index.vue',
+        'resources/js/pages/Admin/Users/Create.vue',
+        'resources/js/pages/Admin/Users/Edit.vue',
+        'resources/js/pages/Admin/Users/Show.vue',
+        'resources/js/pages/Admin/Settings/Index.vue',
+        'resources/js/pages/Admin/Settings/Profile.vue',
+        'resources/js/pages/Admin/Settings/Security.vue',
+        'resources/js/pages/Admin/Settings/components/ProfileAvatarUpload.vue',
+        'resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue',
+        'resources/js/pages/Admin/Settings/components/ProfileInfoTab.vue',
+        'resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue',
+        'resources/js/pages/Admin/Settings/components/ProfilePasswordTab.vue',
+        'resources/js/pages/Admin/Settings/components/ProfileSecurityTab.vue',
+        'resources/js/pages/Admin/Settings/components/ProfileSessionsTab.vue',
+        'resources/js/pages/Admin/Settings/components/ProfileWorkspace.vue',
     ];
 
     foreach ($pages as $page) {
         expect(file_exists(__DIR__.'/../../'.$page))->toBeTrue();
     }
 
-    $loginContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/Login.vue');
+    $loginContents = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Login.vue');
 
     expect($loginContents)->toContain("import microsoftIcon from '@core-panel/assets/icons/microsoft.svg'")
         ->and($loginContents)->toContain("import githubIcon from '@core-panel/assets/icons/github.svg'")
@@ -2331,20 +2329,20 @@ it('ships auth and settings inertia pages in the publishable package assets', fu
 });
 
 it('renders profile workspace tabs without forcing a shared panel surface', function (): void {
-    $workspaceContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileWorkspace.vue');
+    $workspaceContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileWorkspace.vue');
     $rendererContents = file_get_contents(__DIR__.'/../../resources/js/components/TabBuilder/TabsRenderer.vue');
-    $avatarContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileAvatarUpload.vue');
-    $profileConnectionsContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
-    $profileInfoContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileInfoTab.vue');
-    $providerConnectionContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue');
-    $profilePasswordContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfilePasswordTab.vue');
-    $profileSecurityContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileSecurityTab.vue');
-    $profileSessionsContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileSessionsTab.vue');
-    $challengeContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Auth/TwoFactorChallenge.vue');
+    $avatarContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileAvatarUpload.vue');
+    $profileConnectionsContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileConnectionsTab.vue');
+    $profileInfoContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileInfoTab.vue');
+    $providerConnectionContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue');
+    $profilePasswordContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfilePasswordTab.vue');
+    $profileSecurityContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileSecurityTab.vue');
+    $profileSessionsContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileSessionsTab.vue');
+    $challengeContents = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/TwoFactorChallenge.vue');
     $appLayoutContents = file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
     $authLayoutContents = file_get_contents(__DIR__.'/../../resources/js/layouts/AuthLayout.vue');
     $appToastContents = file_get_contents(__DIR__.'/../../resources/js/components/AppToast.vue');
-    $adminThemeContents = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_admin.css');
+    $adminThemeContents = file_get_contents(__DIR__.'/../../resources/css/theme/_admin.css');
     $germanCommonTranslations = file_get_contents(__DIR__.'/../../resources/lang/de/common.php');
     $germanPageSettingsTranslations = file_get_contents(__DIR__.'/../../resources/lang/de/page-settings.php');
     $germanPageUsersTranslations = file_get_contents(__DIR__.'/../../resources/lang/de/page-users.php');
@@ -2443,8 +2441,8 @@ it('renders profile workspace tabs without forcing a shared panel surface', func
 });
 
 it('defines the shared card surface globally in the admin theme', function (): void {
-    $themeContents = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_admin.css');
-    $rolesOverviewContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
+    $themeContents = file_get_contents(__DIR__.'/../../resources/css/theme/_admin.css');
+    $rolesOverviewContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
 
     expect($themeContents)->toContain('.cp-card {')
         ->and($themeContents)->toContain('.cp-avatar-upload__state--success {')
@@ -2457,15 +2455,15 @@ it('defines the shared card surface globally in the admin theme', function (): v
 });
 
 it('renders user management with a reference-style datatable shell and a table-only roles tab variant', function (): void {
-    $usersIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/Index.vue');
-    $logsIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/Index.vue');
-    $developerIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Developer/Index.vue');
-    $usersTableContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UsersTableTab.vue');
-    $userGroupsTabContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserGroupsTab.vue');
-    $userGroupFormContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/UserGroups/components/UserGroupForm.vue');
-    $userGroupImportContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/UserGroups/components/UserGroupImportForm.vue');
-    $restoreDialogContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue');
-    $rolesOverviewContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
+    $usersIndexContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Index.vue');
+    $logsIndexContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/Index.vue');
+    $developerIndexContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Developer/Index.vue');
+    $usersTableContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UsersTableTab.vue');
+    $userGroupsTabContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserGroupsTab.vue');
+    $userGroupFormContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/UserGroups/components/UserGroupForm.vue');
+    $userGroupImportContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/UserGroups/components/UserGroupImportForm.vue');
+    $restoreDialogContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue');
+    $rolesOverviewContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
     $dataTableContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/DataTable.vue');
     $useDataTableContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/useDataTable.ts');
     $packageAppIconContents = file_get_contents(__DIR__.'/../../resources/js/components/AppIcon.vue');
@@ -2473,9 +2471,9 @@ it('renders user management with a reference-style datatable shell and a table-o
     $tableActionsContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/TableActions.vue');
     $columnVisibilityContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/ColumnVisibilityDropdown.vue');
     $paginationContents = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/TablePagination.vue');
-    $datatableThemeContents = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_datatable.css');
+    $datatableThemeContents = file_get_contents(__DIR__.'/../../resources/css/theme/_datatable.css');
     $corePanelPluginContents = file_get_contents(__DIR__.'/../../resources/js/plugins/core-panel.ts');
-    $tabsThemeContents = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_tabs.css');
+    $tabsThemeContents = file_get_contents(__DIR__.'/../../resources/css/theme/_tabs.css');
     $tableBuilderGerman = file_get_contents(__DIR__.'/../../resources/lang/de/table-builder.php');
     $appIconContents = file_get_contents(__DIR__.'/../../resources/js/components/AppIcon.vue');
 
@@ -2663,13 +2661,13 @@ it('renders user management with a reference-style datatable shell and a table-o
 });
 
 it('uses the shared danger confirmation dialog for destructive admin table actions', function (): void {
-    $usersTableContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UsersTableTab.vue');
-    $userGroupsTabContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserGroupsTab.vue');
-    $rolesOverviewContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
-    $formsIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Forms/Index.vue');
-    $apiTokensContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
-    $oauthClientsContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/OAuthClients/Index.vue');
-    $filesIndexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Files/Index.vue');
+    $usersTableContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UsersTableTab.vue');
+    $userGroupsTabContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserGroupsTab.vue');
+    $rolesOverviewContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
+    $formsIndexContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Forms/Index.vue');
+    $apiTokensContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
+    $oauthClientsContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/OAuthClients/Index.vue');
+    $filesIndexContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Files/Index.vue');
 
     expect($usersTableContents)->toContain("import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'")
         ->and($usersTableContents)->toContain('<ConfirmActionDialog')
@@ -2704,18 +2702,18 @@ it('renders the datatable empty state without a subtitle line', function (): voi
 });
 
 it('styles confirm dialog button severities and layout affordances globally', function (): void {
-    $adminTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_admin.css');
-    $themeIndex = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/theme.css');
-    $formsTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_forms.css');
-    $navigationTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_navigation.css');
-    $menusTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_menus.css');
-    $dialogsTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_dialogs.css');
-    $overlaysTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_overlays.css');
-    $primeVueTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_primevue.css');
-    $toastTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_toast.css');
+    $adminTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_admin.css');
+    $themeIndex = file_get_contents(__DIR__.'/../../resources/css/theme/theme.css');
+    $formsTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_forms.css');
+    $navigationTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_navigation.css');
+    $menusTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_menus.css');
+    $dialogsTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_dialogs.css');
+    $overlaysTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_overlays.css');
+    $primeVueTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_primevue.css');
+    $toastTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_toast.css');
     $headerContents = file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppHeader.vue');
     $pluginContents = file_get_contents(__DIR__.'/../../resources/js/plugins/core-panel.ts');
-    $baseTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_base.css');
+    $baseTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_base.css');
     $runtimeTheme = file_get_contents(__DIR__.'/../../resources/js/theme/core-panel/index.ts');
 
     expect($adminTheme)->toContain('margin-inline: auto;')
@@ -2752,10 +2750,10 @@ it('styles confirm dialog button severities and layout affordances globally', fu
 });
 
 it('uses wayfinder-driven permission management endpoints in the roles page', function (): void {
-    $indexContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Roles/Index.vue');
-    $overviewContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
-    $managerContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesManagerPanel.vue');
-    $matrixContents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Roles/Matrix.vue');
+    $indexContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Roles/Index.vue');
+    $overviewContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Access/components/RolesOverviewPanel.vue');
+    $managerContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Access/components/RolesManagerPanel.vue');
+    $matrixContents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Roles/Matrix.vue');
 
     expect($indexContents)->toContain("import RolesOverviewPanel from '@core-panel/pages/Admin/Access/components/RolesOverviewPanel.vue'")
         ->and($indexContents)->toContain("import RoleCreateDialog from '@core-panel/pages/Admin/Roles/components/RoleCreateDialog.vue'")
@@ -2776,7 +2774,7 @@ it('uses wayfinder-driven permission management endpoints in the roles page', fu
 });
 
 it('uses wayfinder-driven file management endpoints in the files page', function (): void {
-    $contents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Files/Index.vue');
+    $contents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Files/Index.vue');
     $translations = file_get_contents(__DIR__.'/../../resources/lang/de/files.php');
     $layoutContents = file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
 
@@ -2819,19 +2817,19 @@ it('uses wayfinder-driven file management endpoints in the files page', function
 
 it('keeps the primary admin page wrappers fluid', function (): void {
     $pages = [
-        'stubs/resources/js/pages/Admin/Activity/Index.vue',
-        'stubs/resources/js/pages/Admin/ApiTokens/Index.vue',
-        'stubs/resources/js/pages/Admin/Dashboard/Index.vue',
-        'stubs/resources/js/pages/Admin/Files/Index.vue',
-        'stubs/resources/js/pages/Admin/Forms/Create.vue',
-        'stubs/resources/js/pages/Admin/Forms/Edit.vue',
-        'stubs/resources/js/pages/Admin/Forms/Index.vue',
-        'stubs/resources/js/pages/Admin/Forms/Preview.vue',
-        'stubs/resources/js/pages/Admin/Forms/Submissions.vue',
-        'stubs/resources/js/pages/Admin/Forms/Versions.vue',
-        'stubs/resources/js/pages/Admin/OAuthClients/Index.vue',
-        'stubs/resources/js/pages/Admin/Settings/Profile.vue',
-        'stubs/resources/js/pages/Admin/Settings/Security.vue',
+        'resources/js/pages/Admin/Activity/Index.vue',
+        'resources/js/pages/Admin/ApiTokens/Index.vue',
+        'resources/js/pages/Admin/Dashboard/Index.vue',
+        'resources/js/pages/Admin/Files/Index.vue',
+        'resources/js/pages/Admin/Forms/Create.vue',
+        'resources/js/pages/Admin/Forms/Edit.vue',
+        'resources/js/pages/Admin/Forms/Index.vue',
+        'resources/js/pages/Admin/Forms/Preview.vue',
+        'resources/js/pages/Admin/Forms/Submissions.vue',
+        'resources/js/pages/Admin/Forms/Versions.vue',
+        'resources/js/pages/Admin/OAuthClients/Index.vue',
+        'resources/js/pages/Admin/Settings/Profile.vue',
+        'resources/js/pages/Admin/Settings/Security.vue',
     ];
 
     foreach ($pages as $page) {
@@ -2848,7 +2846,7 @@ it('keeps the primary admin page wrappers fluid', function (): void {
 });
 
 it('uses a scrollable main admin content container', function (): void {
-    $adminStyles = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_admin.css');
+    $adminStyles = file_get_contents(__DIR__.'/../../resources/css/theme/_admin.css');
 
     expect($adminStyles)->not->toBeFalse()
         ->and($adminStyles)->toContain('.app-main {')
@@ -2859,23 +2857,23 @@ it('uses a scrollable main admin content container', function (): void {
 });
 
 it('uses wayfinder-driven user management endpoints in the user pages', function (): void {
-    $index = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/Index.vue');
-    $create = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/Create.vue');
-    $edit = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/Edit.vue');
-    $show = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/Show.vue');
-    $usersTableTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UsersTableTab.vue');
-    $userFormDialog = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserFormDialog.vue');
-    $dashboard = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
+    $index = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Index.vue');
+    $create = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Create.vue');
+    $edit = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Edit.vue');
+    $show = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Show.vue');
+    $usersTableTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UsersTableTab.vue');
+    $userFormDialog = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserFormDialog.vue');
+    $dashboard = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Dashboard/Index.vue');
     $header = file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppHeader.vue');
-    $rolesManager = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Access/components/RolesManagerPanel.vue');
-    $authSettings = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
-    $generalSettings = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/GeneralSettingsTab.vue');
-    $settingsGroupPanel = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/SettingsGroupPanel.vue');
-    $uiAppearanceSettings = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue');
-    $avatarUpload = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ProfileAvatarUpload.vue');
+    $rolesManager = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Access/components/RolesManagerPanel.vue');
+    $authSettings = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
+    $generalSettings = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/GeneralSettingsTab.vue');
+    $settingsGroupPanel = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/SettingsGroupPanel.vue');
+    $uiAppearanceSettings = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/UiAppearanceSettingsTab.vue');
+    $avatarUpload = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ProfileAvatarUpload.vue');
     $avatarController = file_get_contents(__DIR__.'/../../src/Http/Controllers/Users/UserAvatarController.php');
     $inertiaMiddleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php');
-    $adminTheme = file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_admin.css');
+    $adminTheme = file_get_contents(__DIR__.'/../../resources/css/theme/_admin.css');
 
     expect($index)->toContain("import TabsRenderer from '@core-panel/components/TabBuilder/TabsRenderer.vue'")
         ->and($index)->toContain("import UserFormDialog from '@core-panel/pages/Admin/Users/components/UserFormDialog.vue'")
@@ -2951,18 +2949,18 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and($avatarUpload)->toContain(':title="$t(\'page-settings.avatar_remove_title\')"')
         ->and($avatarController)->toContain("'mimetypes:'.implode(',', \$allowedMimeTypes)")
         ->and($avatarController)->toContain("'max:'.\$maxUploadSize")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import userPasswordRoutes from '@/routes/core-panel/users/password'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('userPasswordRoutes.resetLink.url(props.user.id)')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import UserPasswordResetDialog from '@core-panel/pages/Admin/Users/components/UserPasswordResetDialog.vue'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('dialog.open(UserPasswordResetDialog, {')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('<ConfirmActionDialog')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('confirm-severity="danger"')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('icon="trash"')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->not->toContain('useConfirm(')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->not->toContain('$t(\'common.ui.roles\')')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserPasswordResetDialog.vue'))->toContain("import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserPasswordResetDialog.vue'))->toContain('userPasswordRoutes.update.url(user.id)')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import userPasswordRoutes from '@/routes/core-panel/users/password'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('userPasswordRoutes.resetLink.url(props.user.id)')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import UserPasswordResetDialog from '@core-panel/pages/Admin/Users/components/UserPasswordResetDialog.vue'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain("import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('dialog.open(UserPasswordResetDialog, {')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('<ConfirmActionDialog')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('confirm-severity="danger"')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->toContain('icon="trash"')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->not->toContain('useConfirm(')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->not->toContain('$t(\'common.ui.roles\')')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserPasswordResetDialog.vue'))->toContain("import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserPasswordResetDialog.vue'))->toContain('userPasswordRoutes.update.url(user.id)')
         ->and($inertiaMiddleware)->toContain("'uploads' => [")
         ->and($inertiaMiddleware)->toContain('$publicSettings = app(SettingsRepository::class)->public();')
         ->and($inertiaMiddleware)->toContain("\$appSubtitle = data_get(\$publicSettings, 'general.app_subtitle');")
@@ -2991,33 +2989,33 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and($header)->toContain('router.visit(users.index.url())')
         ->and($rolesManager)->toContain("import userRoleRoutes from '@/routes/core-panel/users/roles'")
         ->and($rolesManager)->toContain('assignmentForm.post(userRoleRoutes.assign.url(assignmentForm.user_id), {})')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('userSessionRoutes.index.url(props.userId)')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('userSessionRoutes.destroy.url({')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('user: props.userId')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('session: session.id')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('<UserAvatar')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(":presence-status=\"user.presenceStatus ?? 'offline'\"")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('size="lg"')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("props.user.status === 'blocked'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("props.user.status === 'inactive'")
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(':severity="statusSeverity"')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(':value="$t(statusLabel)"')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('visibleRoleLabels')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('props.roleLabels[role] ?? role')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('Intl.DateTimeFormat(')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->not->toContain("\$t('common.ui.assigned')")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('userSessionRoutes.index.url(props.userId)')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('userSessionRoutes.destroy.url({')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('user: props.userId')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSessionsTab.vue'))->toContain('session: session.id')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('<UserAvatar')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(":presence-status=\"user.presenceStatus ?? 'offline'\"")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('size="lg"')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("props.user.status === 'blocked'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("props.user.status === 'inactive'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(':severity="statusSeverity"')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(':value="$t(statusLabel)"')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('visibleRoleLabels')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('props.roleLabels[role] ?? role')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('Intl.DateTimeFormat(')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->not->toContain("\$t('common.ui.assigned')")
         ->and($show)->toContain('roleLabels: props.roleLabels,')
         ->and($show)->not->toContain('UserProfileController.edit.url(user.id)')
         ->and($show)->not->toContain('UserController.index.url()');
 });
 
 it('uses wayfinder-driven form management endpoints in the form pages', function (): void {
-    $index = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Forms/Index.vue');
-    $create = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Forms/Create.vue');
-    $edit = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Forms/Edit.vue');
-    $preview = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Forms/Preview.vue');
-    $submissions = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Forms/Submissions.vue');
+    $index = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Forms/Index.vue');
+    $create = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Forms/Create.vue');
+    $edit = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Forms/Edit.vue');
+    $preview = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Forms/Preview.vue');
+    $submissions = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Forms/Submissions.vue');
 
     expect($index)->toContain("import formRoutes from '@/routes/core-panel/forms'")
         ->and($index)->toContain('formRoutes.create.url()')
@@ -3041,7 +3039,7 @@ it('uses wayfinder-driven form management endpoints in the form pages', function
 });
 
 it('uses wayfinder-driven api token endpoints in the api token page', function (): void {
-    $contents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
+    $contents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
 
     expect($contents)->toContain("import apiTokens from '@/routes/core-panel/api-tokens'")
         ->and($contents)->toContain('apiTokens.store.url()')
@@ -3083,11 +3081,11 @@ it('organizes versioned api routes under a dedicated v1 route tree', function ()
 });
 
 it('surfaces api token management inside the settings workspace', function (): void {
-    $dashboard = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Dashboard/Index.vue');
-    $settingsIndex = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/Index.vue');
-    $apiSettingsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Settings/components/ApiSettingsTab.vue');
-    $apiTokensIndex = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/ApiTokens/Index.vue');
-    $apiTokenManager = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
+    $dashboard = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Dashboard/Index.vue');
+    $settingsIndex = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/Index.vue');
+    $apiSettingsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/ApiSettingsTab.vue');
+    $apiTokensIndex = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/ApiTokens/Index.vue');
+    $apiTokenManager = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
     $apiTokenAbilityOptions = file_get_contents(__DIR__.'/../../src/Support/Api/ApiTokenAbilityOptions.php');
     $settingsController = file_get_contents(__DIR__.'/../../src/Http/Controllers/SettingsController.php');
     $settingsSchema = file_get_contents(__DIR__.'/../../src/Support/Settings/SettingsSchema.php');
@@ -3134,7 +3132,7 @@ it('surfaces api token management inside the settings workspace', function (): v
 });
 
 it('uses wayfinder-driven activity endpoints in the activity page', function (): void {
-    $contents = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Activity/Index.vue');
+    $contents = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Activity/Index.vue');
 
     expect($contents)->toContain("import activity from '@/routes/core-panel/activity'")
         ->and($contents)->toContain('activity.index.url()')
@@ -3147,17 +3145,17 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
     $routes = file_get_contents(__DIR__.'/../../routes/web/admin.php');
     $logRoutes = file_get_contents(__DIR__.'/../../routes/web/admin/logs.php');
     $administrationRoute = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/administration.ts');
-    $developer = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/Index.vue');
-    $logFilePage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/File.vue');
+    $developer = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/Index.vue');
+    $logFilePage = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/File.vue');
     $adminMenu = file_get_contents(__DIR__.'/../../resources/js/composables/useAdminMenu.ts');
     $logsController = file_get_contents(__DIR__.'/../../src/Http/Controllers/Logs/LogController.php');
-    $activityTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/ActivityLogsTab.vue');
-    $activityDetail = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/ActivityLogDetail.vue');
-    $authenticationTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/AuthenticationLogsTab.vue');
-    $authenticationDetail = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/AuthenticationLogDetail.vue');
-    $authenticationPresentation = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/authenticationLogPresentation.ts');
-    $logUserAvatar = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/LogUserAvatar.vue');
-    $logsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/components/LogFilesTab.vue');
+    $activityTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/ActivityLogsTab.vue');
+    $activityDetail = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/ActivityLogDetail.vue');
+    $authenticationTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/AuthenticationLogsTab.vue');
+    $authenticationDetail = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/AuthenticationLogDetail.vue');
+    $authenticationPresentation = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/authenticationLogPresentation.ts');
+    $logUserAvatar = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/LogUserAvatar.vue');
+    $logsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/LogFilesTab.vue');
     $logRoutesHelper = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/log-files.ts');
 
     expect($routes)->toContain("'logs.php'")
@@ -3231,9 +3229,9 @@ it('ships a dedicated developer workspace with route inspection and swagger-back
     $controller = file_get_contents(__DIR__.'/../../src/Http/Controllers/Developer/DeveloperController.php');
     $catalog = file_get_contents(__DIR__.'/../../src/Support/Developer/RouteCatalog.php');
     $menu = file_get_contents(__DIR__.'/../../resources/js/composables/useAdminMenu.ts');
-    $page = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Developer/Index.vue');
-    $routeTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Developer/components/RouteListTab.vue');
-    $docsTab = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Developer/components/SwaggerDocsTab.vue');
+    $page = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Developer/Index.vue');
+    $routeTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Developer/components/RouteListTab.vue');
+    $docsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Developer/components/SwaggerDocsTab.vue');
     $swaggerConfig = file_get_contents(__DIR__.'/../../stubs/config/l5-swagger.php');
     $openApiInfo = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/CorePanelApiDocumentation.php');
     $openApiSchemas = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/Components/CorePanelSchemas.php');
@@ -3286,7 +3284,7 @@ it('ships a dedicated developer workspace with route inspection and swagger-back
         ->and($openApiUsers)->toContain("path: '/api/v1/users'")
         ->and($openApiUsers)->toContain("path: '/api/v1/users/{user}'")
         ->and($openApiInfo)->not->toContain('#[OA\\PathItem(path: \'/\')]')
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/css/theme/_tabs.css'))->toContain('.cp-side-tabs__panel-surface--unpadded {')
+        ->and(file_get_contents(__DIR__.'/../../resources/css/theme/_tabs.css'))->toContain('.cp-side-tabs__panel-surface--unpadded {')
         ->and($composer)->toContain('"darkaonline/l5-swagger": "^11.0"');
 });
 

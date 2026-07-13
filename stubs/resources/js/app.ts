@@ -14,7 +14,7 @@ const hostPageModules = import.meta.glob<{ default: DefineComponent }>(
     { eager: true },
 )
 const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(
-    '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue',
+    '../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue',
     { eager: true },
 )
 let currentAppName = 'CorePanel'
@@ -38,10 +38,10 @@ function resolvePage(name: string): DefineComponent {
 
     const vendorPage = (
         vendorPageModules[
-            `../../vendor/mapo-89/core-panel/stubs/resources/js/pages/${name}.vue`
+            `../../vendor/mapo-89/core-panel/resources/js/pages/${name}.vue`
         ] ??
         vendorPageModules[
-            `../../vendor/mapo-89/core-panel/stubs/resources/js/pages/Admin/${name}.vue`
+            `../../vendor/mapo-89/core-panel/resources/js/pages/Admin/${name}.vue`
         ]
     )?.default
 

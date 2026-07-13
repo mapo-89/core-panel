@@ -53,7 +53,7 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertStringContainsString('`../../lang/php_${lang}.json`', $appEntry);
         $this->assertStringContainsString('const hostPageModules = import.meta.glob<{ default: DefineComponent }>(', $appEntry);
         $this->assertStringContainsString('const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(', $appEntry);
-        $this->assertStringContainsString('../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue', $appEntry);
+        $this->assertStringContainsString('../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue', $appEntry);
         $this->assertStringContainsString('throw new Error(`Unable to resolve Inertia page [${name}].`)', $appEntry);
         $this->assertStringContainsString('resolve: (name) => resolvePage(name)', $appEntry);
         $this->assertStringContainsString('core-panel-dark', $themeEntry);

@@ -6,7 +6,7 @@ it('ships the permission middleware, menu filtering, and frontend authorization 
     $provider = file_get_contents(__DIR__.'/../../src/CorePanelServiceProvider.php');
     $bootstrap = file_get_contents(__DIR__.'/../../stubs/bootstrap/app.php');
     $appSidebar = file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppSidebar.vue');
-    $developerPage = file_get_contents(__DIR__.'/../../stubs/resources/js/pages/Admin/Logs/Index.vue');
+    $developerPage = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/Index.vue');
     $header = file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppHeader.vue');
     $adminMenu = file_get_contents(__DIR__.'/../../resources/js/composables/useAdminMenu.ts');
     $menuBuilder = file_get_contents(__DIR__.'/../../resources/js/composables/useMenuBuilder.ts');

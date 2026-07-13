@@ -10,7 +10,7 @@
             "@/*": ["./resources/js/*"],
             "@core-panel/pages/*": [
                 "./resources/js/pages/*",
-                "./vendor/mapo-89/core-panel/stubs/resources/js/pages/*"
+                "./vendor/mapo-89/core-panel/resources/js/pages/*"
             ],
             "@core-panel/*": [
                 "../resources/js/*",

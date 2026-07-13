@@ -13,9 +13,9 @@ const packageJsPath = path.resolve(
     __dirname,
     'vendor/mapo-89/core-panel/resources/js',
 )
-const packageStubPagesPath = path.resolve(
+const packagePagesPath = path.resolve(
     __dirname,
-    'vendor/mapo-89/core-panel/stubs/resources/js/pages',
+    'vendor/mapo-89/core-panel/resources/js/pages',
 )
 const hostThemePath = path.resolve(hostJsPath, 'theme/core-panel')
 const packageThemePath = path.resolve(packageJsPath, 'theme/core-panel')
@@ -64,9 +64,7 @@ function resolveCorePanelImport(importee: string): string | null {
             return resolvedHostImport
         }
 
-        return resolveImportTarget(
-            path.resolve(packageStubPagesPath, relativePath),
-        )
+        return resolveImportTarget(path.resolve(packagePagesPath, relativePath))
     }
 
     if (!importee.startsWith('@core-panel/')) {

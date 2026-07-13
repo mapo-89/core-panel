@@ -6,14 +6,14 @@
 @layer tailwind-base, primevue, tailwind-utilities;
 
 @import 'tailwindcss/utilities' layer(tailwind-utilities);
-@import '../../vendor/mapo-89/core-panel/stubs/resources/css/theme/theme.css';
-@import '../../vendor/mapo-89/core-panel/stubs/resources/css/theme/utilities.css';
+@import '../../vendor/mapo-89/core-panel/resources/css/theme/theme.css';
+@import '../../vendor/mapo-89/core-panel/resources/css/theme/utilities.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../../vendor/mapo-89/core-panel/resources/js/**/*.ts';
 @source '../../vendor/mapo-89/core-panel/resources/js/**/*.vue';
-@source '../../vendor/mapo-89/core-panel/stubs/resources/js/pages/**/*.vue';
+@source '../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue';
 @source '../views/**/*.blade.php';
 @source '../js/**/*.ts';
 @source '../js/**/*.vue';
