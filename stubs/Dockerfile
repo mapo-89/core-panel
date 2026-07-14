@@ -35,6 +35,7 @@ RUN apt-get update \
         intl \
         opcache \
         pcntl \
+        pdo_mysql \
         pdo_pgsql \
         redis \
         zip \
@@ -147,7 +148,7 @@ HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1
 ENTRYPOINT ["core-panel-php-entrypoint"]
 CMD ["php-fpm", "-F"]
 
-FROM nginx:1.31-alpine AS nginx-runtime
+FROM nginx:1.31-alpine AS nginx-prod
 
 WORKDIR /var/www/html
 
