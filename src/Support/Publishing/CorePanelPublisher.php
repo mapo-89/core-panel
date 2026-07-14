@@ -52,6 +52,7 @@ final readonly class CorePanelPublisher
 
     /**
      * @param  list<string>  $tags
+     * @param  list<string>  $managedMissingPaths
      * @return array{
      *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
      *     manifestPath:string,
@@ -65,12 +66,22 @@ final readonly class CorePanelPublisher
         bool $dryRun = false,
         ?string $basePath = null,
         bool $adoptUnmanagedExisting = false,
+        array $managedMissingPaths = [],
     ): array {
-        return $this->apply($tags, $force, $dryRun, true, $basePath, adoptUnmanagedExisting: $adoptUnmanagedExisting);
+        return $this->apply(
+            $tags,
+            $force,
+            $dryRun,
+            true,
+            $basePath,
+            adoptUnmanagedExisting: $adoptUnmanagedExisting,
+            managedMissingPaths: $managedMissingPaths,
+        );
     }
 
     /**
      * @param  list<string>  $tags
+     * @param  list<string>  $managedMissingPaths
      * @return array{
      *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
      *     manifestPath:string,
@@ -85,12 +96,23 @@ final readonly class CorePanelPublisher
         bool $dryRun = false,
         ?string $basePath = null,
         bool $adoptUnmanagedExisting = false,
+        array $managedMissingPaths = [],
     ): array {
-        return $this->apply($tags, $force, $dryRun, true, $basePath, $provider, $adoptUnmanagedExisting);
+        return $this->apply(
+            $tags,
+            $force,
+            $dryRun,
+            true,
+            $basePath,
+            $provider,
+            $adoptUnmanagedExisting,
+            $managedMissingPaths,
+        );
     }
 
     /**
      * @param  list<string>  $tags
+     * @param  list<string>  $managedMissingPaths
      * @return array{
      *     changes:list<array{tag:string,status:string,source:string,destination:string,reason:string}>,
      *     manifestPath:string,
@@ -106,6 +128,7 @@ final readonly class CorePanelPublisher
         ?string $basePath,
         ?string $provider = null,
         bool $adoptUnmanagedExisting = false,
+        array $managedMissingPaths = [],
     ): array {
         $root = $basePath ?? base_path();
         $manifest = $this->manifest->read($root);
@@ -113,6 +136,10 @@ final readonly class CorePanelPublisher
         $backupsCreated = false;
         $updatedManifest = $manifest;
         $themeMigrationHint = false;
+        $managedMissingPaths = array_values(array_unique(array_map(
+            static fn (string $path): string => ltrim(str_replace('\\', '/', $path), '/'),
+            $managedMissingPaths,
+        )));
 
         foreach ($tags as $tag) {
             foreach ($this->publishablePathsFor($tag, $root, $provider) as $source => $destination) {
@@ -120,6 +147,8 @@ final readonly class CorePanelPublisher
                 $destinationExists = $this->files->exists($destination);
                 $destinationHash = $destinationExists ? $this->hash($destination) : null;
                 $manifestEntry = $updatedManifest['files'][$destination] ?? null;
+                $relativeDestination = ltrim(str_replace('\\', '/', (string) str($destination)->after(rtrim($root, '/').'/')), '/');
+                $shouldManageMissingPath = in_array($relativeDestination, $managedMissingPaths, true);
 
                 if ($manifestAware && ! is_array($manifestEntry)) {
                     if ($destinationExists) {
@@ -161,6 +190,24 @@ final readonly class CorePanelPublisher
                         if ($tag === PublishTag::Theme->value) {
                             $themeMigrationHint = true;
                         }
+
+                        continue;
+                    }
+
+                    if ($shouldManageMissingPath) {
+                        $status = 'create';
+                        $reason = 'required update file';
+
+                        if ($dryRun) {
+                            $changes[] = $this->change($tag, $status, $source, $destination, $reason);
+
+                            continue;
+                        }
+
+                        $this->copyPublishable($source, $destination);
+                        $destinationHash = $this->hash($destination);
+                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                        $changes[] = $this->change($tag, $status, $source, $destination, $reason);
 
                         continue;
                     }
