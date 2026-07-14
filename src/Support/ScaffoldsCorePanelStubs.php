@@ -73,6 +73,11 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/page-users.php',
         'lang/en/page-user-groups.php',
         'lang/en/system_updates.php',
+        'config/pwa.php',
+        'public/logo.png',
+        'public/manifest.json',
+        'public/offline.html',
+        'public/sw.js',
         'resources/css/app.css',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
@@ -180,6 +185,12 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
+            if ($relativePath === 'bootstrap/providers.php' && $destinationExists) {
+                if ($this->mergeBootstrapProvidersScaffold($sourcePath, $destinationPath, $root)) {
+                    continue;
+                }
+            }
+
             if ($destinationExists && $this->shouldNeverOverwrite($relativePath, $destinationPath)) {
                 continue;
             }
@@ -245,6 +256,29 @@ final readonly class ScaffoldsCorePanelStubs
                 $root.'/'.$relativePath,
                 $root,
             );
+        }
+    }
+
+    /**
+     * @param  list<string>  $relativePaths
+     */
+    public function refreshHostRenderedScaffolds(array $relativePaths, ?string $basePath = null): void
+    {
+        $root = $basePath ?? base_path();
+
+        foreach ($relativePaths as $relativePath) {
+            $sourcePath = $this->sourcePath($relativePath);
+            $destinationPath = $root.'/'.$relativePath;
+
+            if (
+                ! $this->files->isFile($sourcePath)
+                || ! $this->files->isFile($destinationPath)
+                || ! $this->hasScaffoldBaseline($relativePath, $root)
+            ) {
+                continue;
+            }
+
+            $this->writeScaffoldFile($relativePath, $sourcePath, $destinationPath, $root);
         }
     }
 
@@ -445,6 +479,88 @@ final readonly class ScaffoldsCorePanelStubs
         return true;
     }
 
+    private function mergeBootstrapProvidersScaffold(
+        string $sourcePath,
+        string $destinationPath,
+        string $root,
+    ): bool {
+        if (! $this->files->isFile($sourcePath) || ! $this->files->isFile($destinationPath)) {
+            return false;
+        }
+
+        $sourceContents = (string) $this->files->get($sourcePath);
+        $destinationContents = (string) $this->files->get($destinationPath);
+        $mergedContents = $destinationContents;
+        $hasUseBlock = preg_match('/^use\s+[^\n]+;\n/m', $mergedContents) === 1;
+        $requiredProviders = $this->requiredBootstrapProviderClasses($sourceContents);
+
+        foreach ($requiredProviders as $providerClass) {
+            if ($this->bootstrapProvidersContains($mergedContents, $providerClass)) {
+                continue;
+            }
+
+            if ($hasUseBlock) {
+                $shortName = class_basename($providerClass);
+                $useStatement = 'use '.$providerClass.';';
+
+                if (! str_contains($mergedContents, $useStatement)) {
+                    $mergedContents = preg_replace(
+                        '/^(use\s+[^\n]+;\n)+/m',
+                        '$0'.$useStatement."\n",
+                        $mergedContents,
+                        1,
+                    ) ?? $mergedContents;
+                }
+
+                $providerReference = $shortName.'::class';
+            } else {
+                $providerReference = '\\'.$providerClass.'::class';
+            }
+
+            $mergedContents = preg_replace(
+                '/^(\s*)\];\s*$/m',
+                '$1    '.$providerReference.','."\n".'$0',
+                $mergedContents,
+                1,
+            ) ?? $mergedContents;
+        }
+
+        if ($mergedContents === $destinationContents) {
+            return false;
+        }
+
+        $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
+        $this->files->put($destinationPath, $mergedContents);
+        $this->storeScaffoldManifestEntry('bootstrap/providers.php', $sourcePath, $destinationPath, $root);
+
+        return true;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function requiredBootstrapProviderClasses(string $sourceContents): array
+    {
+        preg_match_all('/^\s*use\s+([^;]+);\s*$/m', $sourceContents, $matches);
+
+        $imports = array_values(array_filter(
+            $matches[1],
+            static fn (string $value): bool => str_ends_with($value, 'ServiceProvider')
+                && $value !== 'App\\Providers\\AppServiceProvider',
+        ));
+
+        /** @var list<string> $imports */
+        return $imports;
+    }
+
+    private function bootstrapProvidersContains(string $contents, string $providerClass): bool
+    {
+        $shortName = class_basename($providerClass);
+
+        return str_contains($contents, $shortName.'::class')
+            || str_contains($contents, '\\'.$providerClass.'::class');
+    }
+
     private function scaffoldBaselineContents(string $relativePath, string $root): ?string
     {
         $manifest = $this->readScaffoldManifestFiles($root);
@@ -615,6 +731,13 @@ final readonly class ScaffoldsCorePanelStubs
             return false;
         }
 
+        if (
+            $this->isCreateOnlyPwaScaffold($relativePath)
+            && $this->files->exists($root.'/'.$relativePath)
+        ) {
+            return false;
+        }
+
         if (! is_string($currentVersion) || $currentVersion === '') {
             return false;
         }
@@ -626,6 +749,17 @@ final readonly class ScaffoldsCorePanelStubs
         $manifestEntry = $this->readScaffoldManifestFiles($root)[$relativePath] ?? null;
 
         return ! is_array($manifestEntry) || ($manifestEntry['package_version'] ?? null) !== $currentVersion;
+    }
+
+    private function isCreateOnlyPwaScaffold(string $relativePath): bool
+    {
+        return in_array($relativePath, [
+            'config/pwa.php',
+            'public/logo.png',
+            'public/manifest.json',
+            'public/offline.html',
+            'public/sw.js',
+        ], true);
     }
 
     private function installedScaffoldPackageVersion(string $root): ?string
@@ -656,7 +790,12 @@ final readonly class ScaffoldsCorePanelStubs
             return;
         }
 
-        if ($this->files->isFile($destinationPath) && $this->files->get($sourcePath) !== $this->files->get($destinationPath)) {
+        $renderedContents = $this->scaffoldContentsForHost($relativePath, $sourcePath, $root);
+
+        if (
+            $this->files->isFile($destinationPath)
+            && $renderedContents !== (string) $this->files->get($destinationPath)
+        ) {
             $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
         }
 
@@ -670,16 +809,66 @@ final readonly class ScaffoldsCorePanelStubs
         string $root,
     ): void {
         $this->files->ensureDirectoryExists(dirname($destinationPath));
+        $this->files->put($destinationPath, $this->scaffoldContentsForHost($relativePath, $sourcePath, $root));
+        $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+    }
 
+    private function scaffoldContentsForHost(string $relativePath, string $sourcePath, string $root): string
+    {
         if ($relativePath === 'resources/css/app.css') {
-            $this->files->put($destinationPath, $this->appCssContentsForHost($sourcePath, $root));
-            $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
-
-            return;
+            return $this->appCssContentsForHost($sourcePath, $root);
         }
 
-        $this->files->copy($sourcePath, $destinationPath);
-        $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+        if ($relativePath === 'public/manifest.json') {
+            return $this->manifestContentsForHost($sourcePath, $root);
+        }
+
+        return (string) $this->files->get($sourcePath);
+    }
+
+    private function manifestContentsForHost(string $sourcePath, string $root): string
+    {
+        /** @var array<string, mixed>|null $decoded */
+        $decoded = json_decode((string) $this->files->get($sourcePath), true);
+
+        if (! is_array($decoded)) {
+            return (string) $this->files->get($sourcePath);
+        }
+
+        $appName = $this->hostAppName($root);
+        $decoded['name'] = $appName;
+        $decoded['short_name'] = $appName;
+
+        $encoded = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        if (! is_string($encoded)) {
+            return (string) $this->files->get($sourcePath);
+        }
+
+        return $encoded.PHP_EOL;
+    }
+
+    private function hostAppName(string $root): string
+    {
+        $environmentPath = $root.'/.env';
+
+        if ($this->files->isFile($environmentPath)) {
+            foreach (preg_split('/\r\n|\r|\n/', (string) $this->files->get($environmentPath)) ?: [] as $line) {
+                if (! str_starts_with($line, 'APP_NAME=')) {
+                    continue;
+                }
+
+                [, $value] = explode('=', $line, 2);
+                $trimmed = trim($value);
+                $unquoted = trim($trimmed, "\"'");
+
+                if ($unquoted !== '') {
+                    return $unquoted;
+                }
+            }
+        }
+
+        return 'CorePanel';
     }
 
     private function appCssContentsForHost(string $sourcePath, string $root): string

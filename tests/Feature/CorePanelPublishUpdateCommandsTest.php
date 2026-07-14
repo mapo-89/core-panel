@@ -86,6 +86,7 @@ it('versions the managed update scaffolds that still require host copies', funct
     expect(versionedUpdateScaffoldPaths())->toContain(
         '.env.example',
         'bootstrap/app.php',
+        'config/pwa.php',
         'docker-compose.portainer.yml',
         'updater/Dockerfile',
         'updater/go.mod',
@@ -99,11 +100,17 @@ it('versions the managed update scaffolds that still require host copies', funct
         'lang/en/system_updates.php',
         'lang/de/page-users.php',
         'lang/en/page-users.php',
+        'public/logo.png',
+        'public/manifest.json',
+        'public/offline.html',
+        'public/sw.js',
         'resources/css/app.css',
         'resources/js/routes/core-panel/log-files.ts',
         'routes/web/admin/administration.php',
         'routes/web/admin/logs.php',
         'routes/console.php',
+    )->not->toContain(
+        'bootstrap/providers.php',
     );
 });
 
@@ -906,6 +913,237 @@ it('creates the versioned bootstrap middleware scaffold during updates', functio
         ->and(file_get_contents($target))->toContain('AllowBlobImageCsp::class');
 });
 
+it('creates the versioned pwa scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-pwa-scaffolds');
+    $configTarget = $basePath.'/config/pwa.php';
+    $manifestTarget = $basePath.'/public/manifest.json';
+    $serviceWorkerTarget = $basePath.'/public/sw.js';
+    $offlineTarget = $basePath.'/public/offline.html';
+    $logoTarget = $basePath.'/public/logo.png';
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/.env', "APP_NAME=\"Reference Control\"\n");
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($configTarget))->toBeTrue()
+        ->and(file_get_contents($configTarget))->toContain("'install-button' => true")
+        ->and(file_get_contents($configTarget))->toContain("'src' => 'logo.png'")
+        ->and(file_exists($manifestTarget))->toBeTrue()
+        ->and(file_get_contents($manifestTarget))->toContain('"name": "Reference Control"')
+        ->and(file_get_contents($manifestTarget))->toContain('"short_name": "Reference Control"')
+        ->and(file_get_contents($manifestTarget))->toContain('"src": "logo.png"')
+        ->and(file_exists($serviceWorkerTarget))->toBeTrue()
+        ->and(file_get_contents($serviceWorkerTarget))->toContain("const OFFLINE_URL = '/offline.html';")
+        ->and(file_exists($offlineTarget))->toBeTrue()
+        ->and(file_get_contents($offlineTarget))->toContain('Check your internet connection')
+        ->and(file_exists($logoTarget))->toBeTrue();
+});
+
+it('does not overwrite existing unmanaged generic pwa public assets during updates', function (): void {
+    $basePath = makePublishBasePath('preserve-unmanaged-pwa-public-assets');
+    $manifestTarget = $basePath.'/public/manifest.json';
+    $serviceWorkerTarget = $basePath.'/public/sw.js';
+    $offlineTarget = $basePath.'/public/offline.html';
+    $logoTarget = $basePath.'/public/logo.png';
+
+    mkdir(dirname($manifestTarget), 0777, true);
+    file_put_contents($manifestTarget, "{\"name\":\"Host App\"}\n");
+    file_put_contents($serviceWorkerTarget, "const CACHE_NAME = 'host-app-cache';\n");
+    file_put_contents($offlineTarget, "<html><body>Host offline page</body></html>\n");
+    file_put_contents($logoTarget, 'host-logo');
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($manifestTarget))->toBe("{\"name\":\"Host App\"}\n")
+        ->and(file_get_contents($serviceWorkerTarget))->toBe("const CACHE_NAME = 'host-app-cache';\n")
+        ->and(file_get_contents($offlineTarget))->toBe("<html><body>Host offline page</body></html>\n")
+        ->and(file_get_contents($logoTarget))->toBe('host-logo')
+        ->and(glob($basePath.'/.core-panel-backups/*/public/manifest.json'))->toBe([])
+        ->and(glob($basePath.'/.core-panel-backups/*/public/sw.js'))->toBe([])
+        ->and(glob($basePath.'/.core-panel-backups/*/public/offline.html'))->toBe([])
+        ->and(glob($basePath.'/.core-panel-backups/*/public/logo.png'))->toBe([]);
+});
+
+it('does not overwrite an existing unmanaged pwa config during updates', function (): void {
+    $basePath = makePublishBasePath('preserve-unmanaged-pwa-config');
+    $target = $basePath.'/config/pwa.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, <<<'PHP'
+<?php
+
+return [
+    'install-button' => false,
+    'manifest' => [
+        'name' => 'Host App',
+        'short_name' => 'Host',
+        'background_color' => '#123456',
+        'display' => 'browser',
+        'description' => 'Host-managed PWA configuration.',
+        'theme_color' => '#654321',
+        'icons' => [
+            [
+                'src' => 'host-icon.png',
+                'sizes' => '192x192',
+                'type' => 'image/png',
+            ],
+        ],
+    ],
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($target))->toContain("'install-button' => false")
+        ->and(file_get_contents($target))->toContain("'name' => 'Host App'")
+        ->and(file_get_contents($target))->toContain("'src' => 'host-icon.png'")
+        ->and(glob($basePath.'/.core-panel-backups/*/config/pwa.php'))->toBe([]);
+});
+
+it('does not overwrite customized managed pwa scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('preserve-managed-pwa-scaffolds');
+    $currentVersion = currentCorePanelPackageVersion();
+    $managedFiles = [
+        'config/pwa.php' => [
+            'source' => (string) file_get_contents(__DIR__.'/../../stubs/config/pwa.php'),
+            'customized' => <<<'PHP'
+<?php
+
+return [
+    'install-button' => false,
+    'manifest' => [
+        'name' => 'Managed Host App',
+        'short_name' => 'ManagedHost',
+        'background_color' => '#101010',
+        'display' => 'browser',
+        'description' => 'Managed host PWA configuration.',
+        'theme_color' => '#f97316',
+        'icons' => [
+            [
+                'src' => 'managed-icon.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+            ],
+        ],
+    ],
+];
+PHP,
+        ],
+        'public/manifest.json' => [
+            'source' => (string) file_get_contents(__DIR__.'/../../stubs/public/manifest.json'),
+            'customized' => "{\n    \"name\": \"Managed Host App\",\n    \"short_name\": \"ManagedHost\",\n    \"start_url\": \"/\",\n    \"background_color\": \"#101010\",\n    \"description\": \"Managed host manifest.\",\n    \"display\": \"browser\",\n    \"theme_color\": \"#f97316\",\n    \"icons\": [\n        {\n            \"src\": \"managed-icon.png\",\n            \"sizes\": \"512x512\",\n            \"type\": \"image/png\"\n        }\n    ]\n}\n",
+        ],
+        'public/offline.html' => [
+            'source' => (string) file_get_contents(__DIR__.'/../../stubs/public/offline.html'),
+            'customized' => "<html><body>Managed offline page</body></html>\n",
+        ],
+        'public/sw.js' => [
+            'source' => (string) file_get_contents(__DIR__.'/../../stubs/public/sw.js'),
+            'customized' => "const CACHE_NAME = 'managed-host-cache';\n",
+        ],
+        'public/logo.png' => [
+            'source' => (string) file_get_contents(__DIR__.'/../../stubs/public/logo.png'),
+            'customized' => 'managed-logo',
+        ],
+    ];
+
+    foreach ($managedFiles as $relativePath => $file) {
+        $target = $basePath.'/'.$relativePath;
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+        file_put_contents($target, $file['customized']);
+    }
+
+    seedScaffoldManifestFiles(
+        $basePath,
+        array_map(
+            static fn (array $file): string => $file['source'],
+            $managedFiles,
+        ),
+        $currentVersion,
+    );
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    foreach ($managedFiles as $relativePath => $file) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($file['customized'])
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    }
+});
+
+it('merges the pwa provider into existing bootstrap providers during updates', function (): void {
+    $basePath = makePublishBasePath('merge-bootstrap-providers');
+    $target = $basePath.'/bootstrap/providers.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+use App\Providers\FortifyServiceProvider;
+use App\Providers\HorizonServiceProvider;
+use App\Providers\TelemetryServiceProvider;
+
+return [
+    AppServiceProvider::class,
+    FortifyServiceProvider::class,
+    HorizonServiceProvider::class,
+    TelemetryServiceProvider::class,
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($target))->toContain('use App\Providers\TelemetryServiceProvider;')
+        ->and(file_get_contents($target))->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
+        ->and(file_get_contents($target))->toContain('TelemetryServiceProvider::class,')
+        ->and(file_get_contents($target))->toContain('EragLaravelPwaServiceProvider::class,')
+        ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/providers.php'))
+        ->not->toBeEmpty();
+});
+
+it('merges the fully qualified pwa provider into bootstrap providers without imports', function (): void {
+    $basePath = makePublishBasePath('merge-bootstrap-providers-without-imports');
+    $target = $basePath.'/bootstrap/providers.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+return [
+    \App\Providers\AppServiceProvider::class,
+    \App\Providers\FortifyServiceProvider::class,
+    \App\Providers\CustomTelemetryServiceProvider::class,
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($target))->not->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
+        ->and(file_get_contents($target))->toContain('\App\Providers\CustomTelemetryServiceProvider::class,')
+        ->and(file_get_contents($target))->toContain('\EragLaravelPwa\EragLaravelPwaServiceProvider::class,')
+        ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/providers.php'))
+        ->not->toBeEmpty();
+});
+
 it('creates the versioned page-users translation scaffolds during updates', function (): void {
     $basePath = makePublishBasePath('missing-versioned-page-users-translations');
     $englishTarget = $basePath.'/lang/en/page-users.php';
@@ -944,6 +1182,10 @@ it('updates explicitly versioned existing application scaffolds without a previo
     $basePath = makePublishBasePath('existing-versioned-scaffold');
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        if (in_array($relativePath, ['config/pwa.php', 'public/logo.png', 'public/manifest.json', 'public/offline.html', 'public/sw.js'], true)) {
+            continue;
+        }
+
         $target = $basePath.'/'.$relativePath;
 
         if (! is_dir(dirname($target))) {
@@ -960,6 +1202,10 @@ it('updates explicitly versioned existing application scaffolds without a previo
     $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        if (in_array($relativePath, ['config/pwa.php', 'public/logo.png', 'public/manifest.json', 'public/offline.html', 'public/sw.js'], true)) {
+            continue;
+        }
+
         $target = $basePath.'/'.$relativePath;
 
         expect(file_get_contents($target))

@@ -1,0 +1,16 @@
+{
+    "name": "CorePanel",
+    "short_name": "CorePanel",
+    "start_url": "/",
+    "background_color": "#0f172a",
+    "description": "CorePanel Progressive Web App.",
+    "display": "standalone",
+    "theme_color": "#1ab88f",
+    "icons": [
+        {
+            "src": "logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

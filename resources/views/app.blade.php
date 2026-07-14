@@ -11,10 +11,12 @@
             : config('app.name', 'CorePanel');
     @endphp
     <title inertia>{{ $resolvedAppName }}</title>
+    @PwaHead
     @vite(['resources/js/app.ts', 'resources/css/app.css'])
     @inertiaHead
 </head>
 <body class="font-sans antialiased">
     @inertia
+    @RegisterServiceWorkerScript
 </body>
 </html>

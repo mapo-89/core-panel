@@ -58,6 +58,70 @@ CorePanel also registers the short alias:
 php artisan core:install
 ```
 
+## PWA
+
+CorePanel can now scaffold the host application for Progressive Web App support via `erag/laravel-pwa`.
+
+### What CorePanel Sets Up
+
+For new installs, `core-panel:install` scaffolds the PWA host files automatically.
+
+For existing installs, update the host scaffolds once:
+
+```bash
+php artisan core-panel:update --force
+```
+
+This brings the following host files into place when they are missing or managed by the CorePanel scaffold manifest:
+
+- `bootstrap/providers.php`
+- `config/pwa.php`
+- `public/manifest.json`
+- `public/offline.html`
+- `public/sw.js`
+- `public/logo.png`
+
+CorePanel also renders the package Inertia root view with:
+
+- `@PwaHead` inside `<head>`
+- `@RegisterServiceWorkerScript` before `</body>`
+
+### What You Should Adjust In The Host App
+
+After installation or update, review these host-specific values:
+
+- set the correct public app name and URL in `.env`, especially `APP_NAME` and `APP_URL`
+- review `config/pwa.php` and adjust `name`, `short_name`, `description`, `theme_color`, and `background_color`
+- replace `public/logo.png` with the real app icon in at least `512x512`
+- if the install prompt should not be shown globally, set `'install-button' => false` in `config/pwa.php`
+
+### What You Should Verify
+
+- PWA features require HTTPS in real environments; service workers will not work correctly without it
+- if you use `config:cache`, rebuild the cache after changing `config/pwa.php`
+- after changing `config/pwa.php`, regenerate the browser-facing manifest with `php artisan erag:update-manifest` so updated names, colors, icons, and prompts reach `public/manifest.json`
+- make sure the deployed `public/` directory contains `manifest.json`, `sw.js`, `offline.html`, and the final `logo.png`
+- if the host app had its own custom `bootstrap/providers.php`, merge the `EragLaravelPwa\EragLaravelPwaServiceProvider::class` entry intentionally instead of overwriting unrelated providers
+
+Typical rollout after enabling PWA support in an existing app:
+
+```bash
+composer update mapo-89/core-panel
+php artisan core-panel:update --force
+php artisan erag:update-manifest
+php artisan optimize:clear
+npm run build
+```
+
+### Optional Host Customization
+
+The scaffold gives you a working baseline, but most applications should still make a few deliberate host decisions:
+
+- replace the default offline page in `public/offline.html` with project-specific branding and support text
+- expand `public/manifest.json` icons or screenshots if the target platforms require more than the default single icon
+- rerun `php artisan erag:update-manifest` whenever `config/pwa.php` or the referenced icon assets change
+- if the host application already has its own PWA strategy or service worker, consolidate that logic instead of keeping two competing implementations
+
 ## Update
 
 CorePanel is designed vendor-first where Laravel supports it:

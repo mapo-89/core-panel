@@ -689,6 +689,7 @@ it('maps installer templates onto the host application paths by relative path', 
         'config/database.php',
         'config/fortify.php',
         'config/horizon.php',
+        'config/pwa.php',
         'config/queue.php',
         'config/session.php',
         '.docker/bin/php-entrypoint.sh',
@@ -720,6 +721,10 @@ it('maps installer templates onto the host application paths by relative path', 
         'lang/de/page-layout.php',
         'lang/en/page-layout.php',
         'package.json',
+        'public/logo.png',
+        'public/manifest.json',
+        'public/offline.html',
+        'public/sw.js',
         'routes/console.php',
         'routes/web.php',
         'routes/web/admin.php',
@@ -1209,8 +1214,10 @@ it('ships a package inertia root view that resolves the configured app name befo
     expect($contents)->toContain('$publicSettings = app(\CorePanel\Support\Settings\SettingsRepository::class)->public();')
         ->and($contents)->toContain('<title inertia>{{ $resolvedAppName }}</title>')
         ->and($contents)->not->toContain("config('core-panel.name', 'Laravel CorePanel')")
+        ->and($contents)->toContain('@PwaHead')
         ->and($contents)->toContain('@inertiaHead')
-        ->and($contents)->toContain('@inertia');
+        ->and($contents)->toContain('@inertia')
+        ->and($contents)->toContain('@RegisterServiceWorkerScript');
 });
 
 it('ships package mail translations instead of scaffolding host json copies', function (): void {
@@ -1300,6 +1307,43 @@ it('ships a bootstrap template that stays focused on web middleware and passport
         ->and($contents)->not->toContain('statefulApi()')
         ->and($contents)->not->toContain('CheckAbilities::class')
         ->and($contents)->not->toContain('CheckForAnyAbility::class');
+});
+
+it('ships pwa scaffolds for the host application', function (): void {
+    $providers = file_get_contents(__DIR__.'/../../stubs/bootstrap/providers.php');
+    $config = file_get_contents(__DIR__.'/../../stubs/config/pwa.php');
+    $manifest = file_get_contents(__DIR__.'/../../stubs/public/manifest.json');
+    $offline = file_get_contents(__DIR__.'/../../stubs/public/offline.html');
+    $serviceWorker = file_get_contents(__DIR__.'/../../stubs/public/sw.js');
+    $composer = file_get_contents(__DIR__.'/../../composer.json');
+
+    expect($providers)->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
+        ->and($providers)->toContain('EragLaravelPwaServiceProvider::class,')
+        ->and($config)->toContain("'install-button' => true")
+        ->and($config)->toContain("'name' => (string) config('app.name', 'CorePanel')")
+        ->and($config)->toContain("'src' => 'logo.png'")
+        ->and($manifest)->toContain('"src": "logo.png"')
+        ->and($offline)->toContain('Check your internet connection')
+        ->and($serviceWorker)->toContain('const CACHE_PREFIX = "core-panel-";')
+        ->and($serviceWorker)->toContain("const OFFLINE_URL = '/offline.html';")
+        ->and($serviceWorker)->toContain('cacheName.startsWith(CACHE_PREFIX)')
+        ->and(file_exists(__DIR__.'/../../stubs/public/logo.png'))->toBeTrue()
+        ->and($composer)->toContain('"erag/laravel-pwa": "^2.1"');
+});
+
+it('renders the scaffolded pwa manifest from the host app name', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-pwa-manifest-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath, 0777, true);
+    file_put_contents($temporaryBasePath.'/.env', "APP_NAME=\"Acme Control\"\n");
+
+    app(ScaffoldsCorePanelStubs::class)->scaffold(false, $temporaryBasePath);
+
+    $manifest = json_decode((string) file_get_contents($temporaryBasePath.'/public/manifest.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($manifest)->toBeArray()
+        ->and($manifest['name'] ?? null)->toBe('Acme Control')
+        ->and($manifest['short_name'] ?? null)->toBe('Acme Control');
 });
 
 it('ships passport-oriented defaults in the scaffold environment template', function (): void {
@@ -1719,6 +1763,36 @@ BLADE);
         ->and(file_exists($temporaryBasePath.'/resources/views/app.blade.php'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/lang/de.json'))->toBeFalse()
         ->and(file_exists($temporaryBasePath.'/lang/en.json'))->toBeFalse();
+});
+
+it('merges all required core-panel providers into an existing bootstrap providers file during force scaffolding', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-bootstrap-providers-force-'.bin2hex(random_bytes(5));
+    $target = $temporaryBasePath.'/bootstrap/providers.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+
+return [
+    AppServiceProvider::class,
+];
+PHP);
+
+    app(ScaffoldsCorePanelStubs::class)->scaffold(true, $temporaryBasePath);
+
+    $contents = file_get_contents($target);
+
+    expect($contents)->toContain('use App\Providers\FortifyServiceProvider;')
+        ->and($contents)->toContain('use App\Providers\HorizonServiceProvider;')
+        ->and($contents)->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
+        ->and($contents)->toContain('AppServiceProvider::class,')
+        ->and($contents)->toContain('FortifyServiceProvider::class,')
+        ->and($contents)->toContain('HorizonServiceProvider::class,')
+        ->and($contents)->toContain('EragLaravelPwaServiceProvider::class,');
 });
 
 it('removes legacy sass theme files when scaffolding a host application', function (): void {

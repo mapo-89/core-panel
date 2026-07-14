@@ -64,6 +64,10 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
                         overrides: $this->environmentOverrides($options),
                         replaceTemplateValues: true,
                     );
+
+                    $this->stubs->refreshHostRenderedScaffolds([
+                        'public/manifest.json',
+                    ]);
                 });
             }
 

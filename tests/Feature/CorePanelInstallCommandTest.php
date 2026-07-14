@@ -9,6 +9,7 @@ use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
 use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\Migrations\MigrationPathResolver;
+use CorePanel\Support\ScaffoldsCorePanelStubs;
 use CorePanel\Support\SynchronizesEnvironmentFile;
 use Illuminate\Console\Command;
 use Illuminate\Console\OutputStyle;
@@ -810,6 +811,62 @@ it('replaces template-managed environment values during installation synchroniza
         ->and($contents)->toContain('FILESYSTEM_DISK=public')
         ->and($contents)->toContain('CACHE_STORE=redis')
         ->and($contents)->toContain('CUSTOM_KEEP=value');
+});
+
+it('refreshes the scaffolded pwa manifest after installation environment sync', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-refresh-pwa-manifest-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath, 0777, true);
+    file_put_contents($temporaryBasePath.'/.env', "APP_NAME=Laravel\n");
+
+    app(ScaffoldsCorePanelStubs::class)->scaffold(false, $temporaryBasePath);
+
+    $environment = app(SynchronizesEnvironmentFile::class);
+    $environment->sync($temporaryBasePath, [
+        'APP_NAME' => '"CorePanel"',
+    ], true);
+
+    app(ScaffoldsCorePanelStubs::class)->refreshHostRenderedScaffolds([
+        'public/manifest.json',
+    ], $temporaryBasePath);
+
+    $manifest = json_decode((string) file_get_contents($temporaryBasePath.'/public/manifest.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($manifest)->toBeArray()
+        ->and($manifest['name'] ?? null)->toBe('CorePanel')
+        ->and($manifest['short_name'] ?? null)->toBe('CorePanel');
+});
+
+it('preserves an existing unmanaged pwa manifest during installation refresh', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-preserve-host-pwa-manifest-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath.'/public', 0777, true);
+    file_put_contents($temporaryBasePath.'/.env', "APP_NAME=Laravel\n");
+
+    $hostManifest = json_encode([
+        'name' => 'Existing Host App',
+        'short_name' => 'Host App',
+        'display' => 'standalone',
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+    file_put_contents($temporaryBasePath.'/public/manifest.json', $hostManifest.PHP_EOL);
+
+    app(ScaffoldsCorePanelStubs::class)->scaffold(false, $temporaryBasePath);
+
+    $environment = app(SynchronizesEnvironmentFile::class);
+    $environment->sync($temporaryBasePath, [
+        'APP_NAME' => '"CorePanel"',
+    ], true);
+
+    app(ScaffoldsCorePanelStubs::class)->refreshHostRenderedScaffolds([
+        'public/manifest.json',
+    ], $temporaryBasePath);
+
+    $manifest = (string) file_get_contents($temporaryBasePath.'/public/manifest.json');
+    $scaffoldManifest = json_decode((string) file_get_contents($temporaryBasePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($manifest)->toBe($hostManifest.PHP_EOL)
+        ->and(data_get($scaffoldManifest, 'files.public/manifest.json'))->toBeNull();
 });
 
 it('deduplicates existing environment keys when synchronizing the environment file', function (): void {
