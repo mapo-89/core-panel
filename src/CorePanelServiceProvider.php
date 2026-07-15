@@ -60,6 +60,7 @@ use CorePanel\Support\Files\FileModelManager;
 use CorePanel\Support\FormBuilder\FormSubmissionValidator;
 use CorePanel\Support\Forms\FormModelManager;
 use CorePanel\Support\Generators\CorePanelGenerator;
+use CorePanel\Support\Install\AppServiceProviderMerger;
 use CorePanel\Support\Install\BackupManager;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\LocaleResolver as RequestLocaleResolver;
@@ -121,6 +122,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(ActivityLogService::class);
         $this->app->scoped(AuthenticationLogRecorder::class);
         $this->app->scoped(ApiResponseFactory::class);
+        $this->app->scoped(AppServiceProviderMerger::class);
         $this->app->scoped(BackupManager::class);
         $this->app->scoped(DatabaseBackupCloudBackupService::class);
         $this->app->scoped(DatabaseBackupEncryptor::class);

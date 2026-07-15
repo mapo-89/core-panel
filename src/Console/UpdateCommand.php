@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Console;
 
+use CorePanel\Support\Install\AppServiceProviderMerger;
 use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\PublishesCorePanelAssets;
 use CorePanel\Support\Publishing\VendorFirstAssetMigrator;
@@ -19,6 +20,7 @@ final class UpdateCommand extends Command
 
     public function __construct(
         private readonly ScaffoldsCorePanelStubs $stubs,
+        private readonly AppServiceProviderMerger $appServiceProviderMerger,
         private readonly SynchronizesEnvironmentFile $environment,
         private readonly HostMigrationRunner $migrations,
         private readonly VendorFirstAssetMigrator $vendorFirstAssets,
@@ -116,6 +118,7 @@ final class UpdateCommand extends Command
             mergeExisting: ! $localScaffoldSync,
             onlyManagedChanges: ! $localScaffoldSync,
         );
+        $this->appServiceProviderMerger->merge($basePath);
         $this->syncEnvironmentDefaults($basePath);
 
         if ($withAddonUpdates) {

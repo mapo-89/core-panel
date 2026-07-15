@@ -37,6 +37,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 {
     public function __construct(
         private ScaffoldsCorePanelStubs $stubs,
+        private AppServiceProviderMerger $appServiceProviderMerger,
         private SynchronizesEnvironmentFile $environment,
         private UserModelManager $users,
         private PermissionService $permissions,
@@ -54,6 +55,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 
             $this->runStep($command, 'Synchronizing scaffolds', function () use ($options): void {
                 $this->stubs->scaffold($options->force);
+                $this->appServiceProviderMerger->merge();
             });
 
             $environment = [];

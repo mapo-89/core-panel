@@ -87,6 +87,7 @@ it('versions the managed update scaffolds that still require host copies', funct
         '.env.example',
         'bootstrap/app.php',
         'config/pwa.php',
+        'config/trustedproxy.php',
         'docker-compose.portainer.yml',
         'updater/Dockerfile',
         'updater/go.mod',
@@ -942,6 +943,21 @@ it('creates the versioned pwa scaffolds during updates', function (): void {
         ->and(file_exists($logoTarget))->toBeTrue();
 });
 
+it('creates the versioned trusted proxy scaffold during updates', function (): void {
+    $basePath = makePublishBasePath('missing-versioned-trustedproxy');
+    $target = $basePath.'/config/trustedproxy.php';
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_exists($target))->toBeTrue()
+        ->and(file_get_contents($target))->toContain("'proxies' => env('TRUSTED_PROXIES', '*')")
+        ->and(file_get_contents($target))->toContain('Request::HEADER_X_FORWARDED_PROTO');
+});
+
 it('does not overwrite existing unmanaged generic pwa public assets during updates', function (): void {
     $basePath = makePublishBasePath('preserve-unmanaged-pwa-public-assets');
     $manifestTarget = $basePath.'/public/manifest.json';
@@ -1215,6 +1231,53 @@ it('updates explicitly versioned existing application scaffolds without a previo
             ->and($manifest['files'][$relativePath] ?? null)
             ->toBeArray("Expected {$relativePath} to be recorded in the scaffold manifest.");
     }
+});
+
+it('merges the https url hook into an existing app service provider during updates', function (): void {
+    $basePath = makePublishBasePath('merge-app-service-provider');
+    $target = $basePath.'/app/Providers/AppServiceProvider.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        //
+    }
+
+    public function boot(): void
+    {
+        //
+    }
+}
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $contents = (string) file_get_contents($target);
+
+    expect($contents)->toContain('use Illuminate\Support\Facades\URL;')
+        ->and($contents)->toContain("if (parse_url((string) config('app.url'), PHP_URL_SCHEME) === 'https') {")
+        ->and($contents)->toContain("URL::forceScheme('https');")
+        ->and(glob($basePath.'/.core-panel-backups/*/app/Providers/AppServiceProvider.php'))
+        ->not->toBeEmpty();
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(substr_count((string) file_get_contents($target), "URL::forceScheme('https');"))->toBe(1);
 });
 
 it('updates an existing bootstrap middleware scaffold without a previous baseline', function (): void {

@@ -74,6 +74,7 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/page-user-groups.php',
         'lang/en/system_updates.php',
         'config/pwa.php',
+        'config/trustedproxy.php',
         'public/logo.png',
         'public/manifest.json',
         'public/offline.html',
@@ -1053,6 +1054,7 @@ final readonly class ScaffoldsCorePanelStubs
 
         foreach ([
             'core-panel/',
+            'merge/',
             'node_modules/',
             'public/build/',
         ] as $prefix) {

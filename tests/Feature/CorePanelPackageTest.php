@@ -1137,6 +1137,10 @@ it('does not use legacy .stub suffixes inside the host template tree', function 
     }
 });
 
+it('does not expose internal merge helpers in the host scaffold path list', function (): void {
+    expect(ScaffoldsCorePanelStubs::paths())->not->toContain('merge/app-service-provider.force-https-hook.stub');
+});
+
 it('ships a visible domain scaffold structure for host applications', function (): void {
     expect(is_dir(__DIR__.'/../../stubs/app/Actions/Fortify'))->toBeTrue()
         ->and(is_file(__DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php'))->toBeTrue()
@@ -1423,7 +1427,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($dockerfile)->toContain('FROM php-build-base AS frontend-build')
         ->and($dockerfile)->toContain('FROM php-runtime-base AS php-prod')
         ->and($dockerfile)->toContain('FROM php-runtime-base AS php-dev')
-        ->and($dockerfile)->toContain('FROM nginx:1.31-alpine AS nginx-runtime')
+        ->and($dockerfile)->toContain('FROM nginx:1.31-alpine AS nginx-prod')
         ->and($dockerfile)->not->toContain('FROM composer:2 AS vendor')
         ->and($dockerfile)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH=/opt/core-panel-package')
         ->and($dockerfile)->not->toContain('core-panel-prepare-composer')
@@ -1507,7 +1511,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($portainerCompose)->toContain('proxy-network:')
         ->and($portainerCompose)->toContain('core-panel:')
         ->and($productionCompose)->toContain('nginx:')
-        ->and($productionCompose)->toContain('target: nginx-runtime')
+        ->and($productionCompose)->toContain('target: nginx-prod')
         ->and($productionCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
         ->and($productionCompose)->toContain('x-php-environment: &php-environment')
         ->and($productionCompose)->toContain('system-updater:')
