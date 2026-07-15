@@ -1,7 +1,7 @@
 {
-    "release_version": "1.3.1",
-    "display_version": "1.3.1 (63da608)",
-    "image_version": "1.3.1-63da608",
-    "commit": "63da608",
-    "commit_date": "2026-07-15T11:01:42+02:00"
+    "release_version": "1.3.2",
+    "display_version": "1.3.2 (3287f4d)",
+    "image_version": "1.3.2-3287f4d",
+    "commit": "3287f4d",
+    "commit_date": "2026-07-15T21:21:14+02:00"
 }
