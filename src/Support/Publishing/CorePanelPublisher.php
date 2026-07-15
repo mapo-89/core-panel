@@ -166,7 +166,7 @@ final readonly class CorePanelPublisher
 
                         if ($destinationHash === $sourceHash) {
                             $changes[] = $this->change($tag, 'unchanged', $source, $destination, 'legacy published file adopted into the publish manifest');
-                            $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
+                            $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root, ! $dryRun);
 
                             continue;
                         }
@@ -240,7 +240,7 @@ final readonly class CorePanelPublisher
                 if ($destinationExists) {
                     if ($destinationHash === $sourceHash) {
                         $changes[] = $this->change($tag, 'unchanged', $source, $destination, 'already up to date');
-                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
+                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root, ! $dryRun);
 
                         continue;
                     }
@@ -502,15 +502,27 @@ final readonly class CorePanelPublisher
         string $sourceHash,
         string $destinationHash,
         string $root,
+        bool $storeSnapshot = true,
     ): void {
-        $manifest['files'][$destination] = [
+        $entry = [
             'tag' => $tag,
             'source' => $source,
             'source_hash' => $sourceHash,
             'destination_hash' => $destinationHash,
             'published_at' => now()->toAtomString(),
-            'snapshot' => $this->storePublishedSnapshot($source, $root, $sourceHash),
         ];
+
+        $existingSnapshot = $manifest['files'][$destination]['snapshot'] ?? null;
+
+        if (is_string($existingSnapshot) && $existingSnapshot !== '') {
+            $entry['snapshot'] = $existingSnapshot;
+        }
+
+        if ($storeSnapshot) {
+            $entry['snapshot'] = $this->storePublishedSnapshot($source, $root, $sourceHash);
+        }
+
+        $manifest['files'][$destination] = $entry;
     }
 
     /**
