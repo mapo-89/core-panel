@@ -19,8 +19,11 @@ final readonly class ScaffoldsCorePanelStubs
      * @var list<string>
      */
     private const VENDOR_FIRST_SCAFFOLD_PREFIXES = [
+        'lang/',
         'lang/de.json',
         'lang/en.json',
+        'routes/web/admin.php',
+        'routes/web/admin/',
         'resources/css/theme/',
         'resources/js/pages/',
         'resources/views/app.blade.php',
@@ -82,11 +85,6 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/css/app.css',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
-        'routes/web/admin.php',
-        'routes/web/admin/administration.php',
-        'routes/web/admin/database-backups.php',
-        'routes/web/admin/logs.php',
-        'routes/web/admin/system-updates.php',
         'routes/console.php',
     ];
 
@@ -104,10 +102,6 @@ final readonly class ScaffoldsCorePanelStubs
         $packageAgentsRoot = realpath(__DIR__.'/../../.agents');
         $packageClaudeRoot = realpath(__DIR__.'/../../.claude');
         $packageAgentsFile = realpath(__DIR__.'/../../AGENTS.md');
-        $workspaceAiRoot = realpath(__DIR__.'/../../../../.ai');
-        $workspaceAgentsRoot = realpath(__DIR__.'/../../../../.agents');
-        $workspaceClaudeRoot = realpath(__DIR__.'/../../../../.claude');
-        $workspaceAgentsFile = realpath(__DIR__.'/../../../../AGENTS.md');
 
         if ($stubRoot === false) {
             return [];
@@ -127,25 +121,17 @@ final readonly class ScaffoldsCorePanelStubs
 
         if ($packageAiRoot !== false) {
             self::appendPathsFromRoot($paths, $packageAiRoot, '.ai');
-        } elseif ($workspaceAiRoot !== false) {
-            self::appendPathsFromRoot($paths, $workspaceAiRoot, '.ai');
         }
 
         if ($packageAgentsRoot !== false) {
             self::appendPathsFromRoot($paths, $packageAgentsRoot, '.agents');
-        } elseif ($workspaceAgentsRoot !== false) {
-            self::appendPathsFromRoot($paths, $workspaceAgentsRoot, '.agents');
         }
 
         if ($packageClaudeRoot !== false) {
             self::appendPathsFromRoot($paths, $packageClaudeRoot, '.claude');
-        } elseif ($workspaceClaudeRoot !== false) {
-            self::appendPathsFromRoot($paths, $workspaceClaudeRoot, '.claude');
         }
 
         if ($packageAgentsFile !== false) {
-            $paths[] = 'AGENTS.md';
-        } elseif ($workspaceAgentsFile !== false) {
             $paths[] = 'AGENTS.md';
         }
 
@@ -367,13 +353,7 @@ final readonly class ScaffoldsCorePanelStubs
 
     private function packageSupportPath(string $relativePath): string
     {
-        $packagePath = __DIR__.'/../../'.$relativePath;
-
-        if ($this->files->exists($packagePath)) {
-            return $packagePath;
-        }
-
-        return __DIR__.'/../../../../'.$relativePath;
+        return __DIR__.'/../../'.$relativePath;
     }
 
     private function mergePackageJson(string $sourcePath, string $destinationPath, string $root): void

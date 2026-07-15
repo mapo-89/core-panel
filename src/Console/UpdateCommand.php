@@ -122,11 +122,15 @@ final class UpdateCommand extends Command
         $this->syncEnvironmentDefaults($basePath);
 
         if ($withAddonUpdates) {
-            $this->updateInstalledOptionalAddons(
+            $addonExitCode = $this->updateInstalledOptionalAddons(
                 $basePath,
                 $withBreakingChanges,
                 $force,
             );
+
+            if ($addonExitCode !== self::SUCCESS) {
+                return $addonExitCode;
+            }
         }
 
         $this->runMigrations($basePath);
@@ -138,7 +142,7 @@ final class UpdateCommand extends Command
 
     private function shouldFullySynchronizeScaffolds(?string $basePath): bool
     {
-        return app()->isLocal();
+        return false;
     }
 
     /**
@@ -235,11 +239,11 @@ final class UpdateCommand extends Command
         ?string $basePath,
         bool $withBreakingChanges,
         bool $force,
-    ): void {
+    ): int {
         if (! $this->withTenancyUpdateCommand()) {
             $this->components->warn('No installed optional addons exposed an update command.');
 
-            return;
+            return self::SUCCESS;
         }
 
         $options = [
@@ -254,7 +258,7 @@ final class UpdateCommand extends Command
             $options['--base-path'] = $basePath;
         }
 
-        $this->call('core-panel:tenancy:update', array_filter($options));
+        return $this->call('core-panel:tenancy:update', array_filter($options));
     }
 
     private function withTenancyUpdateCommand(): bool

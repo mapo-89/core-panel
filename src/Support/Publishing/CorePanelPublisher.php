@@ -8,6 +8,7 @@ use CorePanel\Support\Install\BackupManager;
 use CorePanel\Support\PublishTag;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Process\Process;
 
 final readonly class CorePanelPublisher
 {
@@ -67,6 +68,7 @@ final readonly class CorePanelPublisher
         ?string $basePath = null,
         bool $adoptUnmanagedExisting = false,
         array $managedMissingPaths = [],
+        bool $recreateManagedMissing = true,
     ): array {
         return $this->apply(
             $tags,
@@ -76,6 +78,7 @@ final readonly class CorePanelPublisher
             $basePath,
             adoptUnmanagedExisting: $adoptUnmanagedExisting,
             managedMissingPaths: $managedMissingPaths,
+            recreateManagedMissing: $recreateManagedMissing,
         );
     }
 
@@ -97,6 +100,7 @@ final readonly class CorePanelPublisher
         ?string $basePath = null,
         bool $adoptUnmanagedExisting = false,
         array $managedMissingPaths = [],
+        bool $recreateManagedMissing = true,
     ): array {
         return $this->apply(
             $tags,
@@ -107,6 +111,7 @@ final readonly class CorePanelPublisher
             $provider,
             $adoptUnmanagedExisting,
             $managedMissingPaths,
+            $recreateManagedMissing,
         );
     }
 
@@ -129,6 +134,7 @@ final readonly class CorePanelPublisher
         ?string $provider = null,
         bool $adoptUnmanagedExisting = false,
         array $managedMissingPaths = [],
+        bool $recreateManagedMissing = true,
     ): array {
         $root = $basePath ?? base_path();
         $manifest = $this->manifest->read($root);
@@ -160,7 +166,7 @@ final readonly class CorePanelPublisher
 
                         if ($destinationHash === $sourceHash) {
                             $changes[] = $this->change($tag, 'unchanged', $source, $destination, 'legacy published file adopted into the publish manifest');
-                            $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                            $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
 
                             continue;
                         }
@@ -184,7 +190,7 @@ final readonly class CorePanelPublisher
                         $backupsCreated = true;
                         $this->copyPublishable($source, $destination);
                         $destinationHash = $this->hash($destination);
-                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
                         $changes[] = $this->change($tag, $status, $source, $destination, $reason);
 
                         if ($tag === PublishTag::Theme->value) {
@@ -206,7 +212,7 @@ final readonly class CorePanelPublisher
 
                         $this->copyPublishable($source, $destination);
                         $destinationHash = $this->hash($destination);
-                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
                         $changes[] = $this->change($tag, $status, $source, $destination, $reason);
 
                         continue;
@@ -220,10 +226,21 @@ final readonly class CorePanelPublisher
                 $status = 'create';
                 $reason = 'new file';
 
+                if (
+                    $manifestAware
+                    && ! $destinationExists
+                    && is_array($manifestEntry)
+                    && ! $recreateManagedMissing
+                ) {
+                    $changes[] = $this->change($tag, 'skipped', $source, $destination, 'managed file intentionally kept in vendor');
+
+                    continue;
+                }
+
                 if ($destinationExists) {
                     if ($destinationHash === $sourceHash) {
                         $changes[] = $this->change($tag, 'unchanged', $source, $destination, 'already up to date');
-                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                        $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
 
                         continue;
                     }
@@ -233,6 +250,38 @@ final readonly class CorePanelPublisher
                             $status = 'update';
                             $reason = 'published file changed upstream';
                         } else {
+                            $mergeResult = $this->mergeManagedPublishedAsset(
+                                $manifestEntry,
+                                $source,
+                                $destination,
+                                $sourceHash,
+                                $root,
+                            );
+
+                            if ($mergeResult !== null) {
+                                if ($dryRun) {
+                                    $changes[] = $this->change($tag, 'merge', $source, $destination, $mergeResult['reason']);
+
+                                    continue;
+                                }
+
+                                if ($mergeResult['contentsChanged']) {
+                                    $this->backups->backupPaths([$source => $destination], $root);
+                                    $backupsCreated = true;
+                                    $this->files->put($destination, $mergeResult['contents']);
+                                }
+
+                                $destinationHash = $mergeResult['destination_hash'];
+                                $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
+                                $changes[] = $this->change($tag, 'merge', $source, $destination, $mergeResult['reason']);
+
+                                if ($tag === PublishTag::Theme->value) {
+                                    $themeMigrationHint = true;
+                                }
+
+                                continue;
+                            }
+
                             $status = $force ? 'overwrite' : 'conflict';
                             $reason = 'local changes detected';
                         }
@@ -261,7 +310,7 @@ final readonly class CorePanelPublisher
 
                 $this->copyPublishable($source, $destination);
                 $destinationHash = $this->hash($destination);
-                $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash);
+                $this->storeManifestEntry($updatedManifest, $tag, $source, $destination, $sourceHash, $destinationHash, $root);
                 $changes[] = $this->change($tag, $status, $source, $destination, $reason);
 
                 if ($tag === PublishTag::Theme->value) {
@@ -331,13 +380,117 @@ final readonly class CorePanelPublisher
     }
 
     /**
+     * @param  array{snapshot?:string,source_hash?:string}  $manifestEntry
+     * @return array{
+     *     contents:string,
+     *     contentsChanged:bool,
+     *     destination_hash:string,
+     *     reason:string
+     * }|null
+     */
+    private function mergeManagedPublishedAsset(
+        array $manifestEntry,
+        string $source,
+        string $destination,
+        string $currentSourceHash,
+        string $root,
+    ): ?array {
+        if (($manifestEntry['source_hash'] ?? null) === $currentSourceHash) {
+            return null;
+        }
+
+        $snapshot = $manifestEntry['snapshot'] ?? null;
+
+        if (! is_string($snapshot) || $snapshot === '') {
+            return null;
+        }
+
+        $basePath = $root.'/'.$snapshot;
+
+        if (
+            ! $this->files->isFile($basePath)
+            || ! $this->files->isFile($source)
+            || ! $this->files->isFile($destination)
+        ) {
+            return null;
+        }
+
+        $baseContents = (string) $this->files->get($basePath);
+        $destinationContents = (string) $this->files->get($destination);
+        $sourceContents = (string) $this->files->get($source);
+        $mergedContents = $this->mergeFileContents($baseContents, $destinationContents, $sourceContents);
+
+        if ($mergedContents === null) {
+            return null;
+        }
+
+        return [
+            'contents' => $mergedContents,
+            'contentsChanged' => $mergedContents !== $destinationContents,
+            'destination_hash' => md5($mergedContents),
+            'reason' => $mergedContents === $destinationContents
+                ? 'upstream changes merged without altering local override'
+                : 'upstream changes merged into local override',
+        ];
+    }
+
+    private function storePublishedSnapshot(string $source, string $root, string $sourceHash): string
+    {
+        $snapshotRelativePath = 'storage/app/core-panel/published/'.($this->files->isDirectory($source) ? 'directory-' : 'file-').$sourceHash;
+        $snapshotPath = $root.'/'.$snapshotRelativePath;
+
+        if ($this->files->isDirectory($source)) {
+            if (! $this->files->exists($snapshotPath)) {
+                $this->files->ensureDirectoryExists(dirname($snapshotPath));
+                $this->files->copyDirectory($source, $snapshotPath);
+            }
+
+            return $snapshotRelativePath;
+        }
+
+        if (! $this->files->exists($snapshotPath)) {
+            $this->files->ensureDirectoryExists(dirname($snapshotPath));
+            $this->files->copy($source, $snapshotPath);
+        }
+
+        return $snapshotRelativePath;
+    }
+
+    private function mergeFileContents(string $baseContents, string $destinationContents, string $sourceContents): ?string
+    {
+        $temporaryDirectory = sys_get_temp_dir().'/core-panel-publish-merge-'.bin2hex(random_bytes(8));
+
+        $this->files->ensureDirectoryExists($temporaryDirectory);
+
+        $basePath = $temporaryDirectory.'/base';
+        $destinationPath = $temporaryDirectory.'/destination';
+        $sourcePath = $temporaryDirectory.'/source';
+
+        $this->files->put($basePath, $baseContents);
+        $this->files->put($destinationPath, $destinationContents);
+        $this->files->put($sourcePath, $sourceContents);
+
+        $process = new Process(['git', 'merge-file', '-p', $destinationPath, $basePath, $sourcePath]);
+        $process->run();
+
+        $this->files->deleteDirectory($temporaryDirectory);
+
+        if ($process->getExitCode() !== 0) {
+            return null;
+        }
+
+        return $process->getOutput();
+    }
+
+    /**
      * @param  array{
      *     files: array<string, array{
      *         tag:string,
      *         source:string,
      *         source_hash:string,
      *         destination_hash:string,
-     *         published_at:string
+     *         published_at:string,
+     *         snapshot?:string
      *     }>
      * }  $manifest
      */
@@ -348,6 +501,7 @@ final readonly class CorePanelPublisher
         string $destination,
         string $sourceHash,
         string $destinationHash,
+        string $root,
     ): void {
         $manifest['files'][$destination] = [
             'tag' => $tag,
@@ -355,6 +509,7 @@ final readonly class CorePanelPublisher
             'source_hash' => $sourceHash,
             'destination_hash' => $destinationHash,
             'published_at' => now()->toAtomString(),
+            'snapshot' => $this->storePublishedSnapshot($source, $root, $sourceHash),
         ];
     }
 

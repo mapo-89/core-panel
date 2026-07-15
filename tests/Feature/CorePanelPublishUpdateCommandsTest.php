@@ -92,23 +92,12 @@ it('versions the managed update scaffolds that still require host copies', funct
         'updater/Dockerfile',
         'updater/go.mod',
         'updater/main.go',
-        'lang/de/account-mail.php',
-        'lang/de/administration.php',
-        'lang/de/page-log-files.php',
-        'lang/en/account-mail.php',
-        'lang/en/administration.php',
-        'lang/en/page-log-files.php',
-        'lang/en/system_updates.php',
-        'lang/de/page-users.php',
-        'lang/en/page-users.php',
         'public/logo.png',
         'public/manifest.json',
         'public/offline.html',
         'public/sw.js',
         'resources/css/app.css',
         'resources/js/routes/core-panel/log-files.ts',
-        'routes/web/admin/administration.php',
-        'routes/web/admin/logs.php',
         'routes/console.php',
     )->not->toContain(
         'bootstrap/providers.php',
@@ -126,27 +115,23 @@ it('keeps vendor-first administration pages absent during update for existing ap
         ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue'))->toBeFalse()
         ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue'))->toBeFalse()
         ->and(file_exists($basePath.'/resources/js/pages/Admin/Administration/components/HorizonTab.vue'))->toBeFalse()
-        ->and(file_exists($basePath.'/routes/web/admin/administration.php'))->toBeTrue()
+        ->and(file_exists($basePath.'/routes/web/admin/administration.php'))->toBeFalse()
         ->and(file_exists($basePath.'/routes/console.php'))->toBeTrue();
 });
 
-it('updates untracked administration route scaffolds with a backup during versioned updates', function (): void {
+it('keeps missing administration route scaffolds vendor-first during updates', function (): void {
     $basePath = makePublishBasePath('administration-untracked-scaffold');
-    $target = $basePath.'/routes/web/admin/administration.php';
-
-    mkdir(dirname($target), 0777, true);
-    file_put_contents($target, "<?php\n\n// legacy administration route scaffold\n");
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    $backups = glob($basePath.'/.core-panel-backups/*/routes/web/admin/administration.php');
+    $manifestContents = file_exists($basePath.'/storage/app/core-panel/scaffolds.json')
+        ? (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json')
+        : '';
 
-    expect($backups)->not->toBeFalse()
-        ->and($backups)->not->toBeEmpty()
-        ->and(file_get_contents($target))->toContain('AdministrationController::class')
-        ->and(file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toContain('routes/web/admin/administration.php');
+    expect(file_exists($basePath.'/routes/web/admin/administration.php'))->toBeFalse()
+        ->and($manifestContents)->not->toContain('routes/web/admin/administration.php');
 });
 
 it('publishes a single config tag', function (): void {
@@ -818,38 +803,36 @@ it('creates explicitly versioned missing application scaffolds during updates', 
     ])->assertExitCode(0);
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        if (str_starts_with($relativePath, 'lang/')) {
+            expect(file_exists($basePath.'/'.$relativePath))
+                ->toBeFalse("Expected {$relativePath} to stay vendor-first when missing.");
+
+            continue;
+        }
+
         expect(file_exists($basePath.'/'.$relativePath))
             ->toBeTrue("Expected {$relativePath} to be created during managed-only updates.");
     }
 });
 
-it('fully synchronizes local application scaffolds during updates', function (): void {
+it('keeps administration route scaffolds vendor-first during updates', function (): void {
     $basePath = makePublishBasePath('local-full-scaffold-sync');
-    $originalEnvironment = app()->environment();
     $existingTarget = $basePath.'/routes/web/admin/administration.php';
     $missingTarget = $basePath.'/routes/web/admin/system-updates.php';
-    $sourcePage = file_get_contents(__DIR__.'/../../routes/web/admin/administration.php');
+    $customContents = "<?php\n\n// custom local administration routes\n";
 
     mkdir(dirname($existingTarget), 0777, true);
-    file_put_contents($existingTarget, "<?php\n\n// custom local administration routes\n");
+    file_put_contents($existingTarget, $customContents);
 
-    app()->instance('env', 'local');
-
-    try {
-        $this->artisan('core-panel:update', [
-            '--base-path' => $basePath,
-        ])->assertExitCode(0);
-    } finally {
-        app()->instance('env', $originalEnvironment);
-    }
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
 
     expect(file_exists($existingTarget))->toBeTrue()
-        ->and(file_get_contents($existingTarget))->toBe($sourcePage)
-        ->and(file_get_contents($existingTarget))->not->toContain('custom local administration routes')
-        ->and(file_exists($missingTarget))->toBeTrue()
-        ->and(file_get_contents($missingTarget))->toContain('SystemUpdateController::class')
+        ->and(file_get_contents($existingTarget))->toBe($customContents)
+        ->and(file_exists($missingTarget))->toBeFalse()
         ->and(glob($basePath.'/.core-panel-backups/*/routes/web/admin/administration.php'))
-        ->not->toBeEmpty();
+        ->toBe([]);
 });
 
 it('preserves local theme imports in app css during local full scaffold sync updates', function (): void {
@@ -894,6 +877,13 @@ it('creates explicitly versioned missing application scaffolds without per-file 
     ])->assertExitCode(0);
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
+        if (str_starts_with($relativePath, 'lang/')) {
+            expect(file_exists($basePath.'/'.$relativePath))
+                ->toBeFalse("Expected {$relativePath} to stay vendor-first when it has no current scaffold manifest entry.");
+
+            continue;
+        }
+
         expect(file_exists($basePath.'/'.$relativePath))
             ->toBeTrue("Expected {$relativePath} to be created when it has no current scaffold manifest entry.");
     }
@@ -1160,7 +1150,7 @@ PHP);
         ->not->toBeEmpty();
 });
 
-it('creates the versioned page-users translation scaffolds during updates', function (): void {
+it('does not create missing page-users translation scaffolds during updates', function (): void {
     $basePath = makePublishBasePath('missing-versioned-page-users-translations');
     $englishTarget = $basePath.'/lang/en/page-users.php';
     $germanTarget = $basePath.'/lang/de/page-users.php';
@@ -1171,13 +1161,11 @@ it('creates the versioned page-users translation scaffolds during updates', func
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($englishTarget))->toBeTrue()
-        ->and(file_get_contents($englishTarget))->toContain("'groups' => 'Groups'")
-        ->and(file_exists($germanTarget))->toBeTrue()
-        ->and(file_get_contents($germanTarget))->toContain("'groups' => 'Gruppen'");
+    expect(file_exists($englishTarget))->toBeFalse()
+        ->and(file_exists($germanTarget))->toBeFalse();
 });
 
-it('creates the versioned account-mail translation scaffolds during updates', function (): void {
+it('does not create missing account-mail translation scaffolds during updates', function (): void {
     $basePath = makePublishBasePath('missing-versioned-account-mail-translations');
     $englishTarget = $basePath.'/lang/en/account-mail.php';
     $germanTarget = $basePath.'/lang/de/account-mail.php';
@@ -1188,10 +1176,8 @@ it('creates the versioned account-mail translation scaffolds during updates', fu
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_exists($englishTarget))->toBeTrue()
-        ->and(file_get_contents($englishTarget))->toContain("'subject' => 'Reset your password'")
-        ->and(file_exists($germanTarget))->toBeTrue()
-        ->and(file_get_contents($germanTarget))->toContain("'subject' => 'Passwort zurücksetzen'");
+    expect(file_exists($englishTarget))->toBeFalse()
+        ->and(file_exists($germanTarget))->toBeFalse();
 });
 
 it('updates explicitly versioned existing application scaffolds without a previous baseline', function (): void {

@@ -608,14 +608,13 @@ it('ships host application templates as regular files inside the package sources
         $stubSourcePath = __DIR__.'/../../stubs/'.$path;
         $packageSourcePath = __DIR__.'/../../'.$path;
         $packageResourceSourcePath = __DIR__.'/../../resources/'.$path;
-        $workspaceSourcePath = __DIR__.'/../../../../'.$path;
         $sourcePath = file_exists($stubSourcePath)
             ? $stubSourcePath
             : (str_starts_with($path, 'database/migrations/')
                 ? coreMigrationStubPath(basename($path))
                 : (file_exists($packageSourcePath)
                     ? $packageSourcePath
-                    : (file_exists($packageResourceSourcePath) ? $packageResourceSourcePath : $workspaceSourcePath)));
+                    : $packageResourceSourcePath));
 
         expect(file_exists($sourcePath))->toBeTrue();
     }
