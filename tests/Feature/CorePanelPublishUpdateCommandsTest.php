@@ -99,6 +99,7 @@ it('versions the managed update scaffolds that still require host copies', funct
         'resources/css/app.css',
         'resources/js/routes/core-panel/log-files.ts',
         'routes/console.php',
+        'routes/web.php',
     )->not->toContain(
         'bootstrap/providers.php',
     );

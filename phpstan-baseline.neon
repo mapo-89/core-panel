@@ -175,12 +175,6 @@ parameters:
 			path: src/Support/Permissions/RoutePermissionResolver.php
 
 		-
-			message: '#^Offset ''destination_hash'' on array\{tag\: string, source\: string, source_hash\: string, destination_hash\: string, published_at\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: src/Support/Publishing/CorePanelPublisher.php
-
-		-
 			message: '#^Right side of && is always true\.$#'
 			identifier: booleanAnd.rightAlwaysTrue
 			count: 1

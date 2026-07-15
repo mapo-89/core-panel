@@ -1178,6 +1178,8 @@ it('ships host route templates that can be composed by the tenancy addon', funct
 
     expect($webRoutes)->toContain("Route::redirect('/', config('core-panel.route_prefix', 'admin'));")
         ->and($webRoutes)->toContain("foreach (\$webRoutes['public'] as \$publicRouteFile)")
+        ->and($webRoutes)->toContain("\$packageWebRoutesRoot = base_path('vendor/mapo-89/core-panel/routes/web');")
+        ->and($webRoutes)->toContain('Unable to locate CorePanel web route fragment')
         ->and($webRoutes)->not->toContain("if (file_exists(__DIR__.'/web/tenants.php'))")
         ->and($routeManifest)->toContain("'dashboard.php'")
         ->and($routeManifest)->toContain("'platform.php'")

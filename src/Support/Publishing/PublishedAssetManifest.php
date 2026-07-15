@@ -30,9 +30,10 @@ final readonly class PublishedAssetManifest
             return ['files' => []];
         }
 
-        /** @var array{files?:array<string, array{tag:string,source:string,source_hash:string,destination_hash:string,published_at:string,snapshot?:string}>} $decoded */
+        /** @var array{files?:array<string, mixed>} $decoded */
         $decoded = json_decode((string) $this->files->get($path), true, flags: JSON_THROW_ON_ERROR);
 
+        /** @var array<string, array{tag:string,source:string,source_hash:string,destination_hash:string,published_at:string,snapshot?:string}> $files */
         $files = [];
 
         foreach ($decoded['files'] ?? [] as $destination => $entry) {

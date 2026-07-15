@@ -246,7 +246,7 @@ final readonly class CorePanelPublisher
                     }
 
                     if ($manifestAware && is_array($manifestEntry)) {
-                        if (($manifestEntry['destination_hash'] ?? null) === $destinationHash) {
+                        if ($manifestEntry['destination_hash'] === $destinationHash) {
                             $status = 'update';
                             $reason = 'published file changed upstream';
                         } else {

@@ -86,6 +86,7 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
         'routes/console.php',
+        'routes/web.php',
     ];
 
     public function __construct(private Filesystem $files, private BackupManager $backups) {}
