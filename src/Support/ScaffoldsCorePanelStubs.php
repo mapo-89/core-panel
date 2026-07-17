@@ -89,6 +89,153 @@ final readonly class ScaffoldsCorePanelStubs
         'routes/web.php',
     ];
 
+    /**
+     * Historical hashes for critical scaffolds that shipped before scaffold
+     * manifest tracking existed. Matching these means the host file was
+     * previously package-owned and should still receive versioned updates.
+     *
+     * @var array<string, list<string>>
+     */
+    private const LEGACY_CRITICAL_SCAFFOLD_HASHES = [
+        '.env.example' => [
+            '5207d5d477924630259b04826676383026a0e1da6ab5c36fe14a7d75f4cd0145',
+            'ddb7079e5c75363cbf1290ba711f23da6cccff390cf6f7d7838a654852d3c342',
+            'bbb07409482841fef636a17a1a61f8f229267c51175a22a924281854f3011ed7',
+            'c50c239893cf01e11c2c6c7747bc57f798439f8335a795085b9855d4f6d77501',
+            'af1330dae90b50906d53e9b763ec39d6a834b1b33052e68aa0a9bb55559e2aa0',
+            'b73a8a4f27503dc5894bda0baa3d0d5cfe4a5007cf81ae799fceeb0857dbee9a',
+            'cd2110fb7ff76b4d8b73e4a09295a1980f2b84c1c4a342c7a1212ad9fde4537b',
+            '70170bcedeede66934eaff9e3e04f30700eba66aa98b04533b550119d99c4b7f',
+            'ef5f1bd0986de6a1d5c6f2288c3628a4919b1688cd7c01cf12bb1f6c723a9b1f',
+            '186f6ac13a6eadd5b0f5c4da2b95cb8e43a2ad73cb118c0889aa0da782504455',
+            '1b5e2da81418efbd41eb29543a7727dc301b56251863b229566f56b1cfa44870',
+            '99a6de2482371a6f1280503f51f0b48b2b6624e8ae144be45ee9fbb605789289',
+            'b6a16b6e897c9c182516ea371bfe15a61ca26701083cdd4cff13cf8f24d9e66c',
+            '3eb5ce7c524cb7bb45f028ede2939b935091bfb0496bc988205715960ee29c10',
+            '812061ae6ec733cf548358dcb50f4a98bc4a6e41b32e1a4aec1d5981db7cbcfd',
+            'a0abd6a7dc76edbedfff037751b8da84e8ef85f2b73cd63abffe6da753f074a3',
+            '7907b278f4f36f51d62a9cd5d193a891857ab1abd8cf641d97ac47f8e43c2805',
+            'e1ed095b718b0390871dd89316cb394041d7d1e31294515ce752f541595800ac',
+            'c0546b4fd8e035a631b6621bdaf80aa4ab77a4d3df173ecab4b4134b81ebd694',
+            '2d1da84e6fe4500d28d09dc43376fcffd648eebeb6c43543f981178a2a49d98c',
+            '7c18f47f79b888b9b2025eeb3fe650f21d127ab311dd55b58b4e7bc943d0ce90',
+            'd7de9a27aadfcc12dc6b60ba2c2160bfee3699642865e957aa2b71f28a800c46',
+            '49cb571da012a7f4c6db97ae63c1f95ccd4f4f175e339293a439ae6b3e4f79c7',
+            '1c00e3911fc3e54d71c788262c3f2db45217f59da67162d64bd08c2578a3f49e',
+            'd73928af9145c1ebbbb1ad9eeadff49937410a8e26a6cd0d8021228d7b44515a',
+            '6a77e61890560f1803bfbad77673ac5f0a9eedf3971a7c76bca4ffab9b880d35',
+            'feb76c89a93c1e66768116d8b2b9b370a59d27cfe765e6466ce9b333de8e2336',
+            'dfdfcb1df8fb8773792bc5cc6903ddc4baf3f84fa8d02975282ab9d50428640a',
+            '04ad48c80acfc7ba35cc66bb7651edf96aac23d4230ce06a2b4da57c81750586',
+            'e0cebbd629728d4427ef7d76c2462777785c35ca43eb5f3ecdcd99332ce0fe08',
+            '9b991ba87ffd0767a9009544e23d5db09915be92c92ce1eec5ca98ae45183543',
+            '065c207db85b8e721be73bb1b2d3e7e6a5d89f7fa72c398ea3498d72c5d7045e',
+            'c0d741d29fd1ca8d9c6094f8d501bd1b1675afc16b141174740695d2a535d345',
+        ],
+        'bootstrap/app.php' => [
+            'c20cb15ecf282e2d1cf0df59bfe3c82a0736e08aecfffa8dbd4e4e07453fcdae',
+            '1f0dd1f91f087391d1713cd226eeb815118d3bc17b07bea14a945673dd11bd73',
+            '8dacade7c0d59bbdc61a7285607033f138b58839480d12f6cc9682850aa798b2',
+            'f944c53f1b25710aa0c376a84a3a87e7b59c799774b183be8b364edcaa86dcba',
+            '0da5b7cfcc6b4e44b60fdee146d2cbfd164dfa9e5de9c2a1edf7f0c1e4114946',
+            '6d51956c4137a74a6f426d817518469f9076911655aaf3e8d72680e3059c1507',
+            'cd17a0d7d61daf5f296e1ee0a8eda31a15481e26e67e3b425f9cc468aa9a9aa8',
+            '2cff0ef340c706af2e7a2c1c6fa8005aafb8549aa8c64fb208b2be4ce075abb7',
+            '63be7ca515260c22fbd91b3a9f50fba55c0f6e981bb71ce939dd0ce3d0c5b96a',
+            'd1cfee11e2ecb7e0b50e07841358d643a4d96878d737e7ee0e05f8176e2e6dc7',
+            '3d32cd22859a157e2976ce285a410cea7170ad5e8a60239b1d717e5b830fa20f',
+            '2bdd934b2c9c6f531182ebc808ebc5178e61da0a7d89f67d41df2538a9af7db7',
+        ],
+        '.docker/bin/php-entrypoint.sh' => [
+            'e7a20e256210277b91503a0f7c1ecad5be03e36d2be2cb7cc05e9b484ca2311b',
+        ],
+        '.docker/bin/prepare-local-environment.sh' => [
+            '71ec82911c7b9f5561e9b2cbb26542094e49e1a44020c0b4b3fb4061383f9a0a',
+        ],
+        '.docker/bin/start-dev-app.sh' => [
+            'c5c609b07ffa46d84d50cbe3d27881b134e24a4b4150ab0632ae93a9e0e5af95',
+        ],
+        '.docker/bin/start-dev-artisan.sh' => [
+            'bc53ef5163c80f37c4b758e32ebf46eab34191f30b1dcd5add586a02e7d82f10',
+        ],
+        '.docker/nginx/default.conf' => [
+            'f4eb5aa0aec5ca1b8c358c2d882b64c753942ef87e2522ce5feb68733f882d56',
+            'bbc057969a0d43944971c9a582476207fed0b5c03b837eaaff718531faa81a8b',
+        ],
+        '.docker/php/banner.sh' => [
+            '3258e04cc8a1283200660e1d7af058ef281cda27cff1b04e2af6e679915e9124',
+            '133e2dd096e1a82fd599bfdf11289991c4e0879d8d9c76bb3bf14d2c37c9e566',
+        ],
+        '.docker/php/entrypoint.sh' => [
+            '10d0c57de9589462e8dfbfdf6ffd7ad58169be81fe4ce6237ef3682de920d131',
+            '596574435f116e822b3d76af33e491b7ecc2a274bf66b1c1fa1f7c48c0045b9d',
+        ],
+        '.docker/php/opcache.ini' => [
+            '266d8b8eb4499dea81b8eb1981b558636e0122625c9e80eb49259e304965d664',
+        ],
+        '.docker/php/php.ini' => [
+            'c167fd675c55f5dfa821fd578e937335c4c78404aa2fb56039dd3d7a25cbb090',
+            '6e63449a0ab2aaff06bc2e9416c20d805cdf70e816703bdfe2396facf7313c5d',
+        ],
+        '.docker/php-fpm/zz-docker.conf' => [
+            '4ad51a603fe775ef170909cc4a3a2c20731b557b7786a2f7cde986cab7b9fbdf',
+        ],
+        '.dockerignore' => [
+            '1aca6a288867ab75a58cce342330e82adfdbcdf736cbb66ce7e7337f9326015f',
+            '73a22b8a9dde74b4699784d5648d3dae86be246e951915f936112f7c114ed89c',
+        ],
+        'Dockerfile' => [
+            '14b506ccee5a401531c52aa214489eb5789ddf13effcdb197ca8b30cf02f2fbb',
+            'bb0d1861dbbae6adc21111ea139c0cade3faaf32ad78625381cea7ab15c2be96',
+            'c310e64d4a348d6785da3ce3eb14b6bfe265037f72df4ac9cd9defa86113d4c1',
+            'ce16f741fea7a63c714b46202c24d54eccb6f44e24cc4a5ec8dfa8591a095fa9',
+        ],
+        'docker-compose.dev.yml' => [
+            '18b871d6e4d52e607cabff4329c3bbb32a89f6b3a3a3a6c4f86474b779e7e915',
+            '88c39324b28df031794498e2bd4e9e374a5b2a5728e93a78f8cb6621f95d22fd',
+            '4f0aecf94e0392c234d6ccd313858e9cbe26ea8306492bf55516cc7c4b449660',
+            '5db45f77975274c33300b1cfc2064ce20835ade121c9790c29bc8a6c8dac681b',
+            '341e428533c156a6e4b1fda6bf74b3518b4fea26d059d97279aa08be63288704',
+        ],
+        'docker-compose.portainer.yml' => [
+            'a4f32d9bbeb4990a1d4f00e9b8bc47daefda73a0edc66b01b1ab1513e6b06d8c',
+        ],
+        'docker-compose.prod.yml' => [
+            '58fe723965d80ebbb13e89a6703206e09408b08db45fdc3e420752bd095858b5',
+            '648084b041e06e4da83807921be55f120d4566e772504ab793086c8b5540f61f',
+            '9468376d2a71bbab02ab803d4256b3b30aeac613946d83c2f20960fa2ab839ca',
+            '521e42aecfdaa64a07866210df87acbea5533900d69cd11d08c9083b8e6cb24a',
+        ],
+        'docker-compose.registry.yml' => [
+            'd3b1222af0dd05b455c4823d598254cfa3ca978040e07c0f242c60d647ebd764',
+            'ac2c3ec7fd4dd0e32e9d28805a9c75fd9783fd9144e9b284cf4ec6d5e96aaa82',
+        ],
+        'docker-compose.yml' => [
+            '698df829ef20ada661bc48d30e0f59ce48b162e818bc5b8b3f6670e7cfebaa65',
+            '6eb7c53b2fb1f16d7f84e3ab078ee3f80b2c3081799eb2aba6a3b3c87520d8a8',
+            '06484ba39ddca7cc56f2a37a08e53542d4fd457bab0c0155d670c2928ceb6603',
+        ],
+        'routes/web.php' => [
+            '4f38000d90f39a9d82525277bf666ed6964d73bd6de0a11624874044acd59d60',
+            '76995741161785f87bf512c95aec55ac7c89199011973623fecfd127f1e276d0',
+            '96d1e75ae3e0eae24dfcc5bccd7300902c47624179acc24a71da13435ef7175f',
+        ],
+        'routes/console.php' => [
+            '857319a1d1d0557fabfccfd9aa9afcf58b57a52c40e61e7162edc4abbecfe44a',
+            'bf7252ade53ffaf4a9ad800c4bbc1020ae1f3f183785f0087bd1b38745c81474',
+            'e4b5f7e4cc006cddfd7b23756862e6909376851c2779c512689562e7509a6f8a',
+        ],
+        'updater/Dockerfile' => [
+            '98b0335bc11afdd9802d19062d991242ab762581a73b370b43bf07501a30ff38',
+        ],
+        'updater/go.mod' => [
+            'f811ba7fa1245d6d742606bd05a74361188adc087cd18a0027f3bddece178c73',
+        ],
+        'updater/main.go' => [
+            'bef38635cb2ae2be66eaa0ef2ffa51da20ba6c2108c834c4d7f83a3b12466cb4',
+        ],
+    ];
+
     public function __construct(private Filesystem $files, private BackupManager $backups) {}
 
     /**
@@ -720,6 +867,17 @@ final readonly class ScaffoldsCorePanelStubs
             return false;
         }
 
+        if (
+            $this->isCriticalVersionedUpdateScaffold($relativePath)
+            && $this->files->exists($root.'/'.$relativePath)
+            && ! $this->hasScaffoldBaseline($relativePath, $root)
+        ) {
+            if (! $this->matchesCurrentVersionedScaffoldContents($relativePath, $root)
+                && ! $this->matchesKnownLegacyCriticalScaffoldContents($relativePath, $root)) {
+                return false;
+            }
+        }
+
         if (! is_string($currentVersion) || $currentVersion === '') {
             return false;
         }
@@ -733,6 +891,35 @@ final readonly class ScaffoldsCorePanelStubs
         return ! is_array($manifestEntry) || ($manifestEntry['package_version'] ?? null) !== $currentVersion;
     }
 
+    private function matchesCurrentVersionedScaffoldContents(string $relativePath, string $root): bool
+    {
+        $sourcePath = $this->sourcePath($relativePath);
+        $destinationPath = $root.'/'.$relativePath;
+
+        if (! $this->files->isFile($sourcePath) || ! $this->files->isFile($destinationPath)) {
+            return false;
+        }
+
+        return $this->scaffoldContentsForHost($relativePath, $sourcePath, $root) === (string) $this->files->get($destinationPath);
+    }
+
+    private function matchesKnownLegacyCriticalScaffoldContents(string $relativePath, string $root): bool
+    {
+        $destinationPath = $root.'/'.$relativePath;
+
+        if (! $this->files->isFile($destinationPath)) {
+            return false;
+        }
+
+        $hashes = self::LEGACY_CRITICAL_SCAFFOLD_HASHES[$relativePath] ?? null;
+
+        if (! is_array($hashes)) {
+            return false;
+        }
+
+        return in_array(hash('sha256', (string) $this->files->get($destinationPath)), $hashes, true);
+    }
+
     private function isCreateOnlyPwaScaffold(string $relativePath): bool
     {
         return in_array($relativePath, [
@@ -741,6 +928,36 @@ final readonly class ScaffoldsCorePanelStubs
             'public/manifest.json',
             'public/offline.html',
             'public/sw.js',
+        ], true);
+    }
+
+    private function isCriticalVersionedUpdateScaffold(string $relativePath): bool
+    {
+        return in_array($relativePath, [
+            '.env.example',
+            'bootstrap/app.php',
+            '.docker/bin/php-entrypoint.sh',
+            '.docker/bin/prepare-local-environment.sh',
+            '.docker/bin/start-dev-app.sh',
+            '.docker/bin/start-dev-artisan.sh',
+            '.docker/nginx/default.conf',
+            '.docker/php/banner.sh',
+            '.docker/php/entrypoint.sh',
+            '.docker/php/opcache.ini',
+            '.docker/php/php.ini',
+            '.docker/php-fpm/zz-docker.conf',
+            '.dockerignore',
+            'Dockerfile',
+            'docker-compose.dev.yml',
+            'docker-compose.portainer.yml',
+            'docker-compose.prod.yml',
+            'docker-compose.registry.yml',
+            'docker-compose.yml',
+            'routes/web.php',
+            'routes/console.php',
+            'updater/Dockerfile',
+            'updater/go.mod',
+            'updater/main.go',
         ], true);
     }
 

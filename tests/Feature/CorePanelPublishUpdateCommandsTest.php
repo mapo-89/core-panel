@@ -60,6 +60,417 @@ function currentCorePanelPackageVersion(): string
     return $decoded['release_version'];
 }
 
+function legacyCriticalBootstrapAppContents(): string
+{
+    return <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\TrackUserPresence;
+use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
+use CorePanel\Http\Middleware\CheckPermission;
+use CorePanel\Http\Middleware\ResolveCorePanelLocale;
+use CorePanel\Http\Middleware\SecurityHeaders;
+use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+
+/** @var callable(): array{web:string, api:?string, commands:?string, health:string} $corePanelRoutingPaths */
+$corePanelRoutingPaths = static function (): array {
+    $basePath = dirname(__DIR__);
+
+    $apiRoutes = $basePath.'/routes/api.php';
+    $centralRoutes = $basePath.'/routes/central.php';
+    $consoleRoutes = $basePath.'/routes/console.php';
+
+    return [
+        'web' => file_exists($centralRoutes) ? $centralRoutes : $basePath.'/routes/web.php',
+        'api' => file_exists($apiRoutes) ? $apiRoutes : null,
+        'commands' => file_exists($consoleRoutes) ? $consoleRoutes : null,
+        'health' => '/up',
+    ];
+};
+
+['web' => $webRoutes, 'api' => $apiRoutes, 'commands' => $consoleRoutes, 'health' => $healthRoute] = $corePanelRoutingPaths();
+
+$tenantSessionCookieMiddlewareClass = 'CorePanelTenancy\\Http\\Middleware\\SetTenantAwareSessionCookie';
+$tenantSessionCookieMiddleware = class_exists($tenantSessionCookieMiddlewareClass)
+    ? [$tenantSessionCookieMiddlewareClass]
+    : [];
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: $webRoutes,
+        api: $apiRoutes,
+        commands: $consoleRoutes,
+        health: $healthRoute,
+    )
+    ->withMiddleware(function (Middleware $middleware) use ($tenantSessionCookieMiddleware): void {
+        $middleware->statefulApi();
+        $middleware->redirectUsersTo(static fn (Request $request): string => '/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
+        $middleware->redirectGuestsTo(static fn (Request $request): ?string => $request->expectsJson() ? null : '/login');
+        $middleware->alias([
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
+            'check.permission' => CheckPermission::class,
+        ]);
+        $middleware->group('universal', []);
+
+        $middleware->web(prepend: $tenantSessionCookieMiddleware);
+        $middleware->web(append: [
+            ApplyCorePanelRuntimeSettings::class,
+            SecurityHeaders::class,
+            ResolveCorePanelLocale::class,
+            ShareLocaleDataWithInertia::class,
+            TrackUserPresence::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->api(append: [
+            ApplyCorePanelRuntimeSettings::class,
+            SecurityHeaders::class,
+            ResolveCorePanelLocale::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        //
+    })
+    ->create();
+PHP;
+}
+
+function legacyCriticalRoutesConsoleContents(): string
+{
+    return <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+
+if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {
+    Schedule::command('horizon:snapshot')->everyFiveMinutes();
+}
+PHP;
+}
+
+function legacyCriticalEnvExampleContents(): string
+{
+    return <<<'TEXT'
+APP_NAME="CorePanel"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+APP_VERSION=dev
+
+APP_LOCALE=de
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=de_DE
+LOG_CHANNEL=daily
+
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=core_panel
+DB_USERNAME=core_panel
+DB_PASSWORD=core_panel
+DB_DATABASE_TEST=core_panel_test
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=public
+QUEUE_CONNECTION=redis
+
+CACHE_STORE=redis
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=127.0.0.1
+MAIL_PORT=1025
+
+CORE_PANEL_ROUTE_PREFIX=admin
+CORE_PANEL_PASSPORT_PERSONAL_ACCESS_CLIENTS_ENABLED=false
+CORE_PANEL_PASSPORT_REFRESH_TOKEN_TTL_DAYS=30
+CORE_PANEL_PASSPORT_TOKEN_TTL_MINUTES=15
+CORE_PANEL_PASSPORT_PERSONAL_ACCESS_TOKEN_TTL_DAYS=180
+CORE_PANEL_REGISTRATION_ENABLED=true
+CORE_PANEL_SOCIAL_GITHUB_ENABLED=false
+CORE_PANEL_SOCIAL_GOOGLE_ENABLED=false
+CORE_PANEL_SOCIAL_MASTER_PROVIDER=
+CORE_PANEL_SOCIAL_MICROSOFT_ENABLED=false
+CORE_PANEL_DARK_MODE=false
+CORE_PANEL_PUBLISH_THEME=true
+CORE_PANEL_FILES_DISK=public
+CORE_PANEL_HORIZON_ENABLED=true
+OCTANE_SERVER=frankenphp
+OCTANE_HTTPS=false
+OCTANE_HOST=0.0.0.0
+OCTANE_PORT=8000
+HORIZON_SLACK_CHANNEL=
+HORIZON_SLACK_WEBHOOK_URL=
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_REDIRECT_URI=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_REDIRECT_URI=
+TEXT;
+}
+
+function legacyCriticalDockerComposeDevContents(): string
+{
+    return <<<'YAML'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: >
+      sh -lc "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi &&
+      composer install &&
+      php artisan key:generate --ansi --force &&
+      php artisan optimize:clear &&
+      php artisan migrate --force &&
+      php artisan serve --host=0.0.0.0 --port=8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  vite:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: >
+      sh -lc "npm install &&
+      npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+
+  app-test:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: ["sleep", "infinity"]
+    depends_on:
+      - postgres
+      - redis
+
+  horizon:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: >
+      sh -lc "if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi &&
+      composer install &&
+      php artisan key:generate --ansi --force &&
+      php artisan horizon"
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: core_panel
+      POSTGRES_USER: core_panel
+      POSTGRES_PASSWORD: core_panel
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:
+YAML;
+}
+
+function legacyCriticalOldRoutesConsoleContents(): string
+{
+    return <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+PHP;
+}
+
+/**
+ * @return list<string>
+ */
+function legacyCriticalRoutesWebContents(): array
+{
+    return [
+        <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Route;
+
+Route::redirect('/', config('core-panel.route_prefix', 'admin'));
+
+$webRoutes = require __DIR__.'/web/routes.php';
+$loadWebRouteFile = static function (string $file): void {
+    require __DIR__.'/web/'.$file;
+};
+$shouldLoadPublicRoutes = ! file_exists(__DIR__.'/universal.php');
+$corePanelRouteMiddleware = array_values(array_filter(
+    (array) config('core-panel.middleware', ['web', 'auth']),
+    static fn (string $middleware): bool => $middleware !== 'web',
+));
+
+if ($shouldLoadPublicRoutes) {
+    foreach ($webRoutes['public'] as $publicRouteFile) {
+        $loadWebRouteFile($publicRouteFile);
+    }
+}
+
+Route::middleware([...$corePanelRouteMiddleware, 'core-panel.verified'])->group(function () use ($loadWebRouteFile, $webRoutes): void {
+    foreach ($webRoutes['authenticated_without_permission'] as $authenticatedRouteFile) {
+        $loadWebRouteFile($authenticatedRouteFile);
+    }
+
+    Route::middleware('check.permission')->group(function () use ($loadWebRouteFile, $webRoutes): void {
+        foreach ($webRoutes['permission_protected'] as $permissionProtectedRouteFile) {
+            $loadWebRouteFile($permissionProtectedRouteFile);
+        }
+    });
+});
+PHP,
+        <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Route;
+
+Route::redirect('/', config('core-panel.route_prefix', 'admin'));
+
+$webRoutes = require __DIR__.'/web/routes.php';
+$loadWebRouteFile = static function (string $file): void {
+    require __DIR__.'/web/'.$file;
+};
+$corePanelRouteMiddleware = array_values(array_filter(
+    (array) config('core-panel.middleware', ['web', 'auth']),
+    static fn (string $middleware): bool => $middleware !== 'web',
+));
+
+foreach ($webRoutes['public'] as $publicRouteFile) {
+    $loadWebRouteFile($publicRouteFile);
+}
+
+Route::middleware([...$corePanelRouteMiddleware, 'core-panel.verified'])->group(function () use ($loadWebRouteFile, $webRoutes): void {
+    foreach ($webRoutes['authenticated_without_permission'] as $authenticatedRouteFile) {
+        $loadWebRouteFile($authenticatedRouteFile);
+    }
+
+    Route::middleware('check.permission')->group(function () use ($loadWebRouteFile, $webRoutes): void {
+        foreach ($webRoutes['permission_protected'] as $permissionProtectedRouteFile) {
+            $loadWebRouteFile($permissionProtectedRouteFile);
+        }
+    });
+});
+PHP,
+        <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', static function () {
+    return redirect()->route(
+        Auth::check() ? 'core-panel.dashboard' : 'auth.login',
+    );
+});
+PHP,
+    ];
+}
+
+function legacyCriticalDockerignoreContents(): string
+{
+    return <<<'TEXT'
+.agents
+.ai
+.claude
+.codex
+.git
+.github
+.idea
+.vscode
+node_modules
+vendor
+storage/logs
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+bootstrap/cache/*.php
+.env
+AGENTS.md
+boost.json
+docker-compose.*
+Dockerfile
+TEXT;
+}
+
 /**
  * @return list<string>
  */
@@ -80,6 +491,39 @@ function versionedUpdateScaffoldPaths(): array
     preg_match_all("/'([^']+)'/", $matches[1], $paths);
 
     return $paths[1];
+}
+
+/**
+ * @return list<string>
+ */
+function criticalVersionedUpdateScaffoldPaths(): array
+{
+    return [
+        '.env.example',
+        'bootstrap/app.php',
+        '.docker/bin/php-entrypoint.sh',
+        '.docker/bin/prepare-local-environment.sh',
+        '.docker/bin/start-dev-app.sh',
+        '.docker/bin/start-dev-artisan.sh',
+        '.docker/nginx/default.conf',
+        '.docker/php/banner.sh',
+        '.docker/php/entrypoint.sh',
+        '.docker/php/opcache.ini',
+        '.docker/php/php.ini',
+        '.docker/php-fpm/zz-docker.conf',
+        '.dockerignore',
+        'Dockerfile',
+        'docker-compose.dev.yml',
+        'docker-compose.portainer.yml',
+        'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
+        'docker-compose.yml',
+        'routes/web.php',
+        'routes/console.php',
+        'updater/Dockerfile',
+        'updater/go.mod',
+        'updater/main.go',
+    ];
 }
 
 it('versions the managed update scaffolds that still require host copies', function (): void {
@@ -1221,7 +1665,7 @@ it('updates explicitly versioned existing application scaffolds without a previo
     $basePath = makePublishBasePath('existing-versioned-scaffold');
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
-        if (in_array($relativePath, ['config/pwa.php', 'public/logo.png', 'public/manifest.json', 'public/offline.html', 'public/sw.js'], true)) {
+        if (in_array($relativePath, [...criticalVersionedUpdateScaffoldPaths(), 'config/pwa.php', 'public/logo.png', 'public/manifest.json', 'public/offline.html', 'public/sw.js'], true)) {
             continue;
         }
 
@@ -1241,7 +1685,7 @@ it('updates explicitly versioned existing application scaffolds without a previo
     $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
 
     foreach (versionedUpdateScaffoldPaths() as $relativePath) {
-        if (in_array($relativePath, ['config/pwa.php', 'public/logo.png', 'public/manifest.json', 'public/offline.html', 'public/sw.js'], true)) {
+        if (in_array($relativePath, [...criticalVersionedUpdateScaffoldPaths(), 'config/pwa.php', 'public/logo.png', 'public/manifest.json', 'public/offline.html', 'public/sw.js'], true)) {
             continue;
         }
 
@@ -1303,20 +1747,72 @@ PHP);
     expect(substr_count((string) file_get_contents($target), "URL::forceScheme('https');"))->toBe(1);
 });
 
-it('updates an existing bootstrap middleware scaffold without a previous baseline', function (): void {
-    $basePath = makePublishBasePath('existing-versioned-bootstrap-app');
-    $target = $basePath.'/bootstrap/app.php';
+it('does not overwrite critical versioned scaffolds without a previous baseline during updates', function (): void {
+    $basePath = makePublishBasePath('critical-versioned-scaffold');
+    $criticalFiles = [
+        'bootstrap/app.php' => "<?php\n\nreturn 'host bootstrap';\n",
+        'routes/web.php' => "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n\nRoute::get('/host-routes', fn () => 'host');\n",
+        'routes/console.php' => "<?php\n\nreturn 'host console';\n",
+        '.env.example' => "APP_NAME=\"Host App\"\n",
+        '.docker/bin/php-entrypoint.sh' => "#!/usr/bin/env sh\n\necho host-php-entrypoint\n",
+        '.docker/bin/start-dev-app.sh' => "#!/usr/bin/env sh\n\necho host-start-dev-app\n",
+        '.docker/php/entrypoint.sh' => "#!/usr/bin/env sh\n\necho host-entrypoint\n",
+        '.docker/php/opcache.ini' => "opcache.enable=0\n",
+        '.docker/php-fpm/zz-docker.conf' => "[www]\n; host override\n",
+        '.dockerignore' => ".env\nnode_modules\n",
+        'docker-compose.yml' => "services:\n  app:\n    image: host-app\n",
+        'updater/main.go' => "package main\n\nfunc main() {}\n",
+    ];
 
-    mkdir(dirname($target), 0777, true);
-    file_put_contents($target, <<<'PHP'
-<?php
+    foreach ($criticalFiles as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
 
-declare(strict_types=1);
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
 
-use Illuminate\Foundation\Application;
+        file_put_contents($target, $contents);
+    }
 
-return Application::configure(basePath: dirname(__DIR__))->create();
-PHP);
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = file_exists($basePath.'/storage/app/core-panel/scaffolds.json')
+        ? json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR)
+        : ['files' => []];
+
+    foreach ($criticalFiles as $relativePath => $contents) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([])
+            ->and($manifest['files'][$relativePath] ?? null)->toBeNull();
+    }
+});
+
+it('adopts unchanged critical versioned scaffolds into the manifest during updates', function (): void {
+    $basePath = makePublishBasePath('adopt-critical-versioned-scaffold');
+    $criticalFiles = [
+        'bootstrap/app.php' => (string) file_get_contents(__DIR__.'/../../stubs/bootstrap/app.php'),
+        'routes/web.php' => (string) file_get_contents(__DIR__.'/../../stubs/routes/web.php'),
+        'routes/console.php' => (string) file_get_contents(__DIR__.'/../../stubs/routes/console.php'),
+        '.docker/bin/php-entrypoint.sh' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/bin/php-entrypoint.sh'),
+        '.docker/bin/start-dev-app.sh' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/bin/start-dev-app.sh'),
+        '.docker/php/opcache.ini' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/php/opcache.ini'),
+        '.docker/php-fpm/zz-docker.conf' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/php-fpm/zz-docker.conf'),
+        '.dockerignore' => (string) file_get_contents(__DIR__.'/../../stubs/.dockerignore'),
+        'docker-compose.yml' => (string) file_get_contents(__DIR__.'/../../stubs/docker-compose.yml'),
+        'updater/main.go' => (string) file_get_contents(__DIR__.'/../../stubs/updater/main.go'),
+    ];
+
+    foreach ($criticalFiles as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, $contents);
+    }
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
@@ -1324,12 +1820,288 @@ PHP);
 
     $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
 
-    expect(file_get_contents($target))->toContain('use CorePanel\Http\Middleware\AllowBlobImageCsp;')
-        ->and(file_get_contents($target))->toContain('AllowBlobImageCsp::class')
-        ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/app.php'))
-        ->not->toBeEmpty()
-        ->and($manifest['files']['bootstrap/app.php'] ?? null)
-        ->toBeArray();
+    foreach ($criticalFiles as $relativePath => $contents) {
+        $manifestEntry = $manifest['files'][$relativePath] ?? null;
+
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([])
+            ->and($manifestEntry)->toBeArray()
+            ->and(is_string($manifestEntry['snapshot'] ?? null))->toBeTrue()
+            ->and(file_get_contents($basePath.'/'.$manifestEntry['snapshot']))->toBe($contents);
+    }
+});
+
+it('updates known legacy critical versioned scaffolds without a previous baseline', function (): void {
+    $basePath = makePublishBasePath('legacy-critical-versioned-scaffold');
+    $criticalFiles = [
+        'bootstrap/app.php' => legacyCriticalBootstrapAppContents(),
+        'routes/console.php' => legacyCriticalRoutesConsoleContents(),
+        '.dockerignore' => legacyCriticalDockerignoreContents(),
+    ];
+
+    foreach ($criticalFiles as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, str_ends_with($contents, "\n") ? $contents : $contents."\n");
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(file_get_contents($basePath.'/bootstrap/app.php'))->toContain('use CorePanel\Http\Middleware\AllowBlobImageCsp;')
+        ->and(file_get_contents($basePath.'/bootstrap/app.php'))->toContain('AllowBlobImageCsp::class')
+        ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/app.php'))->not->toBeEmpty()
+        ->and($manifest['files']['bootstrap/app.php'] ?? null)->toBeArray()
+        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('database-backups:auto')")
+        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('system-updates:auto')")
+        ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->not->toBeEmpty()
+        ->and($manifest['files']['routes/console.php'] ?? null)->toBeArray()
+        ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('.gitea')
+        ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('storage/*.key')
+        ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('!.env.example')
+        ->and(glob($basePath.'/.core-panel-backups/*/.dockerignore'))->not->toBeEmpty()
+        ->and($manifest['files']['.dockerignore'] ?? null)->toBeArray();
+});
+
+it('updates known legacy web route scaffolds without a previous baseline', function (): void {
+    $currentContents = (string) file_get_contents(__DIR__.'/../../stubs/routes/web.php');
+
+    foreach (legacyCriticalRoutesWebContents() as $index => $legacyRoutesWebContents) {
+        $basePath = makePublishBasePath('legacy-critical-routes-web-'.$index);
+        $target = $basePath.'/routes/web.php';
+
+        mkdir(dirname($target), 0777, true);
+        file_put_contents($target, $legacyRoutesWebContents."\n");
+
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+
+        $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+        expect((string) file_get_contents($target))->toBe($currentContents)
+            ->and(glob($basePath.'/.core-panel-backups/*/routes/web.php'))->not->toBeEmpty()
+            ->and($manifest['files']['routes/web.php'] ?? null)->toBeArray();
+    }
+});
+
+it('updates additional pre-manifest critical scaffolds without a previous baseline', function (): void {
+    $criticalFiles = [
+        '.env.example' => [
+            'legacy' => legacyCriticalEnvExampleContents(),
+            'current' => (string) file_get_contents(__DIR__.'/../../stubs/.env.example'),
+        ],
+        'docker-compose.dev.yml' => [
+            'legacy' => legacyCriticalDockerComposeDevContents(),
+            'current' => (string) file_get_contents(__DIR__.'/../../stubs/docker-compose.dev.yml'),
+        ],
+        'routes/console.php' => [
+            'legacy' => legacyCriticalOldRoutesConsoleContents(),
+            'current' => (string) file_get_contents(__DIR__.'/../../stubs/routes/console.php'),
+        ],
+    ];
+
+    foreach ($criticalFiles as $relativePath => $file) {
+        $basePath = makePublishBasePath('additional-legacy-critical-'.str_replace(['/', '.'], '-', $relativePath));
+        $target = $basePath.'/'.$relativePath;
+
+        mkdir(dirname($target), 0777, true);
+        file_put_contents($target, str_ends_with($file['legacy'], "\n") ? $file['legacy'] : $file['legacy']."\n");
+
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+
+        $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+        expect((string) file_get_contents($target))->toBe($file['current'])
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->not->toBeEmpty()
+            ->and($manifest['files'][$relativePath] ?? null)->toBeArray();
+    }
+});
+
+it('does not overwrite customized legacy critical scaffolds without a previous baseline during updates', function (): void {
+    $basePath = makePublishBasePath('customized-legacy-critical-versioned-scaffold');
+    $criticalFiles = [
+        'bootstrap/app.php' => <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\TrackUserPresence;
+use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
+use CorePanel\Http\Middleware\CheckPermission;
+use CorePanel\Http\Middleware\ResolveCorePanelLocale;
+use CorePanel\Http\Middleware\SecurityHeaders;
+use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+
+/** @var callable(): array{web:string, api:?string, commands:?string, health:string} $corePanelRoutingPaths */
+$corePanelRoutingPaths = static function (): array {
+    $basePath = dirname(__DIR__);
+
+    $apiRoutes = $basePath.'/routes/api.php';
+    $centralRoutes = $basePath.'/routes/central.php';
+    $consoleRoutes = $basePath.'/routes/console.php';
+
+    return [
+        'web' => file_exists($centralRoutes) ? $centralRoutes : $basePath.'/routes/web.php',
+        'api' => file_exists($apiRoutes) ? $apiRoutes : null,
+        'commands' => file_exists($consoleRoutes) ? $consoleRoutes : null,
+        'health' => '/up',
+    ];
+};
+
+['web' => $webRoutes, 'api' => $apiRoutes, 'commands' => $consoleRoutes, 'health' => $healthRoute] = $corePanelRoutingPaths();
+
+$tenantSessionCookieMiddlewareClass = 'CorePanelTenancy\\Http\\Middleware\\SetTenantAwareSessionCookie';
+$tenantSessionCookieMiddleware = class_exists($tenantSessionCookieMiddlewareClass)
+    ? [$tenantSessionCookieMiddlewareClass]
+    : [];
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: $webRoutes,
+        api: $apiRoutes,
+        commands: $consoleRoutes,
+        health: $healthRoute,
+    )
+    ->withMiddleware(function (Middleware $middleware) use ($tenantSessionCookieMiddleware): void {
+        $middleware->redirectUsersTo(static fn (Request $request): string => '/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
+        $middleware->redirectGuestsTo(static fn (Request $request): ?string => $request->expectsJson() ? null : '/login');
+        $middleware->alias([
+            'check.permission' => CheckPermission::class,
+        ]);
+        $middleware->group('universal', []);
+
+        $middleware->web(prepend: $tenantSessionCookieMiddleware);
+        $middleware->web(append: [
+            ApplyCorePanelRuntimeSettings::class,
+            SecurityHeaders::class,
+            ResolveCorePanelLocale::class,
+            ShareLocaleDataWithInertia::class,
+            TrackUserPresence::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\CustomAuditMiddleware::class,
+        ]);
+
+        $middleware->api(append: [
+            ApplyCorePanelRuntimeSettings::class,
+            SecurityHeaders::class,
+            ResolveCorePanelLocale::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(static fn (\Throwable $throwable): null => null);
+    })
+    ->create();
+PHP,
+        'routes/web.php' => <<<'PHP'
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::redirect('/', config('core-panel.route_prefix', 'admin'));
+    Route::get('/generator-preview', fn () => 'host');
+});
+PHP,
+        'routes/console.php' => <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+
+if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {
+    Schedule::command('horizon:snapshot')->everyFiveMinutes();
+}
+
+Artisan::command('host:custom', function () {
+    $this->comment('host');
+});
+
+Schedule::command('host:custom')->hourly();
+PHP,
+        '.dockerignore' => <<<'TEXT'
+.agents
+.ai
+.claude
+.codex
+.git
+.github
+.idea
+.vscode
+node_modules
+vendor
+storage/logs
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+bootstrap/cache/*.php
+.env
+AGENTS.md
+boost.json
+docker-compose.*
+Dockerfile
+custom-host-artifacts
+TEXT,
+    ];
+
+    foreach ($criticalFiles as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, str_ends_with($contents, "\n") ? $contents : $contents."\n");
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = file_exists($basePath.'/storage/app/core-panel/scaffolds.json')
+        ? json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR)
+        : ['files' => []];
+
+    expect(file_get_contents($basePath.'/bootstrap/app.php'))->toContain('CustomAuditMiddleware::class')
+        ->and(file_get_contents($basePath.'/bootstrap/app.php'))->not->toContain('AllowBlobImageCsp::class')
+        ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/app.php'))->toBeEmpty()
+        ->and($manifest['files']['bootstrap/app.php'] ?? null)->toBeNull()
+        ->and(file_get_contents($basePath.'/routes/web.php'))->toContain('/generator-preview')
+        ->and(file_get_contents($basePath.'/routes/web.php'))->not->toContain("Route::get('/', function () {")
+        ->and(glob($basePath.'/.core-panel-backups/*/routes/web.php'))->toBeEmpty()
+        ->and($manifest['files']['routes/web.php'] ?? null)->toBeNull()
+        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Artisan::command('host:custom'")
+        ->and(file_get_contents($basePath.'/routes/console.php'))->not->toContain("Schedule::command('database-backups:auto')")
+        ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->toBeEmpty()
+        ->and($manifest['files']['routes/console.php'] ?? null)->toBeNull()
+        ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('custom-host-artifacts')
+        ->and(file_get_contents($basePath.'/.dockerignore'))->not->toContain('.gitea')
+        ->and(glob($basePath.'/.core-panel-backups/*/.dockerignore'))->toBeEmpty()
+        ->and($manifest['files']['.dockerignore'] ?? null)->toBeNull();
 });
 
 it('updates existing page-users translation scaffolds without a previous baseline', function (): void {
