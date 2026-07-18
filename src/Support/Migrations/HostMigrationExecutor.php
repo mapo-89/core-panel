@@ -22,6 +22,14 @@ final readonly class HostMigrationExecutor
     public function execute(string $database, bool $force, ?string $basePath = null): array
     {
         $migrationFiles = $this->migrationFiles($basePath);
+
+        if ($migrationFiles === []) {
+            return [
+                'executed_migrations' => [],
+                'output' => '',
+            ];
+        }
+
         $knownMigrationNames = $this->migrationNamesFromPaths($migrationFiles);
         $before = $this->appliedMigrationNames($database);
 

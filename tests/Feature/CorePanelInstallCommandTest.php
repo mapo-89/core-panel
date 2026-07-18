@@ -28,6 +28,8 @@ use Spatie\Permission\Traits\HasRoles;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
+use function Pest\Laravel\mock;
+
 final class CapturingInstaller implements CorePanelInstallerInterface
 {
     public ?CorePanelInstallOptions $options = null;
@@ -313,6 +315,26 @@ it('executes host migrations and reports the applied migration basenames', funct
             '2016_06_01_000001_create_oauth_auth_codes_table',
         ],
         'output' => 'Migrated successfully.',
+    ]);
+});
+
+it('skips executing host migrations when no host migration files exist', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-empty-host-migrations-'.bin2hex(random_bytes(5));
+    $database = (string) config('database.default');
+
+    mkdir($temporaryBasePath.'/database/migrations', 0777, true);
+
+    $kernel = mock(Kernel::class);
+    $kernel->shouldNotReceive('call');
+    $kernel->shouldNotReceive('output');
+
+    app()->instance(Kernel::class, $kernel);
+
+    $result = app(HostMigrationExecutor::class)->execute($database, false, $temporaryBasePath);
+
+    expect($result)->toBe([
+        'executed_migrations' => [],
+        'output' => '',
     ]);
 });
 
