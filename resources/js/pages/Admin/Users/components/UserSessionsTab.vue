@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import Message from 'primevue/message'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import userSessionRoutes from '@/routes/core-panel/users/sessions'
 import type { UserSessionRecord } from '@core-panel/types/core-panel'
 
@@ -16,6 +17,7 @@ const props = defineProps<{
 const loading = ref(false)
 const loaded = ref(false)
 const sessions = ref<UserSessionRecord[]>([])
+const { formatUnixTimestamp } = useDateTime()
 
 const currentSession = computed(
     () => sessions.value.find((session) => session.is_current) ?? null,
@@ -87,7 +89,7 @@ async function revokeSession(session: UserSessionRecord): Promise<void> {
 }
 
 function formatLastActive(timestamp: number): string {
-    return new Date(timestamp * 1000).toLocaleString()
+    return formatUnixTimestamp(timestamp)
 }
 
 function sessionDeviceIcon(userAgent: string | null): 'desktop' | 'smartphone' {

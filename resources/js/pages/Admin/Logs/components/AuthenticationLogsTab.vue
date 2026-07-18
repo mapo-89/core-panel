@@ -5,6 +5,7 @@ import { trans } from 'laravel-vue-i18n'
 import { useToast } from 'primevue/usetoast'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import {
     formatAuthenticationDeviceLabel,
     formatAuthenticationMethodLabel,
@@ -52,6 +53,7 @@ const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<AuthenticationLogRecord | null>(null)
 const filterMenu = ref<{ toggle: (event: Event) => void } | null>(null)
+const { formatDateTime } = useDateTime()
 const dateFromValue = ref<Date | null>(
     props.filters.date_from ? new Date(props.filters.date_from) : null,
 )
@@ -192,14 +194,6 @@ const authenticationTableSchema = computed<DataTableSchema>(() => ({
         visibleColumns: currentColumns(defaultColumns),
     },
 }))
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '—'
-    }
-
-    return new Date(value).toLocaleString()
-}
 
 function buildPagination(logs: {
     currentPage: number

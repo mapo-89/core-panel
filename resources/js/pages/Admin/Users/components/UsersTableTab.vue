@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
@@ -74,10 +75,7 @@ const rowActionItems = ref<
         label: string
     }>
 >([])
-const createdAtFormatter = new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-})
+const { formatDateTime } = useDateTime()
 const statusOptions = computed(() =>
     [
         {
@@ -690,10 +688,8 @@ function openRowActionsMenu(event: Event, user: UserRecord): void {
                 <span class="text-sm text-[var(--cp-text-primary)]">
                     {{
                         (row.user as UserRecord).createdAt
-                            ? createdAtFormatter.format(
-                                  new Date(
-                                      (row.user as UserRecord).createdAt ?? '',
-                                  ),
+                            ? formatDateTime(
+                                  (row.user as UserRecord).createdAt ?? '',
                               )
                             : '—'
                     }}

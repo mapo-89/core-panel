@@ -7,6 +7,7 @@ import { computed, ref } from 'vue'
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import { useCan } from '@core-panel/composables/useCan'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import DatabaseBackupRestoreDialog from '@core-panel/pages/Admin/Administration/components/DatabaseBackupRestoreDialog.vue'
 import DatabaseBackupSettingsDialog from '@core-panel/pages/Admin/Administration/components/DatabaseBackupSettingsDialog.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
@@ -97,6 +98,7 @@ const restoreNoticeSeverity = ref<'error' | 'info' | 'success'>('success')
 const settingsDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const importInputKey = ref(0)
+const { formatDateTime } = useDateTime()
 const importForm = useForm<{ backup: File | null }>({
     backup: null,
 })
@@ -277,14 +279,7 @@ const scheduleSummary = computed(() => {
 })
 
 function formatDate(value?: string | null): string {
-    if (!value) {
-        return '-'
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value))
+    return value ? formatDateTime(value) : '-'
 }
 
 function formatSize(bytes: number): string {

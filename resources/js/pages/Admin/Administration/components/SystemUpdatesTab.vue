@@ -6,6 +6,7 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import { useCan } from '@core-panel/composables/useCan'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 
 type UpdateImage = {
     available_digest: string | null
@@ -71,6 +72,7 @@ const updateMonitorStartedAt = ref<number | null>(null)
 const updateNotice = ref<string | null>(null)
 const updateNoticeSeverity = ref<'error' | 'info' | 'success'>('info')
 const updateStatusTimer = ref<number | null>(null)
+const { formatDateTime } = useDateTime()
 
 const statusState = computed(() => statusPayload.value)
 const updateMonitorActive = computed(() => updateStatusTimer.value !== null)
@@ -137,14 +139,7 @@ watch(
 )
 
 function formatDate(value?: string | null): string {
-    if (!value) {
-        return '-'
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value))
+    return value ? formatDateTime(value) : '-'
 }
 
 function imageStatusSeverity(image: UpdateImage): 'danger' | 'success' {

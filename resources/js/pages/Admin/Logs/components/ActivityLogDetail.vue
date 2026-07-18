@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import LogUserAvatar from '@core-panel/pages/Admin/Logs/components/LogUserAvatar.vue'
 import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
 import type { ActivityLogRecord } from '@core-panel/types/core-panel'
@@ -13,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     cancel: []
 }>()
+const { formatDateTime } = useDateTime()
 
 const propertiesView = ref<'json' | 'table'>('table')
 
@@ -105,13 +107,6 @@ function formatValue(value: unknown): string {
     return String(value)
 }
 
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '—'
-    }
-
-    return new Date(value).toLocaleString()
-}
 </script>
 
 <template>

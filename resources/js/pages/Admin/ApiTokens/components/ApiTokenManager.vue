@@ -7,6 +7,7 @@ import { useToast } from 'primevue/usetoast'
 
 import ColumnVisibilityDropdown from '@core-panel/components/TableBuilder/ColumnVisibilityDropdown.vue'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import type {
     DataTablePagination,
     DataTableSchema,
@@ -46,6 +47,7 @@ const page = usePage<{
     }
 }>()
 const toast = useToast()
+const { formatDateTime } = useDateTime()
 const createDialogVisible = ref(false)
 const deleteDialogVisible = ref(false)
 const replaceDialogVisible = ref(false)
@@ -161,14 +163,6 @@ function currentColumns(fallback: string[]): string[] {
         .filter((column) => fallback.includes(column))
 
     return visibleColumns.length > 0 ? visibleColumns : fallback
-}
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '—'
-    }
-
-    return new Date(value).toLocaleString()
 }
 
 function openCreateDialog(): void {

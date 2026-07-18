@@ -5,6 +5,7 @@ import { trans } from 'laravel-vue-i18n'
 import { useToast } from 'primevue/usetoast'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import activity from '@/routes/core-panel/activity'
 import logsPage from '@/routes/core-panel/logs'
 import ActivityLogDetail from '@core-panel/pages/Admin/Logs/components/ActivityLogDetail.vue'
@@ -42,6 +43,7 @@ const props = defineProps<{
 }>()
 
 const toast = useToast()
+const { formatDateTime } = useDateTime()
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<ActivityLogRecord | null>(null)
@@ -532,7 +534,7 @@ async function showDetail(log: ActivityLogRecord): Promise<void> {
                 <span class="text-sm text-[var(--cp-text-primary)]">
                     {{
                         row.createdAt
-                            ? new Date(row.createdAt).toLocaleString()
+                            ? formatDateTime(row.createdAt)
                             : '—'
                     }}
                 </span>

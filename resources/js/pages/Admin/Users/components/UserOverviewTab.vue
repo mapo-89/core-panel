@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import UserAvatar from '@core-panel/components/ui/UserAvatar.vue'
 import ProfileAvatarUpload from '@core-panel/pages/Admin/Settings/components/ProfileAvatarUpload.vue'
 import type { UserCapabilities, UserRecord } from '@core-panel/types/core-panel'
@@ -11,6 +12,7 @@ const props = defineProps<{
     user: UserRecord
 }>()
 
+const { formatDateTime } = useDateTime()
 const initials = computed(() => props.user.name.slice(0, 2).toUpperCase())
 const localeLabel = computed(() => props.user.locale ?? '—')
 const visibleRoleLabels = computed(() =>
@@ -50,22 +52,7 @@ const createdAtLabel = computed(() => {
         return null
     }
 
-    const normalizedValue = props.user.createdAt.includes('T')
-        ? props.user.createdAt
-        : props.user.createdAt.replace(' ', 'T')
-    const parsedDate = new Date(normalizedValue)
-
-    if (Number.isNaN(parsedDate.getTime())) {
-        return props.user.createdAt
-    }
-
-    const locale =
-        props.user.locale || document.documentElement.lang || undefined
-
-    return new Intl.DateTimeFormat(locale, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(parsedDate)
+    return formatDateTime(props.user.createdAt)
 })
 </script>
 

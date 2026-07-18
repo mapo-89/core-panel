@@ -5,6 +5,7 @@ import { trans } from 'laravel-vue-i18n'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
 import logFiles from '@/routes/core-panel/log-files'
 import logsPage from '@/routes/core-panel/logs'
@@ -43,6 +44,7 @@ const deleteDialogVisible = ref(false)
 const filterMenu = ref<{ toggle: (event: Event) => void } | null>(null)
 const pendingClearFile = ref<LogFileRecord | null>(null)
 const pendingDeleteFile = ref<LogFileRecord | null>(null)
+const { formatDateTime } = useDateTime()
 
 const logFilesTableSchema = computed<DataTableSchema>(() => ({
     actions: [],
@@ -242,14 +244,6 @@ function currentSort(): string | undefined {
     return props.filters.direction === 'desc'
         ? `-${props.filters.sort}`
         : props.filters.sort
-}
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '—'
-    }
-
-    return new Date(value).toLocaleString()
 }
 
 function formatSize(bytes: number): string {

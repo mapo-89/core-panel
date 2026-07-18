@@ -404,7 +404,16 @@ it('ships mysql and postgresql scaffold defaults in the database config stub', f
         ->and($contents)->toContain("'mysql' => [")
         ->and($contents)->toContain("'port' => env('DB_PORT', '3306')")
         ->and($contents)->toContain("'pgsql' => [")
-        ->and($contents)->toContain("'port' => env('DB_PORT', '5432')");
+        ->and($contents)->toContain("'port' => env('DB_PORT', '5432')")
+        ->and($contents)->toContain("'timezone' => env('DB_TIMEZONE', 'UTC')");
+});
+
+it('uses timezone-aware timestamps in core migration stubs', function (): void {
+    $authenticationLogs = file_get_contents(__DIR__.'/../../stubs/database/migrations/auth/2026_01_01_000021_create_authentication_logs_table.php');
+
+    expect($authenticationLogs)->toContain("\$table->timestampTz('login_at')->nullable()->index();")
+        ->and($authenticationLogs)->toContain("\$table->timestampTz('logout_at')->nullable()->index();")
+        ->and($authenticationLogs)->toContain('$table->timestampsTz();');
 });
 
 it('keeps manual public form helpers inside the routes tree without a separate route-helper layer', function (): void {
@@ -759,12 +768,12 @@ it('ships split user name scaffolding without legacy user name migration fallbac
         ->and($usersMigration)->toContain("\$table->string('locale', 12)->nullable();")
         ->and($usersMigration)->toContain("\$table->string('user_id')->nullable()->index();")
         ->and($usersMigration)->toContain("\$table->boolean('requires_password_setup')->default(false);")
-        ->and($usersMigration)->toContain("\$table->timestamp('invited_at')->nullable();")
-        ->and($usersMigration)->toContain("\$table->timestamp('invitation_accepted_at')->nullable();")
-        ->and($usersMigration)->toContain('$table->softDeletes();')
+        ->and($usersMigration)->toContain("\$table->timestampTz('invited_at')->nullable();")
+        ->and($usersMigration)->toContain("\$table->timestampTz('invitation_accepted_at')->nullable();")
+        ->and($usersMigration)->toContain('$table->softDeletesTz();')
         ->and($usersMigration)->toContain("\$table->text('two_factor_secret')->nullable();")
         ->and($usersMigration)->toContain("\$table->text('two_factor_recovery_codes')->nullable();")
-        ->and($usersMigration)->toContain("\$table->timestamp('two_factor_confirmed_at')->nullable();")
+        ->and($usersMigration)->toContain("\$table->timestampTz('two_factor_confirmed_at')->nullable();")
         ->and($usersMigration)->not->toContain("\$table->string('name');")
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000017_add_split_name_fields_to_users_table.php'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000004_add_core_panel_fields_to_users_table.php'))->toBeFalse()
@@ -3081,7 +3090,8 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain(':value="$t(statusLabel)"')
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('visibleRoleLabels')
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('props.roleLabels[role] ?? role')
-        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('Intl.DateTimeFormat(')
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain("import { useDateTime } from '@core-panel/composables/useDateTime'")
+        ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->toContain('return formatDateTime(props.user.createdAt)')
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue'))->not->toContain("\$t('common.ui.assigned')")
         ->and($show)->toContain('roleLabels: props.roleLabels,')
         ->and($show)->not->toContain('UserProfileController.edit.url(user.id)')
@@ -3139,6 +3149,24 @@ it('uses wayfinder-driven api token endpoints in the api token page', function (
         ->and($contents)->not->toContain('row.abilities.length > 3')
         ->and($contents)->not->toContain("severity=\"danger\"\n                        text")
         ->and($contents)->not->toContain('ApiTokenController');
+});
+
+it('formats admin datetimes through the shared timezone-aware frontend helper', function (): void {
+    $helper = file_get_contents(__DIR__.'/../../resources/js/composables/useDateTime.ts');
+    $userOverview = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserOverviewTab.vue');
+    $userSessions = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSessionsTab.vue');
+    $apiTokens = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/ApiTokens/components/ApiTokenManager.vue');
+    $databaseBackups = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/DatabaseBackupsTab.vue');
+
+    expect($helper)->toContain('page.props.corePanel?.settings?.general?.timezone')
+        ->and($helper)->toContain('timeZone: timeZone.value')
+        ->and($helper)->toContain('return `${trimmedValue.replace(\' \', \'T\')}Z`')
+        ->and($userOverview)->toContain("import { useDateTime } from '@core-panel/composables/useDateTime'")
+        ->and($userOverview)->toContain('return formatDateTime(props.user.createdAt)')
+        ->and($userSessions)->toContain('const { formatUnixTimestamp } = useDateTime()')
+        ->and($userSessions)->toContain('return formatUnixTimestamp(timestamp)')
+        ->and($apiTokens)->toContain('const { formatDateTime } = useDateTime()')
+        ->and($databaseBackups)->toContain("return value ? formatDateTime(value) : '-'");
 });
 
 it('organizes versioned api routes under a dedicated v1 route tree', function (): void {
@@ -3551,7 +3579,7 @@ it('ships laravel default migration names in the scaffold', function (): void {
         ->and($usersMigration)->toContain("\$table->string('user_id')->nullable()->index();")
         ->and($usersMigration)->toContain("\$table->text('two_factor_secret')->nullable();")
         ->and($usersMigration)->toContain("\$table->text('two_factor_recovery_codes')->nullable();")
-        ->and($usersMigration)->toContain("\$table->timestamp('two_factor_confirmed_at')->nullable();")
+        ->and($usersMigration)->toContain("\$table->timestampTz('two_factor_confirmed_at')->nullable();")
         ->and($cacheMigration)->toContain("Schema::create('cache'")
         ->and($jobsMigration)->toContain("Schema::create('jobs'");
 });
@@ -3577,9 +3605,9 @@ it('bundles fixed passport, activitylog, and medialibrary migrations from instal
 
     expect($passportAuthCodesMigration)->toContain("\$table->uuid('user_id')->index();")
         ->and($passportAccessTokensMigration)->toContain("\$table->uuid('user_id')->nullable()->index();")
-        ->and($passportAccessTokensMigration)->toContain("\$table->timestamp('last_used_at')->nullable();")
+        ->and($passportAccessTokensMigration)->toContain("\$table->timestampTz('last_used_at')->nullable();")
         ->and($passportAccessTokensLastUsedMigration)->toContain("Schema::table('oauth_access_tokens'")
-        ->and($passportAccessTokensLastUsedMigration)->toContain("\$table->timestamp('last_used_at')->nullable()->after('updated_at');")
+        ->and($passportAccessTokensLastUsedMigration)->toContain("\$table->timestampTz('last_used_at')->nullable()->after('updated_at');")
         ->and($passportClientsMigration)->toContain("Schema::create('oauth_clients'")
         ->and($passportClientsMigration)->toContain("\$table->nullableUuidMorphs('owner');")
         ->and($passportDeviceCodesMigration)->toContain("Schema::create('oauth_device_codes'")

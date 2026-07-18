@@ -55,6 +55,7 @@ abstract class TestCase extends Orchestra
             'prefix' => '',
             'schema' => 'public',
             'sslmode' => 'prefer',
+            'timezone' => 'UTC',
         ]);
         $app['config']->set('auth.providers.users.model', FakeUser::class);
         $app['config']->set('auth.guards.api', [

@@ -8,6 +8,7 @@ import { useToast } from 'primevue/usetoast'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import AppLayout from '@core-panel/layouts/AppLayout.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import LogBadge from '@core-panel/pages/Admin/Logs/components/LogBadge.vue'
 import logFiles from '@/routes/core-panel/log-files'
 import logsPage from '@/routes/core-panel/logs'
@@ -44,6 +45,7 @@ const LEVEL_OPTIONS = [
 ]
 
 const toast = useToast()
+const { formatDateTime } = useDateTime()
 const entries = ref<LogEntryRecord[]>(props.initialEntries)
 const cursor = ref<number | null>(props.initialNextCursor)
 const eof = ref(props.initialEof)
@@ -257,14 +259,6 @@ function syncStickyHeadMetrics(): void {
     stickyHeaderColumnWidths.value = Array.from(bodyCells).map(
         (cell) => cell.getBoundingClientRect().width,
     )
-}
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '—'
-    }
-
-    return new Date(value).toLocaleString()
 }
 
 function formatSize(bytes: number): string {

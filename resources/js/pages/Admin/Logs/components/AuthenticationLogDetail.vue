@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { trans } from 'laravel-vue-i18n'
 
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import {
     formatAuthenticationDeviceLabel,
     formatAuthenticationMethodLabel,
@@ -18,14 +19,7 @@ defineProps<{
 const emit = defineEmits<{
     cancel: []
 }>()
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '—'
-    }
-
-    return new Date(value).toLocaleString()
-}
+const { formatDateTime } = useDateTime()
 
 function formatValue(value: string | null): string {
     if (!value) {

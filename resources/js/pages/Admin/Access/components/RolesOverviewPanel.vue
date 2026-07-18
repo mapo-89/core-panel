@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
 import { useCan } from '@core-panel/composables/useCan'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import roleRoutes from '@/routes/core-panel/roles'
 import type { PermissionRecord, RoleRecord } from '@core-panel/types/core-panel'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
@@ -33,12 +34,9 @@ const props = withDefaults(
 )
 
 const { can } = useCan()
+const { formatDateTime } = useDateTime()
 const deleteDialogVisible = ref(false)
 const pendingDeleteRole = ref<RoleRecord | null>(null)
-const createdAtFormatter = new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-})
 
 const canUpdateRole = computed(() => can('roles.update'))
 const canDeleteRole = computed(() => can('roles.delete'))
@@ -183,11 +181,7 @@ function destroyRole(): void {
 }
 
 function formatCreatedAt(value: string | null | undefined): string {
-    if (!value) {
-        return '—'
-    }
-
-    return createdAtFormatter.format(new Date(value))
+    return formatDateTime(value)
 }
 
 function headline(value: string): string {

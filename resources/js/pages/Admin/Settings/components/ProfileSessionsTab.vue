@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import { router, useForm } from '@inertiajs/vue3'
 import AppIcon from '@core-panel/components/AppIcon.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import type { UserSessionRecord } from '@core-panel/types/core-panel'
 import profile from '@/routes/profile'
 
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const showPasswordDialog = ref(false)
 const logoutSuccess = ref(false)
+const { formatUnixTimestamp } = useDateTime()
 const passwordConfirmForm = useForm({
     password: '',
 })
@@ -23,7 +25,7 @@ const otherSessionsCount = computed(
 const canLogoutOtherSessions = computed(() => otherSessionsCount.value > 0)
 
 function formatLastActive(timestamp: number): string {
-    return new Date(timestamp * 1000).toLocaleString()
+    return formatUnixTimestamp(timestamp)
 }
 
 function sessionDeviceIcon(userAgent: string | null): 'desktop' | 'smartphone' {

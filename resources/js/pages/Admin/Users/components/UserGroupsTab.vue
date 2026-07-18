@@ -7,6 +7,7 @@ import { useDialog } from 'primevue/usedialog'
 
 import AppIcon from '@core-panel/components/AppIcon.vue'
 import ConfirmActionDialog from '@core-panel/components/Dialogs/ConfirmActionDialog.vue'
+import { useDateTime } from '@core-panel/composables/useDateTime'
 import UserGroupForm from '@core-panel/pages/Admin/UserGroups/components/UserGroupForm.vue'
 import userGroupRoutes from '@/routes/core-panel/user-groups'
 import TableBuilderDataTable from '@core-panel/components/TableBuilder/DataTable.vue'
@@ -20,10 +21,7 @@ const props = defineProps<{
 const dialog = useDialog()
 const deleteDialogVisible = ref(false)
 const pendingDeleteUserGroup = ref<UserGroupRecord | null>(null)
-const createdAtFormatter = new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-})
+const { formatDateTime } = useDateTime()
 
 const tableSchema = computed<DataTableSchema>(() => ({
     actions: [],
@@ -143,11 +141,7 @@ function confirmDestroyUserGroup(): void {
 }
 
 function formatCreatedAt(value: string | null | undefined): string {
-    if (!value) {
-        return '—'
-    }
-
-    return createdAtFormatter.format(new Date(value))
+    return formatDateTime(value)
 }
 </script>
 
