@@ -66,6 +66,7 @@ use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\LocaleResolver as RequestLocaleResolver;
 use CorePanel\Support\Media\CorePanelMediaPathGenerator;
 use CorePanel\Support\Media\MediaService;
+use CorePanel\Support\Migrations\HostMigrationExecutor;
 use CorePanel\Support\Octane\MediaStateResetter;
 use CorePanel\Support\Octane\OctaneStateResetter;
 use CorePanel\Support\Octane\PermissionCacheResetter;
@@ -137,6 +138,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(FormModelManager::class);
         $this->app->scoped(FormSubmissionValidator::class);
         $this->app->scoped(CorePanelGenerator::class);
+        $this->app->scoped(HostMigrationExecutor::class);
         $this->app->scoped(ListBrowserSessions::class);
         $this->app->scoped(MediaService::class);
         $this->app->scoped(MediaStateResetter::class);

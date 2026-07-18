@@ -14,6 +14,14 @@ final class MigrationPathResolver
     /**
      * @return list<string>
      */
+    public static function central(?string $basePath = null): array
+    {
+        return self::host($basePath);
+    }
+
+    /**
+     * @return list<string>
+     */
     public static function host(?string $basePath = null): array
     {
         $root = $basePath ?? base_path();

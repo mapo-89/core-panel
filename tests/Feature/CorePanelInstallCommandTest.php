@@ -7,18 +7,21 @@ use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
+use CorePanel\Support\Migrations\HostMigrationExecutor;
 use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\Migrations\MigrationPathResolver;
 use CorePanel\Support\ScaffoldsCorePanelStubs;
 use CorePanel\Support\SynchronizesEnvironmentFile;
 use Illuminate\Console\Command;
 use Illuminate\Console\OutputStyle;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Foundation\Auth\User as AuthenticatableUser;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Traits\HasRoles;
@@ -225,19 +228,16 @@ it('runs host migrations in global timestamp order across domain directories', f
     file_put_contents($temporaryBasePath.'/database/migrations/tenancy/2026_01_01_000001_create_tenants_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/tenant/users/0001_01_01_000000_create_users_table.php', '<?php');
 
-    $runner = app(HostMigrationRunner::class);
-    $method = new ReflectionMethod($runner, 'migrationFiles');
-    $method->setAccessible(true);
-
     /** @var list<string> $migrationFiles */
-    $migrationFiles = $method->invoke($runner, $temporaryBasePath.'/database/migrations');
+    $migrationFiles = app(HostMigrationExecutor::class)->migrationFiles($temporaryBasePath);
 
     expect(array_map('basename', $migrationFiles))->toBe([
         '0001_01_01_000000_create_users_table.php',
         '2016_06_01_000001_create_oauth_auth_codes_table.php',
         '2019_01_01_000001_create_media_table.php',
         '2026_01_01_000001_create_tenants_table.php',
-    ]);
+    ])
+        ->and(MigrationPathResolver::central($temporaryBasePath))->toBe($migrationFiles);
 });
 
 it('resolves tenant migrations recursively in global timestamp order', function (): void {
@@ -259,6 +259,60 @@ it('resolves tenant migrations recursively in global timestamp order', function 
         '0001_01_01_000000_create_users_table.php',
         '2016_06_01_000001_create_oauth_auth_codes_table.php',
         '2019_01_01_000001_create_media_table.php',
+    ]);
+});
+
+it('executes host migrations and reports the applied migration basenames', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-execute-'.bin2hex(random_bytes(5));
+    $database = (string) config('database.default');
+
+    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
+    mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
+
+    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
+
+    Schema::dropIfExists('migrations');
+    Schema::create('migrations', function ($table): void {
+        $table->id();
+        $table->string('migration');
+        $table->integer('batch');
+    });
+
+    $kernel = mock(Kernel::class);
+    $kernel->shouldReceive('call')
+        ->once()
+        ->with('migrate', Mockery::on(static function (array $arguments) use ($database): bool {
+            return $arguments['--database'] === $database
+                && $arguments['--force'] === false
+                && $arguments['--realpath'] === true
+                && array_map('basename', $arguments['--path']) === [
+                    '0001_01_01_000000_create_users_table.php',
+                    '2016_06_01_000001_create_oauth_auth_codes_table.php',
+                ];
+        }))
+        ->andReturnUsing(static function () use ($database): int {
+            DB::connection($database)->table('migrations')->insert([
+                ['migration' => '0001_01_01_000000_create_users_table', 'batch' => 1],
+                ['migration' => '2016_06_01_000001_create_oauth_auth_codes_table', 'batch' => 1],
+            ]);
+
+            return 0;
+        });
+    $kernel->shouldReceive('output')
+        ->once()
+        ->andReturn('Migrated successfully.');
+
+    app()->instance(Kernel::class, $kernel);
+
+    $result = app(HostMigrationExecutor::class)->execute($database, false, $temporaryBasePath);
+
+    expect($result)->toBe([
+        'executed_migrations' => [
+            '0001_01_01_000000_create_users_table',
+            '2016_06_01_000001_create_oauth_auth_codes_table',
+        ],
+        'output' => 'Migrated successfully.',
     ]);
 });
 
