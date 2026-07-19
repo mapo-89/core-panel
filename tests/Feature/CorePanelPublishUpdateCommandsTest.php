@@ -1314,6 +1314,13 @@ it('creates explicitly versioned missing application scaffolds during updates', 
             continue;
         }
 
+        if ($relativePath === 'resources/js/components/AppIcon.vue') {
+            expect(file_exists($basePath.'/'.$relativePath))
+                ->toBeFalse("Expected {$relativePath} to stay absent when the host has no existing scaffold.");
+
+            continue;
+        }
+
         if (in_array($relativePath, updatePreservedScaffoldPaths(), true)) {
             expect(file_exists($basePath.'/'.$relativePath))
                 ->toBeFalse("Expected {$relativePath} to stay host-owned when missing during updates.");
@@ -1391,6 +1398,13 @@ it('creates explicitly versioned missing application scaffolds without per-file 
         if (str_starts_with($relativePath, 'lang/')) {
             expect(file_exists($basePath.'/'.$relativePath))
                 ->toBeFalse("Expected {$relativePath} to stay vendor-first when it has no current scaffold manifest entry.");
+
+            continue;
+        }
+
+        if ($relativePath === 'resources/js/components/AppIcon.vue') {
+            expect(file_exists($basePath.'/'.$relativePath))
+                ->toBeFalse("Expected {$relativePath} to stay absent when it has no current scaffold manifest entry.");
 
             continue;
         }

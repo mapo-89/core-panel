@@ -1543,10 +1543,14 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($nginx)->toContain('fastcgi_pass ${PHP_UPSTREAM};')
         ->and($nginx)->toContain('location = /nginx-health')
         ->and($phpFpm)->toContain('listen = 9000')
-        ->and($runtimeEntrypoint)->toContain('WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-false}"')
+        ->and($runtimeEntrypoint)->toContain('WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"')
         ->and($runtimeEntrypoint)->toContain('elif [ "$WAIT_FOR_NGINX" = "auto" ] && [ "$command_name" = "php-fpm" ]; then')
+        ->and($runtimeEntrypoint)->toContain('php artisan list --raw 2>/dev/null | grep -Fxq "$command"')
+        ->and($runtimeEntrypoint)->toContain('RUN_MIGRATIONS enabled; running php artisan migrate --force')
+        ->and($runtimeEntrypoint)->toContain('Central migrations completed')
         ->and($runtimeEntrypoint)->toContain('Checking nginx connection')
         ->and($runtimeEntrypoint)->toContain('Skipping nginx wait for command:')
+        ->and($runtimeEntrypoint)->toContain('skipping tenant migrations because the tenancy addon is not installed')
         ->and($runtimeEntrypoint)->not->toContain('re-sulting')
         ->and($phpIni)->toContain('upload_max_filesize=256M')
         ->and($opcacheIni)->toContain('opcache.enable=1')
@@ -1607,6 +1611,65 @@ it('probes nginx automatically for the php-fpm entrypoint command', function ():
     expect($process->isSuccessful())->toBeFalse()
         ->and($process->getOutput())->toContain('Checking nginx connection at http://127.0.0.1:9/nginx-health')
         ->and($process->getOutput())->toContain('nginx unreachable after 1 attempts');
+});
+
+it('falls back to standard laravel migrations and skips tenant migrations when addon commands are unavailable', function (): void {
+    $appRoot = sys_get_temp_dir().'/core-panel-entrypoint-without-tenancy-addon-'.bin2hex(random_bytes(5));
+    $binDir = $appRoot.'/bin';
+    $phpStub = $binDir.'/php';
+    $artisanStub = $appRoot.'/artisan';
+    $migrateLog = $appRoot.'/migrate.log';
+
+    mkdir($binDir, 0777, true);
+    file_put_contents($artisanStub, "#!/bin/sh\nexit 0\n");
+    chmod($artisanStub, 0777);
+
+    file_put_contents($phpStub, <<<'SH'
+#!/bin/sh
+set -eu
+
+if [ "${1:-}" = "artisan" ] && [ "${2:-}" = "list" ] && [ "${3:-}" = "--raw" ]; then
+    printf 'migrate\n'
+    exit 0
+fi
+
+if [ "${1:-}" = "artisan" ] && [ "${2:-}" = "migrate" ] && [ "${3:-}" = "--force" ]; then
+    printf 'migrate\n' >> "${MIGRATE_LOG:?}"
+    exit 0
+fi
+
+if [ "${1:-}" = "-v" ]; then
+    printf 'PHP 8.5.0 (cli) (built: test)\n'
+    exit 0
+fi
+
+printf 'unexpected php invocation: %s\n' "$*" >&2
+exit 1
+SH);
+    chmod($phpStub, 0777);
+
+    $process = new Process([
+        'sh',
+        __DIR__.'/../../stubs/.docker/php/entrypoint.sh',
+        'php-fpm',
+    ]);
+    $process->setEnv([
+        'APP_ROOT' => $appRoot,
+        'DB_CONNECTION' => 'sqlite',
+        'MIGRATE_LOG' => $migrateLog,
+        'PATH' => $binDir.':'.getenv('PATH'),
+        'RUN_MIGRATIONS' => 'true',
+        'WAIT_FOR_NGINX' => 'false',
+    ]);
+    $process->setTimeout(5);
+
+    $process->run();
+
+    expect($process->isSuccessful())->toBeFalse()
+        ->and($process->getOutput())->toContain('RUN_MIGRATIONS enabled; running php artisan migrate --force')
+        ->and($process->getOutput())->toContain('Central migrations completed')
+        ->and($process->getOutput())->toContain('skipping tenant migrations because the tenancy addon is not installed')
+        ->and(file_get_contents($migrateLog))->toBe("migrate\n");
 });
 
 it('ships a user stub that uses passport tokens without sanctum compatibility shims', function (): void {
@@ -1769,7 +1832,7 @@ BLADE);
         ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {")
         ->and($consoleRoutes)->toContain("Schedule::command('database-backups:auto')")
         ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.database_backups.enabled', true)) {")
-        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.system_updates.automatic.enabled', false)) {")
+        ->and($consoleRoutes)->toContain("if ((bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false))) {")
         ->and($consoleRoutes)->not->toContain("app()->bound('command.database-backups:auto')")
         ->and($consoleRoutes)->not->toContain("app()->bound('command.system-updates:auto')")
         ->and(file_exists($temporaryBasePath.'/resources/views/welcome.blade.php'))->toBeFalse()

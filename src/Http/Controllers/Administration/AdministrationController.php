@@ -141,12 +141,12 @@ final class AdministrationController extends Controller
 
         return [
             'automatic' => [
-                'enabled' => (bool) config('core-panel.administration.system_updates.automatic.enabled', false),
-                'forceUpdateEnabled' => (bool) config('core-panel.administration.system_updates.force_update_enabled', false),
-                'inactiveMinutes' => (int) config('core-panel.administration.system_updates.automatic.inactive_minutes', 15),
-                'timezone' => (string) config('core-panel.administration.system_updates.automatic.timezone', config('app.timezone')),
-                'windowEnd' => (string) config('core-panel.administration.system_updates.automatic.window_end', '04:00'),
-                'windowStart' => (string) config('core-panel.administration.system_updates.automatic.window_start', '02:00'),
+                'enabled' => (bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false)),
+                'forceUpdateEnabled' => (bool) config('system-updates.force_update_enabled', config('core-panel.administration.system_updates.force_update_enabled', false)),
+                'inactiveMinutes' => (int) config('system-updates.automatic.inactive_minutes', config('core-panel.administration.system_updates.automatic.inactive_minutes', 15)),
+                'timezone' => (string) config('system-updates.automatic.timezone', config('core-panel.administration.system_updates.automatic.timezone', config('app.timezone'))),
+                'windowEnd' => (string) config('system-updates.automatic.window_end', config('core-panel.administration.system_updates.automatic.window_end', '04:00')),
+                'windowStart' => (string) config('system-updates.automatic.window_start', config('core-panel.administration.system_updates.automatic.window_start', '02:00')),
             ],
             'logs' => $this->systemUpdater->safeLogs(),
             'routes' => [

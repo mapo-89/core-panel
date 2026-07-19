@@ -25,7 +25,7 @@ final readonly class RunAutomaticSystemUpdateAction
             return $this->skipped('disabled');
         }
 
-        if (! (bool) config('core-panel.administration.system_updates.automatic.enabled', false)) {
+        if (! $this->automaticUpdateEnabled()) {
             return $this->skipped('automatic updates disabled');
         }
 
@@ -83,10 +83,10 @@ final readonly class RunAutomaticSystemUpdateAction
 
     private function isWithinMaintenanceWindow(): bool
     {
-        $timezone = (string) config('core-panel.administration.system_updates.automatic.timezone', config('app.timezone'));
+        $timezone = (string) $this->automaticUpdateConfig('timezone', config('app.timezone'));
         $now = now($timezone);
-        $start = $this->timeToday((string) config('core-panel.administration.system_updates.automatic.window_start', '02:00'), $now);
-        $end = $this->timeToday((string) config('core-panel.administration.system_updates.automatic.window_end', '04:00'), $now);
+        $start = $this->timeToday((string) $this->automaticUpdateConfig('window_start', '02:00'), $now);
+        $end = $this->timeToday((string) $this->automaticUpdateConfig('window_end', '04:00'), $now);
 
         if ($end->lessThanOrEqualTo($start)) {
             return $now->greaterThanOrEqualTo($start) || $now->lessThan($end);
@@ -108,7 +108,7 @@ final readonly class RunAutomaticSystemUpdateAction
 
     private function hasRecentUserActivity(): bool
     {
-        $inactiveMinutes = max(0, (int) config('core-panel.administration.system_updates.automatic.inactive_minutes', 15));
+        $inactiveMinutes = max(0, (int) $this->automaticUpdateConfig('inactive_minutes', 15));
 
         if ($inactiveMinutes === 0) {
             return false;
@@ -173,5 +173,21 @@ final readonly class RunAutomaticSystemUpdateAction
         }
 
         return false;
+    }
+
+    private function automaticUpdateEnabled(): bool
+    {
+        return (bool) config(
+            'system-updates.automatic.enabled',
+            config('core-panel.administration.system_updates.automatic.enabled', false),
+        );
+    }
+
+    private function automaticUpdateConfig(string $key, string|int|null $default): string|int|null
+    {
+        return config(
+            "system-updates.automatic.{$key}",
+            config("core-panel.administration.system_updates.automatic.{$key}", $default),
+        );
     }
 }

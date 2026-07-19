@@ -37,6 +37,16 @@ is_enabled() {
     esac
 }
 
+has_artisan_command() {
+    command="$1"
+
+    if [ ! -f "${APP_ROOT}/artisan" ]; then
+        return 1
+    fi
+
+    php artisan list --raw 2>/dev/null | grep -Fxq "$command"
+}
+
 ensure_public_storage_link() {
     public_storage_path="${APP_ROOT}/public/storage"
     storage_target="${APP_ROOT}/storage/app/public"
@@ -213,12 +223,23 @@ ensure_public_storage_link
 
 if is_enabled "${RUN_MIGRATIONS:-}"; then
     if [ "$command_name" = "php-fpm" ]; then
-        log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate:recursive --force"
-        php artisan migrate:recursive --force
-        log "✅ success " "Central recursive migrations completed"
-        log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan tenants:migrate --force"
-        php artisan tenants:migrate --force
-        log "✅ success " "Tenant migrations completed"
+        if has_artisan_command 'migrate:recursive'; then
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate:recursive --force"
+            php artisan migrate:recursive --force
+            log "✅ success " "Central recursive migrations completed"
+        else
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate --force"
+            php artisan migrate --force
+            log "✅ success " "Central migrations completed"
+        fi
+
+        if has_artisan_command 'tenants:migrate'; then
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan tenants:migrate --force"
+            php artisan tenants:migrate --force
+            log "✅ success " "Tenant migrations completed"
+        else
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; skipping tenant migrations because the tenancy addon is not installed"
+        fi
     else
         log "ℹ️ info    " "RUN_MIGRATIONS enabled; skipping migrations for command: ${command_name:-unknown}"
     fi

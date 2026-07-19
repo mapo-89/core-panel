@@ -423,7 +423,8 @@ it('applies saved runtime settings to the request config', function (): void {
 
     expect($response->getContent())->toBe('ok')
         ->and(config('app.name'))->toBe('Configured CorePanel')
-        ->and(config('app.timezone'))->toBe('Europe/Berlin')
+        ->and(config('app.timezone'))->toBe('UTC')
+        ->and(config('core-panel.runtime_timezone'))->toBe('Europe/Berlin')
         ->and(config('core-panel.i18n.default_locale'))->toBe('de')
         ->and(config('core-panel.i18n.fallback_locale'))->toBe('en')
         ->and(config('core-panel.i18n.supported_locales'))->toBe(['de'])

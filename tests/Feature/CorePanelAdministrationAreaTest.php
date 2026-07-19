@@ -905,10 +905,10 @@ it('returns the system update status payload', function (): void {
 it('runs the automatic system update command inside the maintenance window', function (): void {
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
-    config()->set('core-panel.administration.system_updates.automatic.enabled', true);
-    config()->set('core-panel.administration.system_updates.automatic.timezone', 'UTC');
-    config()->set('core-panel.administration.system_updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
-    config()->set('core-panel.administration.system_updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
+    config()->set('system-updates.automatic.enabled', true);
+    config()->set('system-updates.automatic.timezone', 'UTC');
+    config()->set('system-updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
+    config()->set('system-updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
 
     Http::fake([
         'system-updater:8080/status' => Http::response([
@@ -949,10 +949,10 @@ it('runs the automatic system update command inside the maintenance window', fun
 it('skips automatic system updates when only manual-update-required images are pending', function (): void {
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
-    config()->set('core-panel.administration.system_updates.automatic.enabled', true);
-    config()->set('core-panel.administration.system_updates.automatic.timezone', 'UTC');
-    config()->set('core-panel.administration.system_updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
-    config()->set('core-panel.administration.system_updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
+    config()->set('system-updates.automatic.enabled', true);
+    config()->set('system-updates.automatic.timezone', 'UTC');
+    config()->set('system-updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
+    config()->set('system-updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
 
     Http::fake([
         'system-updater:8080/status' => Http::response([
@@ -986,11 +986,11 @@ it('skips the automatic system update command when recent authenticated session 
 
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
-    config()->set('core-panel.administration.system_updates.automatic.enabled', true);
-    config()->set('core-panel.administration.system_updates.automatic.inactive_minutes', 15);
-    config()->set('core-panel.administration.system_updates.automatic.timezone', 'UTC');
-    config()->set('core-panel.administration.system_updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
-    config()->set('core-panel.administration.system_updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
+    config()->set('system-updates.automatic.enabled', true);
+    config()->set('system-updates.automatic.inactive_minutes', 15);
+    config()->set('system-updates.automatic.timezone', 'UTC');
+    config()->set('system-updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
+    config()->set('system-updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
     config()->set('session.driver', 'database');
     config()->set('session.table', 'sessions');
 
