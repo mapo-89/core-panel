@@ -902,6 +902,30 @@ it('returns the system update status payload', function (): void {
     Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/logs');
 });
 
+it('allows forced system updates when the host-level force update setting is enabled', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    config()->set('core-panel.administration.system_updates.force_update_enabled', false);
+    config()->set('system-updates.force_update_enabled', true);
+
+    Http::fake([
+        'system-updater:8080/update' => Http::response([
+            'images' => [],
+            'update_available' => true,
+            'update_running' => true,
+        ]),
+    ]);
+
+    $this->actingAs(administrationUser('system-updates.update'))
+        ->post(route('core-panel.system-updates.update'), [
+            'force' => '1',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', __('system_updates.update_started'));
+
+    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/update');
+});
+
 it('runs the automatic system update command inside the maintenance window', function (): void {
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');

@@ -54,7 +54,7 @@ final class SystemUpdateController extends Controller
         abort_unless($this->updater->enabled(), 404);
         abort_unless($request->user() !== null && $this->permissions->userHas($request->user(), 'system-updates.update'), 403);
 
-        if ($request->boolean('force') && ! (bool) config('core-panel.administration.system_updates.force_update_enabled', false)) {
+        if ($request->boolean('force') && ! (bool) config('system-updates.force_update_enabled', config('core-panel.administration.system_updates.force_update_enabled', false))) {
             return back()->with('error', __('system_updates.force_update_disabled'));
         }
 
