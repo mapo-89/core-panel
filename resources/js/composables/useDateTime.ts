@@ -21,6 +21,10 @@ const defaultDateTimeFormat: DateTimeFormatOptions = {
     timeStyle: 'short',
 }
 
+const defaultDateFormat: DateTimeFormatOptions = {
+    dateStyle: 'medium',
+}
+
 export function useDateTime() {
     const page = usePage<SharedPageProps>()
 
@@ -59,7 +63,28 @@ export function useDateTime() {
         return new Intl.DateTimeFormat(locale.value, {
             ...defaultDateTimeFormat,
             ...options,
-            timeZone: timeZone.value,
+            timeZone: resolveFormatterTimeZone(value, timeZone.value),
+        }).format(parsedDate)
+    }
+
+    function formatDate(
+        value: Date | number | string | null | undefined,
+        options: DateTimeFormatOptions = defaultDateFormat,
+    ): string {
+        if (value === null || value === undefined || value === '') {
+            return '—'
+        }
+
+        const parsedDate = parseDateTime(value)
+
+        if (parsedDate === null) {
+            return String(value)
+        }
+
+        return new Intl.DateTimeFormat(locale.value, {
+            ...defaultDateFormat,
+            ...options,
+            timeZone: resolveFormatterTimeZone(value, timeZone.value),
         }).format(parsedDate)
     }
 
@@ -75,11 +100,21 @@ export function useDateTime() {
     }
 
     return {
+        formatDate,
         formatDateTime,
         formatUnixTimestamp,
         locale,
         timeZone,
     }
+}
+
+function resolveFormatterTimeZone(
+    value: Date | number | string,
+    fallbackTimeZone: string,
+): string {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+        ? 'UTC'
+        : fallbackTimeZone
 }
 
 function parseDateTime(value: Date | number | string): Date | null {
@@ -101,6 +136,10 @@ function parseDateTime(value: Date | number | string): Date | null {
 
 function normalizeDateTimeString(value: string): string {
     const trimmedValue = value.trim()
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+        return `${trimmedValue}T00:00:00Z`
+    }
 
     if (
         /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmedValue)
