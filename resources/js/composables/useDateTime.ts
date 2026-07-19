@@ -99,12 +99,58 @@ export function useDateTime() {
         return formatDateTime(value * 1000, options)
     }
 
+    function toDateTimeLocalInput(
+        value: Date | number | string | null | undefined,
+    ): string {
+        if (value === null || value === undefined || value === '') {
+            return ''
+        }
+
+        if (typeof value === 'string') {
+            const trimmedValue = value.trim()
+
+            if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(trimmedValue)) {
+                return trimmedValue.replace(' ', 'T')
+            }
+        }
+
+        const parsedDate = parseDateTime(value)
+
+        if (parsedDate === null) {
+            return typeof value === 'string' ? value.trim().slice(0, 16) : ''
+        }
+
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            hour: '2-digit',
+            hourCycle: 'h23',
+            minute: '2-digit',
+            month: '2-digit',
+            timeZone: timeZone.value,
+            year: 'numeric',
+            day: '2-digit',
+        })
+
+        const parts = formatter.formatToParts(parsedDate)
+        const year = parts.find((part) => part.type === 'year')?.value
+        const month = parts.find((part) => part.type === 'month')?.value
+        const day = parts.find((part) => part.type === 'day')?.value
+        const hour = parts.find((part) => part.type === 'hour')?.value
+        const minute = parts.find((part) => part.type === 'minute')?.value
+
+        if (!year || !month || !day || !hour || !minute) {
+            return ''
+        }
+
+        return `${year}-${month}-${day}T${hour}:${minute}`
+    }
+
     return {
         formatDate,
         formatDateTime,
         formatUnixTimestamp,
         locale,
         timeZone,
+        toDateTimeLocalInput,
     }
 }
 
