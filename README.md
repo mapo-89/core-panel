@@ -58,6 +58,60 @@ CorePanel also registers the short alias:
 php artisan core:install
 ```
 
+## Timestamp Conversion
+
+If an existing PostgreSQL installation still contains legacy `timestamp without time zone` columns from before the `timestampTz()` switch, CorePanel ships a one-time conversion command:
+
+```bash
+php artisan core-panel:convert-timestamps-tz --dry-run
+php artisan core-panel:convert-timestamps-tz --force
+```
+
+The command interprets legacy values in the configured legacy timezone and writes them back as UTC-based `timestamptz` values.
+
+Defaults:
+
+- legacy timezone: `Europe/Berlin`
+- target timezone: `UTC`
+
+Override them in the host application if needed:
+
+```php
+// config/core-panel.php
+'database' => [
+    'timestamp_tz_conversion' => [
+        'legacy_timezone' => env('CORE_PANEL_TIMESTAMP_LEGACY_TIMEZONE', 'Europe/Berlin'),
+        'target_timezone' => env('CORE_PANEL_TIMESTAMP_TARGET_TIMEZONE', 'UTC'),
+    ],
+],
+```
+
+### Add Project-Specific Tables
+
+CorePanel only knows its own package tables by default. Host applications can explicitly extend the conversion lists for project-specific tables in `config/core-panel.php`:
+
+```php
+// config/core-panel.php
+'database' => [
+    'timestamp_tz_conversion' => [
+        'datasets' => [
+            'central' => [
+                'projects' => ['created_at', 'updated_at', 'deleted_at'],
+                'appointments' => ['scheduled_for', 'cancelled_at', 'created_at', 'updated_at'],
+            ],
+        ],
+    ],
+],
+```
+
+Available datasets:
+
+- `central` for the main application database
+- `tenancy` for tenancy metadata tables when the addon is installed
+- `tenant` for tenant application databases when the addon is installed
+
+Use the same structure for each dataset: table name => list of timestamp columns to convert.
+
 ## PWA
 
 CorePanel can now scaffold the host application for Progressive Web App support via `erag/laravel-pwa`.

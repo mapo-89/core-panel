@@ -6,6 +6,7 @@ namespace CorePanel;
 
 use CorePanel\Console\AssignSuperAdminCommand;
 use CorePanel\Console\CleanActivityLogsCommand;
+use CorePanel\Console\ConvertTimestampsToTimestamptzCommand;
 use CorePanel\Console\InstallCommand;
 use CorePanel\Console\MakeActionCommand;
 use CorePanel\Console\MakeCrudCommand;
@@ -56,6 +57,7 @@ use CorePanel\Support\Auth\AuthenticationLogRecorder;
 use CorePanel\Support\Auth\ListBrowserSessions;
 use CorePanel\Support\Auth\RevokeBrowserSession;
 use CorePanel\Support\Config\CorePanelConfig;
+use CorePanel\Support\Database\TimestampTzConverter;
 use CorePanel\Support\Files\FileModelManager;
 use CorePanel\Support\FormBuilder\FormSubmissionValidator;
 use CorePanel\Support\Forms\FormModelManager;
@@ -133,6 +135,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(DatabaseBackupSqlExportService::class);
         $this->app->scoped(DatabaseBackupService::class);
         $this->app->scoped(RunAutomaticDatabaseBackupAction::class);
+        $this->app->scoped(TimestampTzConverter::class);
         $this->app->scoped(CorePanelInstallerInterface::class, CorePanelInstaller::class);
         $this->app->scoped(FileModelManager::class);
         $this->app->scoped(FormModelManager::class);
@@ -174,6 +177,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
             ->hasCommands([
                 AssignSuperAdminCommand::class,
                 CleanActivityLogsCommand::class,
+                ConvertTimestampsToTimestamptzCommand::class,
                 InstallCommand::class,
                 MakeActionCommand::class,
                 MakeCrudCommand::class,
