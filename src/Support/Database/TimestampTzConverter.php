@@ -34,8 +34,6 @@ final class TimestampTzConverter
         }
 
         $legacyTimezone = (string) config('core-panel.database.timestamp_tz_conversion.legacy_timezone', 'Europe/Berlin');
-        $targetTimezone = (string) config('core-panel.database.timestamp_tz_conversion.target_timezone', 'UTC');
-
         foreach ($tableColumns as $table => $columns) {
             $result['tables_scanned']++;
 
@@ -82,10 +80,9 @@ final class TimestampTzConverter
                 }
 
                 $connection->statement(sprintf(
-                    'ALTER TABLE %s ALTER COLUMN %s TYPE timestamptz USING timezone(%s, %s AT TIME ZONE %s)',
+                    'ALTER TABLE %s ALTER COLUMN %s TYPE timestamptz USING %s AT TIME ZONE %s',
                     $this->quoteIdentifier($table),
                     $this->quoteIdentifier($column),
-                    $connection->getPdo()->quote($targetTimezone),
                     $this->quoteIdentifier($column),
                     $connection->getPdo()->quote($legacyTimezone),
                 ));

@@ -141,7 +141,6 @@ return [
     'database' => [
         'timestamp_tz_conversion' => [
             'legacy_timezone' => env('CORE_PANEL_TIMESTAMP_LEGACY_TIMEZONE', 'Europe/Berlin'),
-            'target_timezone' => env('CORE_PANEL_TIMESTAMP_TARGET_TIMEZONE', 'UTC'),
             'datasets' => [
                 'central' => [
                     'activity_log' => ['created_at', 'updated_at'],

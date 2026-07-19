@@ -76,6 +76,7 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/page-users.php',
         'lang/en/page-user-groups.php',
         'lang/en/system_updates.php',
+        'config/database.php',
         'config/pwa.php',
         'config/trustedproxy.php',
         'public/logo.png',
@@ -145,6 +146,11 @@ final readonly class ScaffoldsCorePanelStubs
             'd1cfee11e2ecb7e0b50e07841358d643a4d96878d737e7ee0e05f8176e2e6dc7',
             '3d32cd22859a157e2976ce285a410cea7170ad5e8a60239b1d717e5b830fa20f',
             '2bdd934b2c9c6f531182ebc808ebc5178e61da0a7d89f67d41df2538a9af7db7',
+        ],
+        'config/database.php' => [
+            '8e9fc4e542335ddfb6550ff6b6f468a1a8f1e57edadeb64ea99ea0a44ebccf5e',
+            '6d87c712b4083d826f68ee149816dc698dbdeb3d91fd2b37baa14e1169d85768',
+            '6575e6017f5396ef77dea39475a8db0dee4c552f219f7206f3e87a98a6dde449',
         ],
         '.docker/bin/php-entrypoint.sh' => [
             'e7a20e256210277b91503a0f7c1ecad5be03e36d2be2cb7cc05e9b484ca2311b',
@@ -936,6 +942,7 @@ final readonly class ScaffoldsCorePanelStubs
         return in_array($relativePath, [
             '.env.example',
             'bootstrap/app.php',
+            'config/database.php',
             '.docker/bin/php-entrypoint.sh',
             '.docker/bin/prepare-local-environment.sh',
             '.docker/bin/start-dev-app.sh',

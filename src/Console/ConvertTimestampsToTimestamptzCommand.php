@@ -42,9 +42,8 @@ final class ConvertTimestampsToTimestamptzCommand extends Command
 
         return $this->components->confirm(
             sprintf(
-                'Convert legacy timestamp columns for [central] from [%s] to [%s]? ',
+                'Convert legacy timestamp columns for [central] using source timezone [%s] and store them as timestamptz instants? ',
                 (string) config('core-panel.database.timestamp_tz_conversion.legacy_timezone', 'Europe/Berlin'),
-                (string) config('core-panel.database.timestamp_tz_conversion.target_timezone', 'UTC'),
             ),
             false,
         );

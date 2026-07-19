@@ -501,6 +501,7 @@ function criticalVersionedUpdateScaffoldPaths(): array
     return [
         '.env.example',
         'bootstrap/app.php',
+        'config/database.php',
         '.docker/bin/php-entrypoint.sh',
         '.docker/bin/prepare-local-environment.sh',
         '.docker/bin/start-dev-app.sh',
@@ -530,6 +531,7 @@ it('versions the managed update scaffolds that still require host copies', funct
     expect(versionedUpdateScaffoldPaths())->toContain(
         '.env.example',
         'bootstrap/app.php',
+        'config/database.php',
         'config/pwa.php',
         'config/trustedproxy.php',
         'docker-compose.portainer.yml',

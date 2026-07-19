@@ -67,12 +67,11 @@ php artisan core-panel:convert-timestamps-tz --dry-run
 php artisan core-panel:convert-timestamps-tz --force
 ```
 
-The command interprets legacy values in the configured legacy timezone and writes them back as UTC-based `timestamptz` values.
+The command interprets legacy values in the configured source timezone and converts them directly to `timestamptz` instants without depending on the PostgreSQL session timezone.
 
-Defaults:
+Default source timezone:
 
 - legacy timezone: `Europe/Berlin`
-- target timezone: `UTC`
 
 Override them in the host application if needed:
 
@@ -81,7 +80,6 @@ Override them in the host application if needed:
 'database' => [
     'timestamp_tz_conversion' => [
         'legacy_timezone' => env('CORE_PANEL_TIMESTAMP_LEGACY_TIMEZONE', 'Europe/Berlin'),
-        'target_timezone' => env('CORE_PANEL_TIMESTAMP_TARGET_TIMEZONE', 'UTC'),
     ],
 ],
 ```
