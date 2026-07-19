@@ -13,6 +13,7 @@ import type {
 } from './types'
 
 type DataTableReloadOptions = {
+    mode?: MaybeRefOrGetter<'local' | 'remote' | undefined>
     only?: string[]
 }
 
@@ -51,7 +52,10 @@ export function useDataTable(
 ) {
     const page = usePage<PageLike>()
     const currentSchema = computed(() => toValue(schema))
-    const isLocal = computed(() => currentSchema.value.mode === 'local')
+    const resolvedMode = computed(
+        () => toValue(options.mode) ?? currentSchema.value.mode,
+    )
+    const isLocal = computed(() => resolvedMode.value === 'local')
     const selectedRows = ref<DataTableRow[]>([])
     const search = ref(currentSchema.value.state.search ?? '')
     const filters = ref<Record<string, unknown>>({

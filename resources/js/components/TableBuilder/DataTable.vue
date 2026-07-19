@@ -33,6 +33,7 @@ const props = defineProps<{
     actionColumnWidth?: string
     emptyMessage?: string
     loading?: boolean
+    mode?: 'local' | 'remote'
     only?: string[]
     schema: DataTableSchema
     surfaceClass?: string
@@ -43,6 +44,7 @@ const rootRef = ref<HTMLElement | null>(null)
 const stickyHeadRef = ref<HTMLElement | null>(null)
 const tableSurfaceRef = ref<HTMLElement | null>(null)
 const table = useDataTable(() => props.schema, {
+    mode: () => props.mode,
     only: props.only,
 })
 

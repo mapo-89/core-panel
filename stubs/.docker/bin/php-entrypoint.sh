@@ -1,24 +1,32 @@
 #!/usr/bin/env sh
 set -eu
 
+APP_ROOT="${APP_ROOT:-/var/www/html}"
+APP_RUNTIME_USER="${APP_RUNTIME_USER:-www-data}"
+APP_RUNTIME_GROUP="${APP_RUNTIME_GROUP:-www-data}"
+DOCKER_PHP_ENTRYPOINT_BIN="${DOCKER_PHP_ENTRYPOINT_BIN:-docker-php-entrypoint}"
+ENTRYPOINT_SCRIPT="${ENTRYPOINT_SCRIPT:-/usr/local/bin/entrypoint.sh}"
+
 mkdir -p \
-    /var/www/html/storage/app/public \
-    /var/www/html/storage/framework/cache \
-    /var/www/html/storage/framework/sessions \
-    /var/www/html/storage/framework/views \
-    /var/www/html/storage/logs \
-    /var/www/html/bootstrap/cache
+    "${APP_ROOT}/storage/app/public" \
+    "${APP_ROOT}/storage/framework/cache" \
+    "${APP_ROOT}/storage/framework/sessions" \
+    "${APP_ROOT}/storage/framework/views" \
+    "${APP_ROOT}/storage/logs" \
+    "${APP_ROOT}/bootstrap/cache"
 
-chown -R www-data:www-data \
-    /var/www/html/storage \
-    /var/www/html/bootstrap/cache
-
-chmod -R u+rwX,g+rwX,o+rX \
-    /var/www/html/storage \
-    /var/www/html/bootstrap/cache
-
-if [ -x /usr/local/bin/entrypoint.sh ]; then
-    exec /usr/local/bin/entrypoint.sh docker-php-entrypoint "$@"
+if [ "$(id -u)" -eq 0 ]; then
+    chown -R "${APP_RUNTIME_USER}:${APP_RUNTIME_GROUP}" \
+        "${APP_ROOT}/storage" \
+        "${APP_ROOT}/bootstrap/cache"
 fi
 
-exec docker-php-entrypoint "$@"
+chmod -R u+rwX,g+rwX,o+rX \
+    "${APP_ROOT}/storage" \
+    "${APP_ROOT}/bootstrap/cache"
+
+if [ -x "${ENTRYPOINT_SCRIPT}" ]; then
+    exec "${ENTRYPOINT_SCRIPT}" docker-php-entrypoint "$@"
+fi
+
+exec "${DOCKER_PHP_ENTRYPOINT_BIN}" "$@"

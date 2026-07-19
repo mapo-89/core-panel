@@ -63,7 +63,9 @@ APP_ROOT="${APP_ROOT:-/var/www/html}"
 MAX_RETRIES="${MAX_RETRIES:-30}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-5}"
 ENTRYPOINT_DIR="${APP_ROOT}/.docker/php"
-WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-false}"
+WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"
+APP_RUNTIME_USER="${APP_RUNTIME_USER:-www-data}"
+APP_RUNTIME_GROUP="${APP_RUNTIME_GROUP:-www-data}"
 
 command_name="${1:-}"
 
@@ -211,13 +213,24 @@ ensure_public_storage_link
 
 if is_enabled "${RUN_MIGRATIONS:-}"; then
     if [ "$command_name" = "php-fpm" ]; then
-        log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate --force"
-        php artisan migrate --force
-        log "✅ success " "Migrations completed"
+        log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate:recursive --force"
+        php artisan migrate:recursive --force
+        log "✅ success " "Central recursive migrations completed"
+        log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan tenants:migrate --force"
+        php artisan tenants:migrate --force
+        log "✅ success " "Tenant migrations completed"
     else
         log "ℹ️ info    " "RUN_MIGRATIONS enabled; skipping migrations for command: ${command_name:-unknown}"
     fi
 fi
 
 log "📥 info    " "Starting: $*"
+
+if [ "$command_name" != "php-fpm" ] \
+    && [ "$(id -u)" -eq 0 ] \
+    && [ "${APP_RUNTIME_USER}" != "root" ] \
+    && command -v gosu >/dev/null 2>&1; then
+    exec gosu "${APP_RUNTIME_USER}:${APP_RUNTIME_GROUP}" "$@"
+fi
+
 exec "$@"

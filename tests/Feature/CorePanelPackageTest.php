@@ -650,6 +650,7 @@ it('keeps route and page frontend scaffolds eligible for managed-only updates', 
 
     expect($scaffolder)->toContain("'resources/js/routes/core-panel/administration.ts'")
         ->and($scaffolder)->toContain("'resources/css/app.css'")
+        ->and($scaffolder)->toContain("'resources/js/components/AppIcon.vue'")
         ->and($scaffolder)->not->toContain("'resources/js/pages/Admin/Administration/Index.vue'")
         ->and($scaffolder)->not->toContain("'resources/js/pages/Admin/Users/Index.vue'")
         ->and($scaffolder)->toContain("'.docker/bin/php-entrypoint.sh'")
@@ -2631,7 +2632,7 @@ it('renders user management with a reference-style datatable shell and a table-o
         ->and($dataTableContents)->toContain('const hasBulkActions = computed(() => table.bulkActions.value.length > 0)')
         ->and($dataTableContents)->toContain('const isBusy = computed(() => props.loading === true || table.isLoading.value)')
         ->and($useDataTableContents)->toContain(
-            "const isLocal = computed(() => currentSchema.value.mode === 'local')",
+            "const isLocal = computed(() => resolvedMode.value === 'local')",
         )
         ->and($dataTableContents)->toContain('const stickyHeaderColumnWidths = ref<number[]>([])')
         ->and($dataTableContents)->toContain('function handleStickyHeaderSort(column: DataTableColumn): void {')

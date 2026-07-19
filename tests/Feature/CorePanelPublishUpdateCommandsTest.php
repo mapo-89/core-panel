@@ -502,6 +502,7 @@ function criticalVersionedUpdateScaffoldPaths(): array
         '.env.example',
         'bootstrap/app.php',
         'config/database.php',
+        'resources/js/components/AppIcon.vue',
         '.docker/bin/php-entrypoint.sh',
         '.docker/bin/prepare-local-environment.sh',
         '.docker/bin/start-dev-app.sh',
@@ -524,6 +525,26 @@ function criticalVersionedUpdateScaffoldPaths(): array
         'updater/Dockerfile',
         'updater/go.mod',
         'updater/main.go',
+    ];
+}
+
+/**
+ * @return list<string>
+ */
+function updatePreservedScaffoldPaths(): array
+{
+    return [
+        '.docker/bin/php-entrypoint.sh',
+        '.docker/nginx/default.conf',
+        '.docker/php/banner.sh',
+        '.docker/php/entrypoint.sh',
+        '.docker/php/php.ini',
+        'Dockerfile',
+        'docker-compose.dev.yml',
+        'docker-compose.portainer.yml',
+        'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
+        'docker-compose.yml',
     ];
 }
 
@@ -1293,6 +1314,13 @@ it('creates explicitly versioned missing application scaffolds during updates', 
             continue;
         }
 
+        if (in_array($relativePath, updatePreservedScaffoldPaths(), true)) {
+            expect(file_exists($basePath.'/'.$relativePath))
+                ->toBeFalse("Expected {$relativePath} to stay host-owned when missing during updates.");
+
+            continue;
+        }
+
         expect(file_exists($basePath.'/'.$relativePath))
             ->toBeTrue("Expected {$relativePath} to be created during managed-only updates.");
     }
@@ -1363,6 +1391,13 @@ it('creates explicitly versioned missing application scaffolds without per-file 
         if (str_starts_with($relativePath, 'lang/')) {
             expect(file_exists($basePath.'/'.$relativePath))
                 ->toBeFalse("Expected {$relativePath} to stay vendor-first when it has no current scaffold manifest entry.");
+
+            continue;
+        }
+
+        if (in_array($relativePath, updatePreservedScaffoldPaths(), true)) {
+            expect(file_exists($basePath.'/'.$relativePath))
+                ->toBeFalse("Expected {$relativePath} to stay host-owned when it has no current scaffold manifest entry.");
 
             continue;
         }
@@ -1797,12 +1832,10 @@ it('adopts unchanged critical versioned scaffolds into the manifest during updat
         'bootstrap/app.php' => (string) file_get_contents(__DIR__.'/../../stubs/bootstrap/app.php'),
         'routes/web.php' => (string) file_get_contents(__DIR__.'/../../stubs/routes/web.php'),
         'routes/console.php' => (string) file_get_contents(__DIR__.'/../../stubs/routes/console.php'),
-        '.docker/bin/php-entrypoint.sh' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/bin/php-entrypoint.sh'),
         '.docker/bin/start-dev-app.sh' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/bin/start-dev-app.sh'),
         '.docker/php/opcache.ini' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/php/opcache.ini'),
         '.docker/php-fpm/zz-docker.conf' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/php-fpm/zz-docker.conf'),
         '.dockerignore' => (string) file_get_contents(__DIR__.'/../../stubs/.dockerignore'),
-        'docker-compose.yml' => (string) file_get_contents(__DIR__.'/../../stubs/docker-compose.yml'),
         'updater/main.go' => (string) file_get_contents(__DIR__.'/../../stubs/updater/main.go'),
     ];
 
@@ -1900,10 +1933,6 @@ it('updates additional pre-manifest critical scaffolds without a previous baseli
             'legacy' => legacyCriticalEnvExampleContents(),
             'current' => (string) file_get_contents(__DIR__.'/../../stubs/.env.example'),
         ],
-        'docker-compose.dev.yml' => [
-            'legacy' => legacyCriticalDockerComposeDevContents(),
-            'current' => (string) file_get_contents(__DIR__.'/../../stubs/docker-compose.dev.yml'),
-        ],
         'routes/console.php' => [
             'legacy' => legacyCriticalOldRoutesConsoleContents(),
             'current' => (string) file_get_contents(__DIR__.'/../../stubs/routes/console.php'),
@@ -1926,6 +1955,47 @@ it('updates additional pre-manifest critical scaffolds without a previous baseli
         expect((string) file_get_contents($target))->toBe($file['current'])
             ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->not->toBeEmpty()
             ->and($manifest['files'][$relativePath] ?? null)->toBeArray();
+    }
+});
+
+it('keeps update-preserved docker scaffolds untouched during updates', function (): void {
+    $basePath = makePublishBasePath('update-preserved-docker-scaffolds');
+    $preservedFiles = [
+        '.docker/bin/php-entrypoint.sh' => "#!/usr/bin/env sh\n\necho preserved-php-entrypoint\n",
+        '.docker/nginx/default.conf' => "server { return 200 'preserved nginx'; }\n",
+        '.docker/php/banner.sh' => "#!/usr/bin/env sh\n\necho preserved-banner\n",
+        '.docker/php/entrypoint.sh' => "#!/usr/bin/env sh\n\necho preserved-entrypoint\n",
+        '.docker/php/php.ini' => "memory_limit=768M\n",
+        'Dockerfile' => "FROM busybox:1.36\n",
+        'docker-compose.dev.yml' => "services:\n  app:\n    image: preserved-dev\n",
+        'docker-compose.portainer.yml' => "services:\n  app:\n    image: preserved-portainer\n",
+        'docker-compose.prod.yml' => "services:\n  app:\n    image: preserved-prod\n",
+        'docker-compose.registry.yml' => "services:\n  app:\n    image: preserved-registry\n",
+        'docker-compose.yml' => "services:\n  app:\n    image: preserved-base\n",
+    ];
+
+    foreach ($preservedFiles as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, $contents);
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = file_exists($basePath.'/storage/app/core-panel/scaffolds.json')
+        ? json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR)
+        : ['files' => []];
+
+    foreach ($preservedFiles as $relativePath => $contents) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([])
+            ->and($manifest['files'][$relativePath] ?? null)->toBeNull();
     }
 });
 

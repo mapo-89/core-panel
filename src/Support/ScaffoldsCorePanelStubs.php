@@ -30,6 +30,26 @@ final readonly class ScaffoldsCorePanelStubs
     ];
 
     /**
+     * Host-owned Docker/runtime files that should never be changed by the
+     * incremental update flow once an application has installed them.
+     *
+     * @var list<string>
+     */
+    private const UPDATE_PRESERVED_SCAFFOLDS = [
+        '.docker/bin/php-entrypoint.sh',
+        '.docker/nginx/default.conf',
+        '.docker/php/banner.sh',
+        '.docker/php/entrypoint.sh',
+        '.docker/php/php.ini',
+        'Dockerfile',
+        'docker-compose.dev.yml',
+        'docker-compose.portainer.yml',
+        'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
+        'docker-compose.yml',
+    ];
+
+    /**
      * Scaffold files that were introduced after existing applications may already
      * have installed CorePanel without a scaffold baseline manifest.
      *
@@ -84,6 +104,7 @@ final readonly class ScaffoldsCorePanelStubs
         'public/offline.html',
         'public/sw.js',
         'resources/css/app.css',
+        'resources/js/components/AppIcon.vue',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
         'routes/console.php',
@@ -151,6 +172,9 @@ final readonly class ScaffoldsCorePanelStubs
             '8e9fc4e542335ddfb6550ff6b6f468a1a8f1e57edadeb64ea99ea0a44ebccf5e',
             '6d87c712b4083d826f68ee149816dc698dbdeb3d91fd2b37baa14e1169d85768',
             '6575e6017f5396ef77dea39475a8db0dee4c552f219f7206f3e87a98a6dde449',
+        ],
+        'resources/js/components/AppIcon.vue' => [
+            '8c8e84746405c6990de0a086a457954b217596ffa7a8edfd8e769d5697db2117',
         ],
         '.docker/bin/php-entrypoint.sh' => [
             'e7a20e256210277b91503a0f7c1ecad5be03e36d2be2cb7cc05e9b484ca2311b',
@@ -316,6 +340,10 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
+            if ($onlyManagedChanges && $this->isUpdatePreservedScaffold($relativePath)) {
+                continue;
+            }
+
             if ($relativePath === 'package.json' && $destinationExists) {
                 if ($onlyManagedChanges && ! $this->shouldUpdateExistingManagedScaffold($relativePath, $root, $currentVersion, $installedVersion)) {
                     continue;
@@ -375,6 +403,11 @@ final readonly class ScaffoldsCorePanelStubs
         }
 
         return false;
+    }
+
+    private function isUpdatePreservedScaffold(string $relativePath): bool
+    {
+        return in_array($relativePath, self::UPDATE_PRESERVED_SCAFFOLDS, true);
     }
 
     /**
@@ -943,6 +976,7 @@ final readonly class ScaffoldsCorePanelStubs
             '.env.example',
             'bootstrap/app.php',
             'config/database.php',
+            'resources/js/components/AppIcon.vue',
             '.docker/bin/php-entrypoint.sh',
             '.docker/bin/prepare-local-environment.sh',
             '.docker/bin/start-dev-app.sh',
