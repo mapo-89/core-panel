@@ -120,7 +120,9 @@ final readonly class ApplyCorePanelRuntimeSettings
         $supportedLocaleCodes = SupportedLocales::normalize($supportedLocales);
         $resolvedTimezone = is_string($timezone) && $timezone !== '' ? $timezone : config('app.timezone', 'UTC');
         config()->set('app.name', is_string($appName) && $appName !== '' ? $appName : config('app.name', 'CorePanel'));
+        config()->set('app.timezone', $resolvedTimezone);
         config()->set('core-panel.runtime_timezone', $resolvedTimezone);
+        date_default_timezone_set($resolvedTimezone);
         config()->set('app.locale', is_string($defaultLocale) && $defaultLocale !== '' ? $defaultLocale : config('app.locale', 'de'));
         config()->set('app.fallback_locale', is_string($fallbackLocale) && $fallbackLocale !== '' ? $fallbackLocale : config('app.fallback_locale', 'en'));
         config()->set('app.languages', SupportedLocales::labelsFor($supportedLocaleCodes));

@@ -1831,7 +1831,7 @@ BLADE);
         ->and($webRoutes)->not->toContain("return view('welcome');")
         ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {")
         ->and($consoleRoutes)->toContain("Schedule::command('database-backups:auto')")
-        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.database_backups.enabled', true)) {")
+        ->and($consoleRoutes)->toContain("if ((bool) config('database-backups.enabled', config('core-panel.administration.database_backups.enabled', true))) {")
         ->and($consoleRoutes)->toContain("if ((bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false))) {")
         ->and($consoleRoutes)->not->toContain("app()->bound('command.database-backups:auto')")
         ->and($consoleRoutes)->not->toContain("app()->bound('command.system-updates:auto')")

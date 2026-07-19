@@ -14,7 +14,7 @@ if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.h
     Schedule::command('horizon:snapshot')->everyFiveMinutes();
 }
 
-if ((bool) config('core-panel.administration.database_backups.enabled', true)) {
+if ((bool) config('database-backups.enabled', config('core-panel.administration.database_backups.enabled', true))) {
     Schedule::command('database-backups:auto')
         ->everyMinute()
         ->withoutOverlapping(60);
