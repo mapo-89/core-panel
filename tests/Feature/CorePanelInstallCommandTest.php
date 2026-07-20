@@ -858,6 +858,29 @@ it('preserves existing environment values while still applying explicit installe
         ->and($contents)->toContain('QUEUE_CONNECTION=redis');
 });
 
+it('creates an environment backup before synchronizing existing values', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-backup-env-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath, 0777, true);
+
+    $originalContents = implode(PHP_EOL, [
+        'APP_NAME=HostApp',
+        'CACHE_STORE=database',
+        'LEGACY_ONLY=value',
+        '',
+    ]);
+
+    file_put_contents($temporaryBasePath.'/.env', $originalContents);
+
+    $environment = app(SynchronizesEnvironmentFile::class);
+    $environment->sync($temporaryBasePath, [
+        'APP_LOCALE' => 'de',
+    ]);
+
+    expect(file_get_contents($temporaryBasePath.'/.env.backup'))->toBe($originalContents)
+        ->and(file_get_contents($temporaryBasePath.'/.env'))->not->toContain('LEGACY_ONLY=value');
+});
+
 it('replaces template-managed environment values during installation synchronization', function (): void {
     $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-replace-env-'.bin2hex(random_bytes(5));
 
@@ -886,7 +909,33 @@ it('replaces template-managed environment values during installation synchroniza
         ->and($contents)->toContain('DB_CONNECTION=pgsql')
         ->and($contents)->toContain('FILESYSTEM_DISK=public')
         ->and($contents)->toContain('CACHE_STORE=redis')
-        ->and($contents)->toContain('CUSTOM_KEEP=value');
+        ->and($contents)->not->toContain('CUSTOM_KEEP=value');
+});
+
+it('renders the synchronized environment file using the template structure', function (): void {
+    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-template-structure-env-'.bin2hex(random_bytes(5));
+
+    mkdir($temporaryBasePath, 0777, true);
+    file_put_contents($temporaryBasePath.'/.env', implode(PHP_EOL, [
+        'CACHE_STORE=database',
+        'APP_NAME=HostApp',
+        'LEGACY_ONLY=value',
+        '',
+    ]));
+
+    $environment = app(SynchronizesEnvironmentFile::class);
+    $environment->sync($temporaryBasePath);
+
+    $contents = (string) file_get_contents($temporaryBasePath.'/.env');
+    $templateContents = (string) file_get_contents(__DIR__.'/../../stubs/.env.example');
+
+    expect($contents)->toContain('APP_NAME=HostApp')
+        ->and($contents)->toContain('CACHE_STORE=database')
+        ->and($contents)->not->toContain('LEGACY_ONLY=value')
+        ->and(strpos($contents, 'APP_NAME=HostApp'))->toBeLessThan(
+            strpos($contents, 'CACHE_STORE=database'),
+        )
+        ->and(str_starts_with($contents, substr($templateContents, 0, 32)))->toBeTrue();
 });
 
 it('refreshes the scaffolded pwa manifest after installation environment sync', function (): void {

@@ -202,7 +202,7 @@ function parseConfiguredDateTime(value: string, timeZone: string): Date {
     const match = value
         .trim()
         .match(
-            /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/,
+            /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/,
         )
 
     if (!match) {
@@ -217,8 +217,9 @@ function parseConfiguredDateTime(value: string, timeZone: string): Date {
         hour,
         minute,
         second,
-        millisecond = '0',
+        fractionalSeconds = '0',
     ] = match
+    const millisecond = fractionalSeconds.slice(0, 3).padEnd(3, '0')
     const utcGuess = Date.UTC(
         Number(year),
         Number(month) - 1,
@@ -226,7 +227,7 @@ function parseConfiguredDateTime(value: string, timeZone: string): Date {
         Number(hour),
         Number(minute),
         Number(second),
-        Number(millisecond.padEnd(3, '0')),
+        Number(millisecond),
     )
 
     let offsetMinutes = resolveTimeZoneOffsetMinutes(new Date(utcGuess), timeZone)

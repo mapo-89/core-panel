@@ -230,7 +230,18 @@ php artisan core-panel:update --force --with-addon-updates
 
 For normal in-place updates, the command also runs outstanding migrations automatically after refreshing the published assets.
 If you use `--base-path` to target a different application directory, migrations are skipped and must be run manually in that target application.
+The update flow also synchronizes `.env` from `.env.example` in a template-first way: the `.env.example` structure is reused, existing values for known keys are preserved, new keys are added, and keys no longer present in `.env.example` are removed. Before an existing `.env` is rewritten, its previous contents are copied to `.env.backup`.
 If your application owns the frontend version metadata itself, set `"managed_by_application": true` in `config/app-version.json`. In that case, `core-panel:update` will leave that file untouched, including `--force` updates.
+
+If you want to run the environment synchronization on its own:
+
+```bash
+php artisan core-panel:env:sync
+```
+
+Use this when you want to refresh `.env` against the current `.env.example` without running the full package update.
+If a `.env` already exists, the command writes its previous contents to `.env.backup` before applying the synchronized result.
+Pass `--replace-template-values` only if existing values for template-managed keys should also be replaced by the current template defaults.
 
 Typical update runbook for an existing installation:
 

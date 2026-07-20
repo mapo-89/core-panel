@@ -1109,6 +1109,7 @@ it('synchronizes the environment file with the core panel defaults', function ()
         'APP_NAME=Laravel',
         'DB_CONNECTION=sqlite',
         'CACHE_STORE=database',
+        'LEGACY_ONLY=value',
         '',
     ]));
 
@@ -1120,7 +1121,8 @@ it('synchronizes the environment file with the core panel defaults', function ()
         ->and($contents)->toContain('DB_CONNECTION=sqlite')
         ->and($contents)->toContain('CACHE_STORE=database')
         ->and($contents)->toContain('QUEUE_CONNECTION=redis')
-        ->and($contents)->toContain('REDIS_HOST=127.0.0.1');
+        ->and($contents)->toContain('REDIS_HOST=127.0.0.1')
+        ->and($contents)->not->toContain('LEGACY_ONLY=value');
 });
 
 it('reads the packaged app version metadata from app-version json', function (): void {
@@ -3224,7 +3226,7 @@ it('formats admin datetimes through the shared timezone-aware frontend helper', 
 
     expect($helper)->toContain('page.props.corePanel?.settings?.general?.timezone')
         ->and($helper)->toContain('timeZone: timeZone.value')
-        ->and($helper)->toContain('return `${trimmedValue.replace(\' \', \'T\')}Z`')
+        ->and($helper)->toContain('return parseConfiguredDateTime(trimmedValue, configuredTimeZone)')
         ->and($userOverview)->toContain("import { useDateTime } from '@core-panel/composables/useDateTime'")
         ->and($userOverview)->toContain('return formatDateTime(props.user.createdAt)')
         ->and($userSessions)->toContain('const { formatUnixTimestamp } = useDateTime()')

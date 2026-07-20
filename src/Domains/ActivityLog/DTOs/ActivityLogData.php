@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace CorePanel\Domains\ActivityLog\DTOs;
 
+use DateTimeInterface;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
-use DateTimeInterface;
 use Spatie\Activitylog\Models\Activity;
 
 final readonly class ActivityLogData

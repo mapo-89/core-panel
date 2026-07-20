@@ -1476,7 +1476,7 @@ it('creates the versioned trusted proxy scaffold during updates', function (): v
     ])->assertExitCode(0);
 
     expect(file_exists($target))->toBeTrue()
-        ->and(file_get_contents($target))->toContain("'proxies' => env('TRUSTED_PROXIES', '*')")
+        ->and(file_get_contents($target))->toContain("'proxies' => env('TRUSTED_PROXIES')")
         ->and(file_get_contents($target))->toContain('Request::HEADER_X_FORWARDED_PROTO');
 });
 
