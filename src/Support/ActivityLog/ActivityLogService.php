@@ -170,7 +170,7 @@ class ActivityLogService
                 'causer_id' => $causerId !== null ? (string) $causerId : null,
                 'causer_avatar_url' => $causer instanceof Model ? $this->resolveUserAvatarUrl($causer) : null,
                 'causer_name' => $causerName,
-                'created_at' => now()->toDateTimeString(),
+                'created_at' => now()->toIso8601String(),
                 'log_name' => 'default',
                 'changes' => (array) ($properties['changes'] ?? []),
                 'properties' => $properties,

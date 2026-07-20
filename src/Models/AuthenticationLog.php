@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Models;
 
+use CorePanel\Models\Concerns\PreservesDateTimeOffsets;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AuthenticationLog extends Model
 {
     use HasUuids;
+    use PreservesDateTimeOffsets;
 
     protected $table = 'authentication_logs';
 

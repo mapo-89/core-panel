@@ -10,6 +10,7 @@ use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -54,7 +55,9 @@ final readonly class GetDashboardDataAction
             ->map(static fn (object $activity): array => [
                 'id' => (string) $activity->id,
                 'description' => (string) $activity->description,
-                'createdAt' => $activity->created_at !== null ? (string) $activity->created_at : null,
+                'createdAt' => $activity->created_at !== null
+                    ? Carbon::parse((string) $activity->created_at)->toIso8601String()
+                    : null,
                 'event' => (string) ($activity->event ?? 'updated'),
             ])
             ->values()

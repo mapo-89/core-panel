@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 
 return [
-    'proxies' => env('TRUSTED_PROXIES', '*'),
+    'proxies' => env('TRUSTED_PROXIES'),
 
     'headers' => Request::HEADER_X_FORWARDED_FOR
         | Request::HEADER_X_FORWARDED_HOST

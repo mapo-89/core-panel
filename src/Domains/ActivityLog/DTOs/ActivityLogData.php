@@ -6,6 +6,7 @@ namespace CorePanel\Domains\ActivityLog\DTOs;
 
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
+use DateTimeInterface;
 use Spatie\Activitylog\Models\Activity;
 
 final readonly class ActivityLogData
@@ -92,7 +93,7 @@ final readonly class ActivityLogData
                     : null),
             properties: $properties,
             changes: $changes,
-            createdAt: is_object($createdAt) && method_exists($createdAt, 'toDateTimeString') ? $createdAt->toDateTimeString() : null,
+            createdAt: $createdAt instanceof DateTimeInterface ? $createdAt->format(DATE_ATOM) : null,
         );
     }
 
