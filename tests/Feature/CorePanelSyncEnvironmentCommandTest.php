@@ -29,7 +29,7 @@ it('synchronizes the host environment file from the template through the artisan
         ->and($contents)->toContain('CACHE_STORE=database')
         ->and($contents)->toContain('QUEUE_CONNECTION=redis')
         ->and($contents)->toContain('REDIS_HOST=127.0.0.1')
-        ->and($contents)->not->toContain('LEGACY_ONLY=value')
+        ->and($contents)->toContain('LEGACY_ONLY=value')
         ->and($backupContents)->toContain('APP_NAME=HostApp')
         ->and($backupContents)->toContain('LEGACY_ONLY=value');
 });
@@ -105,5 +105,5 @@ it('preserves supported environment keys that are not listed in the template', f
         ->and($contents)->toContain('DB_SOCKET=/var/run/mysqld/mysqld.sock')
         ->and($contents)->toContain('DB_TIMEZONE=Europe/Berlin')
         ->and($contents)->toContain('CORE_PANEL_ROUTE_PREFIX=cp-admin')
-        ->and($contents)->not->toContain('LEGACY_ONLY=value');
+        ->and($contents)->toContain('LEGACY_ONLY=value');
 });

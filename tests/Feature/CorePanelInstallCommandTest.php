@@ -878,7 +878,7 @@ it('creates an environment backup before synchronizing existing values', functio
     ]);
 
     expect(file_get_contents($temporaryBasePath.'/.env.backup'))->toBe($originalContents)
-        ->and(file_get_contents($temporaryBasePath.'/.env'))->not->toContain('LEGACY_ONLY=value');
+        ->and(file_get_contents($temporaryBasePath.'/.env'))->toContain('LEGACY_ONLY=value');
 });
 
 it('replaces template-managed environment values during installation synchronization', function (): void {
@@ -909,7 +909,7 @@ it('replaces template-managed environment values during installation synchroniza
         ->and($contents)->toContain('DB_CONNECTION=pgsql')
         ->and($contents)->toContain('FILESYSTEM_DISK=public')
         ->and($contents)->toContain('CACHE_STORE=redis')
-        ->and($contents)->not->toContain('CUSTOM_KEEP=value');
+        ->and($contents)->toContain('CUSTOM_KEEP=value');
 });
 
 it('renders the synchronized environment file using the template structure', function (): void {
@@ -931,7 +931,7 @@ it('renders the synchronized environment file using the template structure', fun
 
     expect($contents)->toContain('APP_NAME=HostApp')
         ->and($contents)->toContain('CACHE_STORE=database')
-        ->and($contents)->not->toContain('LEGACY_ONLY=value')
+        ->and($contents)->toContain('LEGACY_ONLY=value')
         ->and(strpos($contents, 'APP_NAME=HostApp'))->toBeLessThan(
             strpos($contents, 'CACHE_STORE=database'),
         )

@@ -1122,7 +1122,7 @@ it('synchronizes the environment file with the core panel defaults', function ()
         ->and($contents)->toContain('CACHE_STORE=database')
         ->and($contents)->toContain('QUEUE_CONNECTION=redis')
         ->and($contents)->toContain('REDIS_HOST=127.0.0.1')
-        ->and($contents)->not->toContain('LEGACY_ONLY=value');
+        ->and($contents)->toContain('LEGACY_ONLY=value');
 });
 
 it('reads the packaged app version metadata from app-version json', function (): void {
