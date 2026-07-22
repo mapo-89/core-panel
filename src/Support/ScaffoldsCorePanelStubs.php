@@ -57,6 +57,8 @@ final readonly class ScaffoldsCorePanelStubs
      */
     private const VERSIONED_UPDATE_SCAFFOLDS = [
         '.env.example',
+        '.gitea/workflows/ci.yml',
+        '.github/workflows/ci.yml',
         'bootstrap/app.php',
         '.docker/bin/php-entrypoint.sh',
         '.docker/bin/prepare-local-environment.sh',
@@ -70,11 +72,13 @@ final readonly class ScaffoldsCorePanelStubs
         '.docker/php-fpm/zz-docker.conf',
         '.dockerignore',
         'Dockerfile',
+        'Makefile',
         'docker-compose.dev.yml',
         'docker-compose.portainer.yml',
         'docker-compose.prod.yml',
         'docker-compose.registry.yml',
         'docker-compose.yml',
+        'phpstan.neon.dist',
         'updater/Dockerfile',
         'updater/go.mod',
         'updater/main.go',
@@ -109,6 +113,7 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/routes/core-panel/log-files.ts',
         'routes/console.php',
         'routes/web.php',
+        'scripts/smoke.sh',
     ];
 
     /**

@@ -3,6 +3,8 @@ includes:
     - phpstan-baseline.neon
 
 parameters:
+    bootstrapFiles:
+        - ../../vendor/larastan/larastan/bootstrap.php
     paths:
         - src
     level: 6

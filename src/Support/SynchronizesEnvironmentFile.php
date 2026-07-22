@@ -117,5 +117,4 @@ final readonly class SynchronizesEnvironmentFile
 
         return rtrim(implode(PHP_EOL, $lines)).PHP_EOL;
     }
-
 }

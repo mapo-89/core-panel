@@ -1,0 +1,15 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    bootstrapFiles:
+        - vendor/larastan/larastan/bootstrap.php
+    level: 6
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests
+    parallel:
+        maximumNumberOfProcesses: 1
