@@ -1974,6 +1974,7 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($hostEntry)->toContain('default: Record<string, string>')
         ->and($hostEntry)->toContain('const hostPageModules = import.meta.glob<{ default: DefineComponent }>(')
         ->and($hostEntry)->toContain('const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(')
+        ->and($hostEntry)->not->toContain('core-panel-tenancy')
         ->and($hostEntry)->toContain(
             '../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue',
         )

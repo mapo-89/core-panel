@@ -1822,7 +1822,7 @@ it('does not overwrite critical versioned scaffolds without a previous baseline 
             mkdir(dirname($target), 0777, true);
         }
 
-        file_put_contents($target, $contents);
+        file_put_contents($target, str_ends_with($contents, "\n") ? $contents : $contents."\n");
     }
 
     $this->artisan('core-panel:update', [
@@ -1860,7 +1860,7 @@ it('adopts unchanged critical versioned scaffolds into the manifest during updat
             mkdir(dirname($target), 0777, true);
         }
 
-        file_put_contents($target, $contents);
+        file_put_contents($target, str_ends_with($contents, "\n") ? $contents : $contents."\n");
     }
 
     $this->artisan('core-panel:update', [
