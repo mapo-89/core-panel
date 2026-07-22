@@ -7,7 +7,7 @@ namespace CorePanel\Support\Install;
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Database\Seeders\CorePanelSettingsSeeder;
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\PublishTag;

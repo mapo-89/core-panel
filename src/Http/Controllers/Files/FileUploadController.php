@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Files;
 
-use CorePanel\Domains\File\Actions\UploadFileAction;
+use CorePanel\Domain\File\Actions\UploadFileAction;
 use CorePanel\Models\ManagedFile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Console;
 
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use Illuminate\Console\Command;
 
 final class SyncAccessCommand extends Command

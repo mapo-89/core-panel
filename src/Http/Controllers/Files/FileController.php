@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Files;
 
-use CorePanel\Domains\File\Actions\ListFilesAction;
-use CorePanel\Domains\File\DTOs\FileData;
+use CorePanel\Domain\File\Actions\ListFilesAction;
+use CorePanel\Domain\File\DTOs\FileData;
 use CorePanel\Models\ManagedFile;
 use CorePanel\Support\Media\MediaService;
 use CorePanel\Support\Settings\SettingsRepository;

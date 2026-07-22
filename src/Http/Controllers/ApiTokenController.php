@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers;
 
-use CorePanel\Domains\ApiToken\Actions\CreateApiTokenAction;
-use CorePanel\Domains\ApiToken\Actions\DeleteApiTokenAction;
-use CorePanel\Domains\ApiToken\Actions\ListApiTokensAction;
-use CorePanel\Domains\ApiToken\Actions\ReplaceApiTokenAction;
+use CorePanel\Domain\ApiToken\Actions\CreateApiTokenAction;
+use CorePanel\Domain\ApiToken\Actions\DeleteApiTokenAction;
+use CorePanel\Domain\ApiToken\Actions\ListApiTokensAction;
+use CorePanel\Domain\ApiToken\Actions\ReplaceApiTokenAction;
 use CorePanel\Http\Resources\ApiUserResource;
 use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Api\ApiTokenAbilityOptions;

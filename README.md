@@ -58,6 +58,43 @@ CorePanel also registers the short alias:
 php artisan core:install
 ```
 
+## Generic OpenID Connect login
+
+CorePanel ships a provider-neutral `oidc` Socialite driver. It uses OpenID Connect Discovery and has been validated against authentik. The same provider appears in the login page and the profile connection list; the existing account-linking and optional master-provider flow apply unchanged.
+
+Configure the OIDC application at the identity provider with this redirect URI (replace the domain with the public application URL):
+
+```text
+https://panel.example.com/auth/oidc/callback
+```
+
+Then configure the host `.env`:
+
+```dotenv
+SOCIAL_OIDC_ENABLED=true
+OIDC_ISSUER=https://authentik.example.com/application/o/core-panel/
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+# Optional; defaults to /auth/oidc/callback and is normalized to APP_URL at runtime.
+OIDC_REDIRECT_URI=/auth/oidc/callback
+```
+
+`OIDC_ISSUER` must be the exact issuer advertised by the discovery document at `/.well-known/openid-configuration`. For authentik this is normally the application's OpenID Connect issuer URL, not just the base authentik URL.
+
+The default claim mapping is compatible with standard OIDC UserInfo responses:
+
+```dotenv
+OIDC_CLAIM_ID=sub
+OIDC_CLAIM_EMAIL=email
+OIDC_CLAIM_NAME=name
+OIDC_CLAIM_NICKNAME=preferred_username
+OIDC_CLAIM_AVATAR=picture
+```
+
+Change these names only when the provider exposes different claims. The ID claim must be stable and unique for the issuer. An email is required for automatic user matching and creation; if email delivery is unreliable, do not select OIDC as the master provider.
+
+The same configuration is available at runtime in **Settings → Authentication**. Enable “OpenID Connect login” after entering issuer and client credentials. To make OIDC authoritative for email updates during account linking, select `oidc` as the master social provider; otherwise leave the master-provider setting empty.
+
 ## Timestamp Conversion
 
 If an existing PostgreSQL installation still contains legacy `timestamp without time zone` columns from before the `timestampTz()` switch, CorePanel ships a one-time conversion command:

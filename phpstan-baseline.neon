@@ -1,25 +1,25 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Method CorePanel\\Domains\\OAuthClient\\Actions\\CreateOAuthClientAction\:\:execute\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method CorePanel\\Domain\\OAuthClient\\Actions\\CreateOAuthClientAction\:\:execute\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Domains/OAuthClient/Actions/CreateOAuthClientAction.php
+			path: src/Domain/OAuthClient/Actions/CreateOAuthClientAction.php
 
 		-
-			message: '#^Parameter \#1 \$user of method CorePanel\\Domains\\User\\Actions\\AssignUserRolesAction\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			message: '#^Parameter \#1 \$user of method CorePanel\\Domain\\User\\Actions\\AssignUserRolesAction\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Domains/User/Actions/UpdateUserAction.php
+			path: src/Domain/User/Actions/UpdateUserAction.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:withTrashed\(\)\.$#'
 			identifier: method.notFound
 			count: 3
-			path: src/Domains/UserGroup/Actions/ImportUserGroupsAction.php
+			path: src/Domain/UserGroup/Actions/ImportUserGroupsAction.php
 
 		-
-			message: '#^Parameter \#1 \$submission of static method CorePanel\\Domains\\Form\\DTOs\\FormSubmissionData\:\:fromModel\(\) expects CorePanel\\Models\\FormSubmission, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			message: '#^Parameter \#1 \$submission of static method CorePanel\\Domain\\Form\\DTOs\\FormSubmissionData\:\:fromModel\(\) expects CorePanel\\Models\\FormSubmission, Illuminate\\Database\\Eloquent\\Model given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Http/Controllers/Forms/FormSubmissionController.php
@@ -37,7 +37,7 @@ parameters:
 			path: src/Http/Controllers/OAuth/OAuthClientController.php
 
 		-
-			message: '#^Parameter \#1 \$user of method CorePanel\\Domains\\User\\Actions\\AssignUserRolesAction\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			message: '#^Parameter \#1 \$user of method CorePanel\\Domain\\User\\Actions\\AssignUserRolesAction\:\:execute\(\) expects Illuminate\\Contracts\\Auth\\Authenticatable, Illuminate\\Database\\Eloquent\\Model given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Http/Controllers/Permissions/AssignUserRoleController.php

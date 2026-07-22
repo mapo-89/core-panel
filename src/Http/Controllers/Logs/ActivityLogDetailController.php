@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Logs;
 
-use CorePanel\Domains\ActivityLog\Actions\GetActivityLogAction;
+use CorePanel\Domain\ActivityLog\Actions\GetActivityLogAction;
 use CorePanel\Support\Api\Concerns\RespondsWithApi;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\JsonResponse;

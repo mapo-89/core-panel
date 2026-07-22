@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
 use CorePanel\Support\Migrations\HostMigrationExecutor;

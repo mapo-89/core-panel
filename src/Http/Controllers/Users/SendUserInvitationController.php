@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Users;
 
-use CorePanel\Domains\User\Actions\SendUserInvitationAction;
+use CorePanel\Domain\User\Actions\SendUserInvitationAction;
 use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\RedirectResponse;

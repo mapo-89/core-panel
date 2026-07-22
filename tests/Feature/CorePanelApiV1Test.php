@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use CorePanel\Domains\User\Policies\UserPolicy;
+use CorePanel\Domain\User\Policies\UserPolicy;
 use CorePanel\Tests\FakeUser;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;

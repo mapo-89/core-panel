@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Forms;
 
-use CorePanel\Domains\Form\Actions\StoreFormSubmissionAction;
-use CorePanel\Domains\Form\DTOs\FormData;
+use CorePanel\Domain\Form\Actions\StoreFormSubmissionAction;
+use CorePanel\Domain\Form\DTOs\FormData;
 use CorePanel\Support\Forms\FormModelManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\OAuth;
 
-use CorePanel\Domains\OAuthClient\Actions\CreateOAuthClientAction;
-use CorePanel\Domains\OAuthClient\Actions\DeleteOAuthClientAction;
-use CorePanel\Domains\OAuthClient\Actions\ListOAuthClientsAction;
-use CorePanel\Domains\OAuthClient\Actions\UpdateOAuthClientAction;
+use CorePanel\Domain\OAuthClient\Actions\CreateOAuthClientAction;
+use CorePanel\Domain\OAuthClient\Actions\DeleteOAuthClientAction;
+use CorePanel\Domain\OAuthClient\Actions\ListOAuthClientsAction;
+use CorePanel\Domain\OAuthClient\Actions\UpdateOAuthClientAction;
 use CorePanel\Models\OAuthClient;
 use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Config\CorePanelConfig;

@@ -75,6 +75,44 @@ it('uploads and removes the settings logo through dedicated endpoints', function
     Storage::disk($disk)->assertMissing((string) $path);
 });
 
+it('stores OIDC logos and removes replaced logos on the configured logo disk', function (): void {
+    config()->set('core-panel.files.disk', 'general');
+    config()->set('core-panel.files.logo.disk', 'logos');
+    Storage::fake('general');
+    Storage::fake('logos');
+
+    $previousPath = 'branding/oidc/previous-logo.png';
+    Storage::disk('logos')->put($previousPath, 'previous logo');
+    app(SettingsRepository::class)->set('auth', 'oidc_logo_path', $previousPath, 'text', true);
+
+    $user = FakeUser::query()->create([
+        'email' => 'oidc-logo@example.test',
+        'first_name' => 'OIDC',
+        'last_name' => 'Manager',
+        'password' => Hash::make('secret-password'),
+    ]);
+
+    $response = $this
+        ->actingAs($user)
+        ->post(route('core-panel.settings.oidc-logo.store'), [
+            'logo' => UploadedFile::fake()->create('oidc-logo.png', 32, 'image/png'),
+        ], [
+            'Accept' => 'application/json',
+        ]);
+
+    $path = app(SettingsRepository::class)->get('auth', 'oidc_logo_path');
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('data.logo_url', Storage::disk('logos')->url((string) $path));
+
+    expect($path)->toBeString()->not->toBe('')
+        ->and(Storage::disk('general')->exists((string) $path))->toBeFalse();
+
+    Storage::disk('logos')->assertExists((string) $path);
+    Storage::disk('logos')->assertMissing($previousPath);
+});
+
 it('uses the public storage asset url for logo urls by default', function (): void {
     Storage::fake('public');
 
@@ -93,4 +131,24 @@ it('uses the public storage asset url for logo urls by default', function (): vo
 
     expect(app(SettingsLogoManager::class)->currentUrl())
         ->toBe(rtrim((string) config('app.url'), '/').'/storage/branding/logo.png');
+});
+
+it('uses the configured remote disk url for logo urls', function (): void {
+    config()->set('core-panel.files.disk', 's3');
+    config()->set('core-panel.files.logo.disk', 's3');
+    Storage::fake('s3');
+
+    $record = new Setting;
+    $record->forceFill([
+        'group' => 'general',
+        'is_localized' => false,
+        'is_public' => false,
+        'key' => 'app_logo_path',
+        'type' => 'json',
+        'value_json' => ['path' => 'branding/logo.png'],
+    ]);
+    $record->save();
+
+    expect(app(SettingsLogoManager::class)->currentUrl())
+        ->toBe(Storage::disk('s3')->url('branding/logo.png'));
 });

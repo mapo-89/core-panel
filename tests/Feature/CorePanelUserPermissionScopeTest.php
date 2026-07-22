@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use CorePanel\Domains\Permission\Policies\RolePolicy;
-use CorePanel\Domains\User\Policies\UserPolicy;
+use CorePanel\Domain\Permission\Policies\RolePolicy;
+use CorePanel\Domain\User\Policies\UserPolicy;
 use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\EnsureCorePanelEmailIsVerified;
 use CorePanel\Tests\FakeUser;

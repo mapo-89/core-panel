@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Users;
 
-use CorePanel\Domains\Permission\DTOs\RoleData;
-use CorePanel\Domains\User\Actions\UpdateUserAction;
+use CorePanel\Domain\Permission\DTOs\RoleData;
+use CorePanel\Domain\User\Actions\UpdateUserAction;
 use CorePanel\Http\Requests\UpdateUserRequest;
 use CorePanel\Http\Resources\UserResource;
 use CorePanel\Support\ActivityLog\ActivityLogService;

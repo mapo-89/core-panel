@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Files;
 
-use CorePanel\Domains\File\Actions\DeleteFileAction;
+use CorePanel\Domain\File\Actions\DeleteFileAction;
 use CorePanel\Support\Files\FileModelManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

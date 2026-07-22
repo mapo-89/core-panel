@@ -41,6 +41,7 @@ return [
             'github' => 'GitHub',
             'google' => 'Google',
             'microsoft' => 'Microsoft',
+            'oidc' => 'OpenID Connect',
         ],
         'registration_disabled' => 'Registrierung per Social-Login ist derzeit deaktiviert.',
     ],

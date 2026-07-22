@@ -102,6 +102,7 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/system_updates.php',
         'config/database.php',
         'config/pwa.php',
+        'config/services.php',
         'config/trustedproxy.php',
         'public/logo.png',
         'public/manifest.json',

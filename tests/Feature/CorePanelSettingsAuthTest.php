@@ -98,6 +98,23 @@ it('stores the authentication settings group fields', function (): void {
                 'microsoft_tenant' => [
                     'value' => 'common',
                 ],
+                'oidc_client_id' => [
+                    'value' => '',
+                ],
+                'oidc_client_secret' => [
+                    'value' => '',
+                ],
+                'oidc_claim_avatar' => ['value' => 'picture'],
+                'oidc_claim_email' => ['value' => 'email'],
+                'oidc_claim_id' => ['value' => 'sub'],
+                'oidc_claim_name' => ['value' => 'name'],
+                'oidc_claim_nickname' => ['value' => 'preferred_username'],
+                'oidc_issuer' => [
+                    'value' => '',
+                ],
+                'oidc_label' => [
+                    'value' => 'OpenID Connect',
+                ],
                 'password_reset_enabled' => [
                     'value' => false,
                 ],
@@ -115,6 +132,9 @@ it('stores the authentication settings group fields', function (): void {
                 ],
                 'social_microsoft_enabled' => [
                     'value' => true,
+                ],
+                'social_oidc_enabled' => [
+                    'value' => false,
                 ],
                 'two_factor_enabled' => [
                     'value' => false,
@@ -193,6 +213,10 @@ it('applies saved authentication runtime settings to config and fortify features
     $settings->set('auth', 'microsoft_client_id', 'microsoft-client-id', 'text', false);
     $settings->set('auth', 'microsoft_client_secret', 'microsoft-client-secret', 'text', false);
     $settings->set('auth', 'microsoft_tenant', 'organizations', 'text', false);
+    $settings->set('auth', 'oidc_client_id', 'oidc-client-id', 'text', false);
+    $settings->set('auth', 'oidc_client_secret', 'oidc-client-secret', 'text', false);
+    $settings->set('auth', 'oidc_issuer', 'https://authentik.example.test/application/o/core-panel/', 'text', false);
+    $settings->set('auth', 'oidc_label', 'Company Login', 'text', true);
     $settings->set('auth', 'password_reset_enabled', false, 'boolean', false);
     $settings->set('auth', 'registration_enabled', true, 'boolean', true);
     $settings->set('auth', 'social_master_provider', 'microsoft', 'text', false);
@@ -214,6 +238,10 @@ it('applies saved authentication runtime settings to config and fortify features
         ->and(config('services.microsoft.client_id'))->toBe('microsoft-client-id')
         ->and(config('services.microsoft.client_secret'))->toBe('microsoft-client-secret')
         ->and(config('services.microsoft.tenant'))->toBe('organizations')
+        ->and(config('services.oidc.client_id'))->toBe('oidc-client-id')
+        ->and(config('services.oidc.client_secret'))->toBe('oidc-client-secret')
+        ->and(config('services.oidc.issuer'))->toBe('https://authentik.example.test/application/o/core-panel')
+        ->and(config('core-panel.auth.socialite.providers.oidc.label'))->toBe('Company Login')
         ->and(config('fortify.features'))->toContain(Features::registration())
         ->and(config('fortify.features'))->toContain(Features::updateProfileInformation())
         ->and(config('fortify.features'))->toContain(Features::updatePasswords())
@@ -247,6 +275,33 @@ it('exposes runtime-enabled microsoft social login providers and normalizes the 
         ->and($registry->isMasterProvider('microsoft'))->toBeTrue()
         ->and(collect($providers)->firstWhere('provider', 'microsoft')['isMaster'] ?? null)->toBeTrue()
         ->and(collect($providers)->pluck('provider')->all())->toContain('microsoft');
+});
+
+it('exposes a runtime-enabled generic OIDC provider with a normalized callback redirect', function (): void {
+    config()->set('services.oidc.client_id', null);
+    config()->set('services.oidc.client_secret', null);
+    config()->set('services.oidc.issuer', null);
+    config()->set('services.oidc.redirect', '');
+
+    $settings = app(SettingsRepository::class);
+    $settings->set('auth', 'social_oidc_enabled', true, 'boolean', true);
+    $settings->set('auth', 'social_master_provider', 'oidc', 'text', false);
+    $settings->set('auth', 'oidc_client_id', 'authentik-client-id', 'text', false);
+    $settings->set('auth', 'oidc_client_secret', 'authentik-client-secret', 'text', false);
+    $settings->set('auth', 'oidc_issuer', 'https://authentik.example.test/application/o/core-panel/', 'text', false);
+    $settings->set('auth', 'oidc_label', 'Authentik', 'text', true);
+    $settings->set('auth', 'oidc_logo_path', 'branding/oidc/authentik.svg', 'text', true);
+
+    (new ApplyCorePanelRuntimeSettings($settings))
+        ->handle(Request::create('https://tenant.example.test/login', 'GET'), static fn () => response('ok'));
+
+    $registry = app(SocialiteProviderRegistry::class);
+
+    expect(config('services.oidc.redirect'))->toBe('https://tenant.example.test/auth/oidc/callback')
+        ->and($registry->isEnabled('oidc'))->toBeTrue()
+        ->and($registry->isMasterProvider('oidc'))->toBeTrue()
+        ->and(collect($registry->enabledProviders())->firstWhere('provider', 'oidc')['label'] ?? null)->toBe('Authentik')
+        ->and(collect($registry->enabledProviders())->firstWhere('provider', 'oidc')['logoUrl'] ?? null)->toBe(asset('storage/branding/oidc/authentik.svg'));
 });
 
 it('hides disabled auth pages and skips verification redirects when email verification is disabled', function (): void {

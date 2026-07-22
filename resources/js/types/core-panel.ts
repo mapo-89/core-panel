@@ -25,6 +25,7 @@ export type SocialProviderRecord = {
     provider: string
     label: string
     icon: string | null
+    logoUrl: string | null
     enabled: boolean
     isMaster: boolean
 }

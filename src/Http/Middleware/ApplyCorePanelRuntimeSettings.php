@@ -72,6 +72,14 @@ final readonly class ApplyCorePanelRuntimeSettings
             'microsoft_tenant',
             config('services.microsoft.tenant', 'common'),
         );
+        $oidcClientId = $this->settings->get('auth', 'oidc_client_id', config('services.oidc.client_id'));
+        $oidcClientSecret = $this->settings->get('auth', 'oidc_client_secret', config('services.oidc.client_secret'));
+        $oidcIssuer = $this->settings->get('auth', 'oidc_issuer', config('services.oidc.issuer'));
+        $oidcLabel = $this->settings->get('auth', 'oidc_label', config('core-panel.auth.socialite.providers.oidc.label'));
+        foreach (['avatar', 'email', 'id', 'name', 'nickname'] as $claim) {
+            $value = $this->settings->get('auth', "oidc_claim_{$claim}", config("services.oidc.claims.{$claim}"));
+            config()->set("services.oidc.claims.{$claim}", is_string($value) && $value !== '' ? $value : config("services.oidc.claims.{$claim}"));
+        }
         $socialMasterProvider = $this->settings->get(
             'auth',
             'social_master_provider',
@@ -92,6 +100,7 @@ final readonly class ApplyCorePanelRuntimeSettings
             config('services.microsoft.redirect'),
             '/auth/microsoft/callback',
         );
+        $oidcRedirect = $this->normalizeSocialiteRedirect($request, config('services.oidc.redirect'), '/auth/oidc/callback');
         $appName = $this->settings->get(
             'general',
             'app_name',
@@ -136,6 +145,7 @@ final readonly class ApplyCorePanelRuntimeSettings
                 : null,
         );
         config()->set('core-panel.auth.two_factor_enabled', $twoFactorEnabled);
+        config()->set('core-panel.auth.socialite.providers.oidc.label', is_string($oidcLabel) && $oidcLabel !== '' ? $oidcLabel : 'OpenID Connect');
         config()->set('services.github.client_id', is_string($githubClientId) ? $githubClientId : config('services.github.client_id'));
         config()->set('services.github.client_secret', is_string($githubClientSecret) ? $githubClientSecret : config('services.github.client_secret'));
         config()->set('services.github.redirect', $githubRedirect);
@@ -146,6 +156,10 @@ final readonly class ApplyCorePanelRuntimeSettings
         config()->set('services.microsoft.client_secret', is_string($microsoftClientSecret) ? $microsoftClientSecret : config('services.microsoft.client_secret'));
         config()->set('services.microsoft.redirect', $microsoftRedirect);
         config()->set('services.microsoft.tenant', is_string($microsoftTenant) && $microsoftTenant !== '' ? $microsoftTenant : config('services.microsoft.tenant', 'common'));
+        config()->set('services.oidc.client_id', is_string($oidcClientId) ? $oidcClientId : config('services.oidc.client_id'));
+        config()->set('services.oidc.client_secret', is_string($oidcClientSecret) ? $oidcClientSecret : config('services.oidc.client_secret'));
+        config()->set('services.oidc.issuer', is_string($oidcIssuer) ? rtrim($oidcIssuer, '/') : config('services.oidc.issuer'));
+        config()->set('services.oidc.redirect', $oidcRedirect);
         config()->set('fortify.features', array_values(array_filter([
             $registrationEnabled ? Features::registration() : null,
             $passwordResetEnabled ? Features::resetPasswords() : null,

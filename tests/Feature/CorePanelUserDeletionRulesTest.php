@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use CorePanel\Domains\User\Policies\UserPolicy;
+use CorePanel\Domain\User\Policies\UserPolicy;
 use CorePanel\Support\Users\UserModelManager;
 use CorePanel\Tests\FakeUser;
 use Illuminate\Support\Facades\Gate;

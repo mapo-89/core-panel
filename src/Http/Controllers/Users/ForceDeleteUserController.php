@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Users;
 
-use CorePanel\Domains\User\Actions\ForceDeleteUserAction;
+use CorePanel\Domain\User\Actions\ForceDeleteUserAction;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;

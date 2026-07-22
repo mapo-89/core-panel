@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers;
 
-use CorePanel\Domains\Dashboard\Actions\GetDashboardDataAction;
+use CorePanel\Domain\Dashboard\Actions\GetDashboardDataAction;
 use Inertia\Inertia;
 use Inertia\Response;
 
