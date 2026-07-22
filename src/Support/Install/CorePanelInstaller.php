@@ -103,9 +103,17 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
                 $this->synchronizeOptionalAddonOverlays($command, $options);
             });
 
-            $this->runStep($command, 'Synchronizing host developer tooling', function () use ($command): void {
-                $this->ensureHostDeveloperTooling($command);
-            });
+            if ($options->installDeveloperTooling) {
+                $this->runStep($command, 'Synchronizing host developer tooling', function () use ($command): void {
+                    $this->ensureHostDeveloperTooling($command);
+                });
+            } else {
+                $command->warn(sprintf(
+                    'Developer tooling skipped. To install Larastan, run composer require --dev %s:%s.',
+                    self::HOST_ANALYSIS_PACKAGE,
+                    self::HOST_ANALYSIS_VERSION,
+                ));
+            }
 
             if ($options->runMigrations) {
                 $this->runStep($command, 'Running migrations', function () use ($command): void {

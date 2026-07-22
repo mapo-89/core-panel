@@ -38,6 +38,7 @@ final class InstallCommand extends Command
         {--run-seeders= : true|false}
         {--install-frontend= : true|false}
         {--install-tenancy= : true|false}
+        {--install-developer-tooling= : true|false}
         {--sync-environment= : true|false}';
 
     protected $description = 'Interactively install and configure Laravel CorePanel.';
@@ -95,6 +96,7 @@ final class InstallCommand extends Command
         $runSeeders = $this->resolveRunSeeders($runMigrations);
         $installFrontend = $this->booleanOption('install-frontend', 'Node-Abhängigkeiten installieren und Frontend bauen?', true);
         $installTenancy = $this->booleanOption('install-tenancy', 'Tenancy Addon installieren?', false);
+        $installDeveloperTooling = $this->booleanOption('install-developer-tooling', 'Larastan und den Analyse-Script installieren?', false);
         $centralDomain = $installTenancy
             ? $this->normalizeCentralDomain(
                 $this->textOption('central-domain', 'Zentrale Domain für Tenancy?', $this->appHost($appUrl)),
@@ -126,6 +128,7 @@ final class InstallCommand extends Command
             installTenancy: $installTenancy,
             syncEnvironment: $syncEnvironment,
             force: (bool) $this->option('force'),
+            installDeveloperTooling: $installDeveloperTooling,
         );
     }
 

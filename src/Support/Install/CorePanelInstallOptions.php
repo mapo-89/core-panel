@@ -30,5 +30,6 @@ final readonly class CorePanelInstallOptions
         public bool $installTenancy,
         public bool $syncEnvironment,
         public bool $force,
+        public bool $installDeveloperTooling = false,
     ) {}
 }
