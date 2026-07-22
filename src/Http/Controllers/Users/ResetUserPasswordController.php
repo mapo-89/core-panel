@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Users;
 
-use CorePanel\Domains\User\Actions\ResetUserPasswordAction;
+use CorePanel\Domain\User\Actions\ResetUserPasswordAction;
 use CorePanel\Http\Requests\AdminResetUserPasswordRequest;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Database\Eloquent\Model;

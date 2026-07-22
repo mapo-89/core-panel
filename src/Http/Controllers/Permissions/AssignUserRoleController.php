@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Permissions;
 
-use CorePanel\Domains\User\Actions\AssignUserRolesAction;
+use CorePanel\Domain\User\Actions\AssignUserRolesAction;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Database\Eloquent\Model;

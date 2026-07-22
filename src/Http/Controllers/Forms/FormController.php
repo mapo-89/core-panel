@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Forms;
 
-use CorePanel\Domains\Form\Actions\CreateFormAction;
-use CorePanel\Domains\Form\Actions\UpdateFormAction;
-use CorePanel\Domains\Form\DTOs\FormData;
+use CorePanel\Domain\Form\Actions\CreateFormAction;
+use CorePanel\Domain\Form\Actions\UpdateFormAction;
+use CorePanel\Domain\Form\DTOs\FormData;
 use CorePanel\Models\Form as FormModel;
 use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Forms\FormModelManager;

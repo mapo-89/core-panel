@@ -1,0 +1,92 @@
+name: CI
+
+on:
+    pull_request:
+        types:
+            - opened
+            - synchronize
+            - reopened
+            - ready_for_review
+
+jobs:
+    quality:
+        name: Host Quality
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:17-bookworm
+                env:
+                    POSTGRES_DB: core_panel
+                    POSTGRES_USER: core_panel
+                    POSTGRES_PASSWORD: core_panel
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd="pg_isready -U core_panel -d core_panel"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=5
+            redis:
+                image: redis:7-bookworm
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd="redis-cli ping"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=5
+
+        env:
+            APP_ENV: testing
+            DB_CONNECTION: pgsql
+            DB_HOST: 127.0.0.1
+            DB_PORT: 5432
+            DB_DATABASE: core_panel
+            DB_DATABASE_TEST: core_panel_test
+            DB_USERNAME: core_panel
+            DB_PASSWORD: core_panel
+            REDIS_HOST: 127.0.0.1
+            REDIS_PORT: 6379
+            REDIS_PASSWORD: null
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.5'
+                  extensions: ctype, curl, dom, exif, fileinfo, gd, intl, json, mbstring, pcntl, pdo_pgsql, redis, sqlite3, tokenizer, xml, zip
+                  coverage: none
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  cache: 'npm'
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --no-progress --prefer-dist
+
+            - name: Prepare application
+              run: |
+                  cp .env.example .env
+                  php artisan key:generate --ansi
+                  php artisan config:clear
+
+            - name: Run lint
+              run: make lint
+
+            - name: Run static analysis
+              run: make analyze
+
+            - name: Run tests
+              run: make test-compact
+
+            - name: Build frontend
+              run: make build
+
+            - name: Run host smoke checks
+              run: make smoke

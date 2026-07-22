@@ -62,7 +62,7 @@ return [
         'password-reset' => null,
     ],
     'features' => [
-        ...((bool) env('CORE_PANEL_REGISTRATION_ENABLED', false) ? [Features::registration()] : []),
+        ...((bool) env('REGISTRATION_ENABLED', false) ? [Features::registration()] : []),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::updateProfileInformation(),

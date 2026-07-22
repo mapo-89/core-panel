@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers;
 
-use CorePanel\Domains\ActivityLog\Actions\ListActivityLogsAction;
+use CorePanel\Domain\ActivityLog\Actions\ListActivityLogsAction;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;

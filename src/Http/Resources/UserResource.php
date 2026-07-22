@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Resources;
 
-use CorePanel\Domains\User\DTOs\UserData;
+use CorePanel\Domain\User\DTOs\UserData;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Http\Request;

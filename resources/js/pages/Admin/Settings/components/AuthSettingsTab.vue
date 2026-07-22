@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { trans } from 'laravel-vue-i18n'
 import { useConfirm } from 'primevue/useconfirm'
 
@@ -15,7 +15,7 @@ type SettingFormValue = boolean | string | null
 type ProviderCard = {
     credentialFields: string[]
     isMaster: boolean
-    key: 'github' | 'google' | 'microsoft'
+    key: 'github' | 'google' | 'microsoft' | 'oidc'
     toggleField: SettingFieldRecord
     title: string
 }
@@ -25,6 +25,8 @@ const props = defineProps<{
 }>()
 
 const confirm = useConfirm()
+const oidcLogoUploading = ref(false)
+const oidcLogoUrl = ref<string | null>(null)
 
 const authFields = computed<SettingFieldRecord[]>(
     () => props.authGroup?.fields ?? [],
@@ -88,6 +90,23 @@ const providerCards = computed<ProviderCard[]>(() =>
             key: 'microsoft',
             toggleField: fieldMap.value.social_microsoft_enabled,
             title: 'Microsoft',
+        },
+        {
+            credentialFields: [
+                'oidc_label',
+                'oidc_issuer',
+                'oidc_client_id',
+                'oidc_client_secret',
+                'oidc_claim_id',
+                'oidc_claim_email',
+                'oidc_claim_name',
+                'oidc_claim_nickname',
+                'oidc_claim_avatar',
+            ],
+            isMaster: masterProviderKey.value === 'oidc',
+            key: 'oidc',
+            toggleField: fieldMap.value.social_oidc_enabled,
+            title: stringFieldValue('oidc_label') || 'OpenID Connect',
         },
     ].filter(
         (provider): provider is ProviderCard =>
@@ -206,6 +225,66 @@ function saveAuth(): void {
         },
         preserveScroll: true,
     })
+}
+
+async function uploadOidcLogo(event: Event): Promise<void> {
+    const file = (event.target as HTMLInputElement).files?.[0]
+
+    if (!file || oidcLogoUploading.value) {
+        return
+    }
+
+    oidcLogoUploading.value = true
+    const data = new FormData()
+    data.append('logo', file)
+
+    try {
+        const response = await fetch(`${settings.index.url()}/oidc-logo`, {
+            body: data,
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN':
+                    document
+                        .querySelector('meta[name="csrf-token"]')
+                        ?.getAttribute('content') ?? '',
+            },
+            method: 'POST',
+        })
+
+        if (!response.ok) {
+            const error = (await response.json()) as {
+                errors?: Record<string, string[]>
+                message?: string
+            }
+            throw new Error(error.errors?.logo?.[0] ?? error.message)
+        }
+
+        const payload = (await response.json()) as {
+            data?: { logo_url?: string }
+        }
+        oidcLogoUrl.value = payload.data?.logo_url ?? null
+    } catch (error) {
+        form.setError(
+            'oidc_logo',
+            error instanceof Error && error.message
+                ? error.message
+                : 'Das Provider-Logo konnte nicht gespeichert werden.',
+        )
+    } finally {
+        oidcLogoUploading.value = false
+        const input = document.getElementById('settings_auth_oidc_logo')
+        if (input instanceof HTMLInputElement) {
+            input.value = ''
+        }
+    }
+}
+
+function openOidcLogoPicker(): void {
+    const input = document.getElementById('settings_auth_oidc_logo')
+
+    if (input instanceof HTMLInputElement) {
+        input.click()
+    }
 }
 
 watch(
@@ -450,6 +529,39 @@ watch(
                                         "
                                     />
                                 </div>
+                            </div>
+                            <div
+                                v-if="provider.key === 'oidc'"
+                                class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--cp-radius-sm)] border border-dashed border-[var(--cp-surface-border)] bg-[var(--cp-surface-soft)] p-3"
+                            >
+                                <div class="grid gap-0.5">
+                                    <span class="text-sm font-medium text-[var(--cp-text-primary)]">Provider-Logo</span>
+                                    <span class="text-xs text-[var(--cp-text-muted)]">PNG, JPEG, SVG oder WebP · max. 2 MB</span>
+                                </div>
+                                <img
+                                    v-if="oidcLogoUrl"
+                                    :src="oidcLogoUrl"
+                                    alt=""
+                                    class="h-9 w-9 rounded-[var(--cp-radius-sm)] object-contain"
+                                />
+                                <Button
+                                    outlined
+                                    :loading="oidcLogoUploading"
+                                    size="small"
+                                    type="button"
+                                    @click="openOidcLogoPicker"
+                                >
+                                    <AppIcon name="upload" />
+                                    <span>Logo auswählen</span>
+                                </Button>
+                                <input
+                                    accept="image/jpeg,image/png,image/svg+xml,image/webp"
+                                    class="hidden"
+                                    id="settings_auth_oidc_logo"
+                                    type="file"
+                                    @change="uploadOidcLogo"
+                                />
+                                <span v-if="form.errors.oidc_logo" class="text-xs text-[var(--cp-danger)]">{{ form.errors.oidc_logo }}</span>
                             </div>
 
                             <div

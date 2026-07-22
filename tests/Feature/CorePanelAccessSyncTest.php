@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Permissions\CorePanelAccess;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Tests\FakeUser;

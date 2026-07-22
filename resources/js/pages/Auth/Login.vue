@@ -216,9 +216,9 @@ function submit(): void {
                     <template v-else>
                         <span class="auth-social__icon" aria-hidden="true">
                             <img
-                                v-if="providerIcon(provider.provider)"
+                                v-if="provider.logoUrl || providerIcon(provider.provider)"
                                 :src="
-                                    providerIcon(provider.provider) ?? undefined
+                                    provider.logoUrl ?? providerIcon(provider.provider) ?? undefined
                                 "
                                 alt=""
                                 loading="lazy"

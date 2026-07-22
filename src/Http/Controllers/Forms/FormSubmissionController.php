@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Forms;
 
-use CorePanel\Domains\Form\Actions\ExportFormSubmissionsAction;
-use CorePanel\Domains\Form\Actions\PublishFormAction;
-use CorePanel\Domains\Form\DTOs\FormData;
-use CorePanel\Domains\Form\DTOs\FormSubmissionData;
+use CorePanel\Domain\Form\Actions\ExportFormSubmissionsAction;
+use CorePanel\Domain\Form\Actions\PublishFormAction;
+use CorePanel\Domain\Form\DTOs\FormData;
+use CorePanel\Domain\Form\DTOs\FormSubmissionData;
 use CorePanel\Support\Forms\FormModelManager;
 use CorePanel\Support\Query\AllowedQuery;
 use CorePanel\Support\Query\QueryBuilderAdapter;

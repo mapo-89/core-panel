@@ -7,7 +7,7 @@ namespace CorePanel\Support\Install;
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
 use CorePanel\Database\Seeders\CorePanelSettingsSeeder;
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Migrations\HostMigrationRunner;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\PublishTag;
@@ -35,6 +35,12 @@ use Throwable;
 
 final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 {
+    private const HOST_ANALYSIS_PACKAGE = 'larastan/larastan';
+
+    private const HOST_ANALYSIS_VERSION = '^3.9';
+
+    private const HOST_ANALYSE_SCRIPT = 'phpstan analyse --no-progress --memory-limit=1G -c phpstan.neon.dist';
+
     public function __construct(
         private ScaffoldsCorePanelStubs $stubs,
         private AppServiceProviderMerger $appServiceProviderMerger,
@@ -96,6 +102,18 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
             $this->runStep($command, 'Synchronizing optional addon overlays', function () use ($command, $options): void {
                 $this->synchronizeOptionalAddonOverlays($command, $options);
             });
+
+            if ($options->installDeveloperTooling) {
+                $this->runStep($command, 'Synchronizing host developer tooling', function () use ($command): void {
+                    $this->ensureHostDeveloperTooling($command);
+                });
+            } else {
+                $command->warn(sprintf(
+                    'Developer tooling skipped. To install Larastan, run composer require --dev %s:%s.',
+                    self::HOST_ANALYSIS_PACKAGE,
+                    self::HOST_ANALYSIS_VERSION,
+                ));
+            }
 
             if ($options->runMigrations) {
                 $this->runStep($command, 'Running migrations', function () use ($command): void {
@@ -798,6 +816,87 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
             sprintf('%s:%s', $addon['package'], $addon['version']),
             '--no-interaction',
         ], 1200);
+    }
+
+    private function ensureHostDeveloperTooling(Command $command): void
+    {
+        $composerPath = base_path('composer.json');
+
+        if (! $this->files->exists($composerPath)) {
+            throw new RuntimeException('Unable to synchronize host developer tooling because composer.json was not found.');
+        }
+
+        try {
+            /** @var array{require-dev?:array<string, string>} $composer */
+            $composer = json_decode((string) $this->files->get($composerPath), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('Unable to read composer.json for host developer tooling.', previous: $exception);
+        }
+
+        $requireDev = $composer['require-dev'] ?? [];
+
+        if (! array_key_exists(self::HOST_ANALYSIS_PACKAGE, $requireDev)) {
+            $this->runCriticalProcessStep(
+                $command,
+                'Installing Larastan for the host application',
+                [
+                    'composer',
+                    'require',
+                    '--dev',
+                    sprintf('%s:%s', self::HOST_ANALYSIS_PACKAGE, self::HOST_ANALYSIS_VERSION),
+                    '--no-interaction',
+                ],
+                1200,
+            );
+        }
+
+        $this->ensureComposerManifestContainsHostDevTooling($composerPath);
+    }
+
+    private function ensureComposerManifestContainsHostDevTooling(string $composerPath): void
+    {
+        try {
+            /** @var array{
+             *     require-dev?:array<string, string>,
+             *     scripts?:array<string, string|list<string>>
+             * } $composer
+             */
+            $composer = json_decode((string) $this->files->get($composerPath), true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('Unable to read composer.json for host developer tooling.', previous: $exception);
+        }
+
+        $requireDev = $composer['require-dev'] ?? [];
+        $scripts = $composer['scripts'] ?? [];
+        $changed = false;
+
+        if (! array_key_exists(self::HOST_ANALYSIS_PACKAGE, $requireDev)) {
+            $requireDev[self::HOST_ANALYSIS_PACKAGE] = self::HOST_ANALYSIS_VERSION;
+            ksort($requireDev);
+            $changed = true;
+        }
+
+        if (! array_key_exists('analyse', $scripts)) {
+            $scripts['analyse'] = self::HOST_ANALYSE_SCRIPT;
+            ksort($scripts);
+            $changed = true;
+        }
+
+        if (! $changed) {
+            return;
+        }
+
+        $composer['require-dev'] = $requireDev;
+        $composer['scripts'] = $scripts;
+
+        try {
+            $this->files->put(
+                $composerPath,
+                json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL,
+            );
+        } catch (JsonException $exception) {
+            throw new RuntimeException('Unable to update composer.json for host developer tooling.', previous: $exception);
+        }
     }
 
     /**

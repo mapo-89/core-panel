@@ -41,15 +41,14 @@ final readonly class SynchronizesEnvironmentFile
 
         $currentContents = (string) $this->files->get($environmentPath);
         $current = $this->parse($currentContents);
-        $synchronized = $templateWithOverrides;
-        $supportedKeys = $this->supportedEnvironmentKeys();
+        $synchronized = $current;
 
-        if (! $replaceTemplateValues) {
-            foreach ($current as $key => $value) {
-                if (array_key_exists($key, $template) || in_array($key, $supportedKeys, true)) {
-                    $synchronized[$key] = $value;
-                }
+        foreach ($templateWithOverrides as $key => $value) {
+            if (! $replaceTemplateValues && array_key_exists($key, $current)) {
+                continue;
             }
+
+            $synchronized[$key] = $value;
         }
 
         foreach ($overrides as $key => $value) {
@@ -117,40 +116,5 @@ final readonly class SynchronizesEnvironmentFile
         }
 
         return rtrim(implode(PHP_EOL, $lines)).PHP_EOL;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function supportedEnvironmentKeys(): array
-    {
-        $paths = [
-            __DIR__.'/../../config/core-panel.php',
-            ...glob(__DIR__.'/../../stubs/config/*.php') ?: [],
-        ];
-        $keys = [];
-
-        foreach ($paths as $path) {
-            if (! $this->files->exists($path)) {
-                continue;
-            }
-
-            preg_match_all(
-                '/(?:\$env|env)\(\s*\'([A-Z0-9_]+)\'(?:\s*,\s*\'([A-Z0-9_]+)\')?/',
-                (string) $this->files->get($path),
-                $matches,
-                PREG_SET_ORDER,
-            );
-
-            foreach ($matches as $match) {
-                $keys[$match[1]] = true;
-
-                if (isset($match[2])) {
-                    $keys[$match[2]] = true;
-                }
-            }
-        }
-
-        return array_keys($keys);
     }
 }

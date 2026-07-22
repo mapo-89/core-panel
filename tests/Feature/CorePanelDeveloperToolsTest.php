@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use CorePanel\Domains\ActivityLog\DTOs\ActivityLogData;
+use CorePanel\Domain\ActivityLog\DTOs\ActivityLogData;
 use CorePanel\Models\AuthenticationLog;
 use CorePanel\Support\Auth\AuthenticationLogRecorder;
 use CorePanel\Support\Logs\LogEntryFilter;

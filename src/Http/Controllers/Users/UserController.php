@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Users;
 
-use CorePanel\Domains\Permission\DTOs\PermissionData;
-use CorePanel\Domains\Permission\DTOs\RoleData;
-use CorePanel\Domains\User\Actions\CreateUserAction;
-use CorePanel\Domains\User\Actions\DeleteUserAction;
-use CorePanel\Domains\User\Actions\SendUserInvitationAction;
+use CorePanel\Domain\Permission\DTOs\PermissionData;
+use CorePanel\Domain\Permission\DTOs\RoleData;
+use CorePanel\Domain\User\Actions\CreateUserAction;
+use CorePanel\Domain\User\Actions\DeleteUserAction;
+use CorePanel\Domain\User\Actions\SendUserInvitationAction;
 use CorePanel\Http\Requests\StoreUserRequest;
 use CorePanel\Http\Resources\UserResource;
 use CorePanel\Support\ActivityLog\ActivityLogService;

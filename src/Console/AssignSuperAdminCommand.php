@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Console;
 
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Users\UserModelManager;
 use Illuminate\Console\Command;

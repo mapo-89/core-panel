@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Permissions;
 
-use CorePanel\Domains\Permission\Actions\CreateRoleAction;
-use CorePanel\Domains\Permission\Actions\DeleteRoleAction;
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
-use CorePanel\Domains\Permission\Actions\SyncRolePermissionsAction;
-use CorePanel\Domains\Permission\Actions\UpdateRoleAction;
-use CorePanel\Domains\Permission\DTOs\PermissionData;
-use CorePanel\Domains\Permission\DTOs\RoleData;
+use CorePanel\Domain\Permission\Actions\CreateRoleAction;
+use CorePanel\Domain\Permission\Actions\DeleteRoleAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\SyncRolePermissionsAction;
+use CorePanel\Domain\Permission\Actions\UpdateRoleAction;
+use CorePanel\Domain\Permission\DTOs\PermissionData;
+use CorePanel\Domain\Permission\DTOs\RoleData;
 use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Permissions\CorePanelAccess;
 use CorePanel\Support\Permissions\CorePanelPermissions;

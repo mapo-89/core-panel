@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Database\Seeders\CorePanelPermissionSeeder;
-use CorePanel\Domains\Permission\Actions\ResyncAccessMatrixAction;
+use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Install\CorePanelInstaller;
 use CorePanel\Support\Install\CorePanelInstallOptions;
 use CorePanel\Support\Migrations\HostMigrationExecutor;
@@ -668,6 +668,8 @@ it('clears optimized caches after synchronizing the environment and allows seede
         ->and($contents)->toContain('if ($options->runSeeders)')
         ->and($contents)->not->toContain("\$command->call('db:seed'")
         ->and($contents)->toContain('if ($options->installFrontend)')
+        ->and($contents)->toContain('if ($options->installDeveloperTooling)')
+        ->and($contents)->toContain('Developer tooling skipped. To install Larastan')
         ->and($contents)->toContain('Preparing database connection')
         ->and($contents)->toContain('CREATE DATABASE IF NOT EXISTS')
         ->and($contents)->toContain('SELECT 1 FROM pg_database')
@@ -687,6 +689,8 @@ it('clears optimized caches after synchronizing the environment and allows seede
         ->and($commandContents)->toContain("booleanOption('install-frontend', 'Node-Abhängigkeiten installieren und Frontend bauen?', true)")
         ->and($commandContents)->toContain('{--install-tenancy= : true|false}')
         ->and($commandContents)->toContain("booleanOption('install-tenancy', 'Tenancy Addon installieren?', false)")
+        ->and($commandContents)->toContain('{--install-developer-tooling= : true|false}')
+        ->and($commandContents)->toContain("booleanOption('install-developer-tooling', 'Larastan und den Analyse-Script installieren?', false)")
         ->and($commandContents)->toContain('{--app-url= : Application base URL}')
         ->and($commandContents)->toContain("textOption('app-url', 'APP_URL?', \$this->defaultAppUrl())")
         ->and($commandContents)->toContain('{--central-domain= : Central domain for tenancy}')
@@ -878,7 +882,7 @@ it('creates an environment backup before synchronizing existing values', functio
     ]);
 
     expect(file_get_contents($temporaryBasePath.'/.env.backup'))->toBe($originalContents)
-        ->and(file_get_contents($temporaryBasePath.'/.env'))->not->toContain('LEGACY_ONLY=value');
+        ->and(file_get_contents($temporaryBasePath.'/.env'))->toContain('LEGACY_ONLY=value');
 });
 
 it('replaces template-managed environment values during installation synchronization', function (): void {
@@ -909,7 +913,7 @@ it('replaces template-managed environment values during installation synchroniza
         ->and($contents)->toContain('DB_CONNECTION=pgsql')
         ->and($contents)->toContain('FILESYSTEM_DISK=public')
         ->and($contents)->toContain('CACHE_STORE=redis')
-        ->and($contents)->not->toContain('CUSTOM_KEEP=value');
+        ->and($contents)->toContain('CUSTOM_KEEP=value');
 });
 
 it('renders the synchronized environment file using the template structure', function (): void {
@@ -931,7 +935,7 @@ it('renders the synchronized environment file using the template structure', fun
 
     expect($contents)->toContain('APP_NAME=HostApp')
         ->and($contents)->toContain('CACHE_STORE=database')
-        ->and($contents)->not->toContain('LEGACY_ONLY=value')
+        ->and($contents)->toContain('LEGACY_ONLY=value')
         ->and(strpos($contents, 'APP_NAME=HostApp'))->toBeLessThan(
             strpos($contents, 'CACHE_STORE=database'),
         )

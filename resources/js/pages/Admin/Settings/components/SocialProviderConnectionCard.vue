@@ -70,6 +70,10 @@ const providerIconName = computed(() => {
     )
 })
 const providerLogo = computed(() => {
+    if (providerRecord.value?.logoUrl) {
+        return providerRecord.value.logoUrl
+    }
+
     return (
         {
             github: githubIcon,

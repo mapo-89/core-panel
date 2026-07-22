@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\Socialite;
 
-use CorePanel\Domains\SocialAccount\DTOs\SocialAccountData;
+use CorePanel\Contracts\SettingsLogoUrlGenerator;
+use CorePanel\Domain\SocialAccount\DTOs\SocialAccountData;
 use CorePanel\Support\Settings\SettingsRepository;
 use Illuminate\Contracts\Auth\Authenticatable;
 
@@ -12,6 +13,7 @@ final readonly class SocialiteProviderRegistry
 {
     public function __construct(
         private SocialAccountStore $accounts,
+        private SettingsLogoUrlGenerator $logoUrlGenerator,
         private SettingsRepository $settings,
     ) {}
 
@@ -19,6 +21,7 @@ final readonly class SocialiteProviderRegistry
      * @return list<array{
      *     enabled:bool,
      *     icon:?string,
+     *     logoUrl:?string,
      *     isMaster:bool,
      *     label:string,
      *     provider:string
@@ -31,6 +34,7 @@ final readonly class SocialiteProviderRegistry
             ->map(fn (array $definition, string $provider): array => [
                 'enabled' => true,
                 'icon' => $definition['icon'],
+                'logoUrl' => $provider === 'oidc' ? $this->oidcLogoUrl() : null,
                 'isMaster' => $this->isMasterProvider($provider, $useRuntimeSettings),
                 'label' => $definition['label'],
                 'provider' => $provider,
@@ -69,9 +73,13 @@ final readonly class SocialiteProviderRegistry
 
     public function isConfigured(string $provider): bool
     {
-        return filled(config("services.{$provider}.client_id"))
+        $configured = filled(config("services.{$provider}.client_id"))
             && filled(config("services.{$provider}.client_secret"))
             && filled(config("services.{$provider}.redirect"));
+
+        return $provider === 'oidc'
+            ? $configured && filled(config('services.oidc.issuer'))
+            : $configured;
     }
 
     public function isEnabled(string $provider, bool $useRuntimeSettings = true): bool
@@ -146,6 +154,19 @@ final readonly class SocialiteProviderRegistry
                 'icon' => 'pi pi-microsoft',
                 'label' => __('page-auth.socialite.providers.microsoft'),
             ],
+            'oidc' => [
+                'icon' => 'pi pi-key',
+                'label' => (string) config('core-panel.auth.socialite.providers.oidc.label', __('page-auth.socialite.providers.oidc')),
+            ],
         ];
+    }
+
+    private function oidcLogoUrl(): ?string
+    {
+        $path = $this->settings->get('auth', 'oidc_logo_path');
+
+        return is_string($path) && $path !== ''
+            ? $this->logoUrlGenerator->generate($path)
+            : null;
     }
 }

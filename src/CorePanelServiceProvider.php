@@ -24,11 +24,11 @@ use CorePanel\Console\VendorFirstCleanupCommand;
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Contracts\LocaleResolver;
 use CorePanel\Contracts\SettingsLogoUrlGenerator;
-use CorePanel\Domains\File\Policies\FilePolicy;
-use CorePanel\Domains\Form\Policies\FormPolicy;
-use CorePanel\Domains\Permission\Policies\RolePolicy;
-use CorePanel\Domains\User\Policies\UserPolicy;
-use CorePanel\Domains\UserGroup\Policies\UserGroupPolicy;
+use CorePanel\Domain\File\Policies\FilePolicy;
+use CorePanel\Domain\Form\Policies\FormPolicy;
+use CorePanel\Domain\Permission\Policies\RolePolicy;
+use CorePanel\Domain\User\Policies\UserPolicy;
+use CorePanel\Domain\UserGroup\Policies\UserGroupPolicy;
 use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
 use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\EnsureApiDocsAccess;
@@ -84,6 +84,7 @@ use CorePanel\Support\Query\QueryBuilderAdapter;
 use CorePanel\Support\Security\SecurityHeaderConfig;
 use CorePanel\Support\Settings\AssetSettingsLogoUrlGenerator;
 use CorePanel\Support\Settings\SettingsRepository;
+use CorePanel\Support\Socialite\OidcProvider;
 use CorePanel\Support\Socialite\SocialAccountStore;
 use CorePanel\Support\Socialite\SocialiteProviderRegistry;
 use CorePanel\Support\Socialite\SocialUserManager;
@@ -102,6 +103,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Horizon\Horizon;
 use Laravel\Passport\Passport;
+use Laravel\Socialite\Contracts\Factory as SocialiteFactory;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Microsoft\Provider as MicrosoftProvider;
 use Spatie\LaravelPackageTools\Package;
@@ -418,6 +420,19 @@ final class CorePanelServiceProvider extends PackageServiceProvider
 
     private function configureSocialiteProviders(): void
     {
+        $this->app->afterResolving(SocialiteFactory::class, function (mixed $socialite): void {
+            $socialite->extend('oidc', function ($app) use ($socialite): OidcProvider {
+                /** @var array<string, mixed> $config */
+                $config = (array) $app['config']->get('services.oidc', []);
+
+                return $socialite->buildProvider(OidcProvider::class, $config)
+                    ->configure(
+                        (string) ($config['issuer'] ?? ''),
+                        (array) ($config['claims'] ?? []),
+                    );
+            });
+        });
+
         if (! class_exists(SocialiteWasCalled::class) || ! class_exists(MicrosoftProvider::class)) {
             return;
         }

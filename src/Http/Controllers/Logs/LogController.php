@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Logs;
 
-use CorePanel\Domains\ActivityLog\Actions\ListActivityLogsAction;
+use CorePanel\Domain\ActivityLog\Actions\ListActivityLogsAction;
 use CorePanel\Models\AuthenticationLog;
 use CorePanel\Support\Auth\AuthenticationLogRecorder;
 use CorePanel\Support\Logs\LogFileData;

@@ -41,6 +41,11 @@ return [
                     'enabled' => $env('SOCIAL_MICROSOFT_ENABLED', 'CORE_PANEL_SOCIAL_MICROSOFT_ENABLED', false),
                     'scopes' => ['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Mail.Send', 'Calendars.ReadWrite'],
                 ],
+                'oidc' => [
+                    'enabled' => $env('SOCIAL_OIDC_ENABLED', 'CORE_PANEL_SOCIAL_OIDC_ENABLED', false),
+                    'label' => $env('OIDC_LABEL', 'CORE_PANEL_OIDC_LABEL', 'OpenID Connect'),
+                    'scopes' => ['openid', 'profile', 'email'],
+                ],
             ],
         ],
         'two_factor_enabled' => $env('TWO_FACTOR_ENABLED', 'CORE_PANEL_TWO_FACTOR_ENABLED', true),

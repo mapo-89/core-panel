@@ -1127,7 +1127,7 @@ it('synchronizes the environment file with the core panel defaults', function ()
         ->and($contents)->toContain('CACHE_STORE=database')
         ->and($contents)->toContain('QUEUE_CONNECTION=redis')
         ->and($contents)->toContain('REDIS_HOST=127.0.0.1')
-        ->and($contents)->not->toContain('LEGACY_ONLY=value');
+        ->and($contents)->toContain('LEGACY_ONLY=value');
 });
 
 it('reads the packaged app version metadata from app-version json', function (): void {
@@ -1979,6 +1979,7 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($hostEntry)->toContain('default: Record<string, string>')
         ->and($hostEntry)->toContain('const hostPageModules = import.meta.glob<{ default: DefineComponent }>(')
         ->and($hostEntry)->toContain('const vendorPageModules = import.meta.glob<{ default: DefineComponent }>(')
+        ->and($hostEntry)->not->toContain('core-panel-tenancy')
         ->and($hostEntry)->toContain(
             '../../vendor/mapo-89/core-panel/resources/js/pages/**/*.vue',
         )
@@ -2535,7 +2536,7 @@ it('renders profile workspace tabs without forcing a shared panel surface', func
         ->and($profilePasswordContents)->toContain('form.defaults()')
         ->and($profilePasswordContents)->toContain(':disabled="form.processing || !form.isDirty"')
         ->and($profileConnectionsContents)->toContain('<SocialProviderConnectionCard')
-        ->and($profileConnectionsContents)->toContain("['microsoft', 'github', 'google']")
+        ->and($profileConnectionsContents)->toContain('props.socialProviders')
         ->and(file_exists(__DIR__.'/../../resources/js/assets/icons/github-mark.svg'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../resources/js/assets/icons/github-white.svg'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../resources/js/assets/icons/google.png'))->toBeTrue()
@@ -3140,7 +3141,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and(file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppSidebar.vue'))->toContain('const appSubtitle = computed(() => {')
         ->and(file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppSidebar.vue'))->toContain('v-if="appSubtitle"')
         ->and(file_get_contents(__DIR__.'/../../src/Http/Requests/UpdateUserRequest.php'))->toContain("'remove_avatar' => ['sometimes', 'boolean']")
-        ->and(file_get_contents(__DIR__.'/../../src/Domains/User/Actions/UpdateUserAction.php'))->toContain("(\$attributes['remove_avatar'] ?? false) === true")
+        ->and(file_get_contents(__DIR__.'/../../src/Domain/User/Actions/UpdateUserAction.php'))->toContain("(\$attributes['remove_avatar'] ?? false) === true")
         ->and($avatarController)->toContain('if ($request->expectsJson()) {')
         ->and($avatarController)->toContain("'avatar_url' => \$this->users->avatarUrl(\$target->refresh())")
         ->and($header)->toContain("import users from '@/routes/core-panel/users'")

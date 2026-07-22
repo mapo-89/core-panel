@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use CorePanel\Domains\UserGroup\Actions\ImportUserGroupsAction;
-use CorePanel\Domains\UserGroup\Services\UserGroupImportFileParser;
+use CorePanel\Domain\UserGroup\Actions\ImportUserGroupsAction;
+use CorePanel\Domain\UserGroup\Services\UserGroupImportFileParser;
 use CorePanel\Models\UserGroup;
 use Illuminate\Http\UploadedFile;
 

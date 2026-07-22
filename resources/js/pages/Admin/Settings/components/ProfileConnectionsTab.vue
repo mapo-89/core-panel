@@ -13,18 +13,7 @@ const props = defineProps<{
     socialProviders: SocialProviderRecord[]
 }>()
 
-const visibleSocialProviders = computed(() =>
-    ['microsoft', 'github', 'google']
-        .map((providerName) =>
-            props.socialProviders.find(
-                (provider) => provider.provider === providerName,
-            ),
-        )
-        .filter(
-            (provider): provider is SocialProviderRecord =>
-                provider !== undefined,
-        ),
-)
+const visibleSocialProviders = computed(() => props.socialProviders)
 </script>
 
 <template>

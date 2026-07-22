@@ -502,6 +502,7 @@ function criticalVersionedUpdateScaffoldPaths(): array
         '.env.example',
         'bootstrap/app.php',
         'config/database.php',
+        'config/services.php',
         'resources/js/components/AppIcon.vue',
         '.docker/bin/php-entrypoint.sh',
         '.docker/bin/prepare-local-environment.sh',
@@ -1268,6 +1269,49 @@ it('creates missing versioned application scaffolds during updates without a pre
         ->and(file_get_contents($target))->not->toContain("app()->bound('command.system-updates:auto')");
 });
 
+it('creates the OIDC services scaffold when it is missing during an update', function (): void {
+    $basePath = makePublishBasePath('missing-oidc-services-scaffold');
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', ['--base-path' => $basePath])
+        ->assertExitCode(0);
+
+    expect((string) file_get_contents($basePath.'/config/services.php'))
+        ->toContain("'oidc' => [")
+        ->toContain("env('OIDC_ISSUER')");
+});
+
+it('adopts an existing untracked services scaffold with the OIDC provider during a forced update', function (): void {
+    $basePath = makePublishBasePath('existing-oidc-services-scaffold');
+    $legacy = "<?php\n\nreturn [];\n";
+    $target = $basePath.'/config/services.php';
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $legacy);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+        '--force' => true,
+    ])
+        ->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    $backups = glob($basePath.'/.core-panel-backups/*/config/services.php');
+
+    expect((string) file_get_contents($target))
+        ->toContain("'oidc' => [")
+        ->toContain("env('OIDC_CLIENT_ID')")
+        ->and($backups)->not->toBeEmpty()
+        ->and((string) file_get_contents($backups[0]))->toBe($legacy)
+        ->and($manifest['files']['config/services.php'] ?? null)->toBeArray();
+});
+
 it('does not create unlisted missing application scaffolds just because another scaffold has an old baseline', function (): void {
     $basePath = makePublishBasePath('missing-unlisted-scaffold-with-baseline');
     $managedContents = "<?php\n\n// old managed console scaffold\n";
@@ -1822,7 +1866,7 @@ it('does not overwrite critical versioned scaffolds without a previous baseline 
             mkdir(dirname($target), 0777, true);
         }
 
-        file_put_contents($target, $contents);
+        file_put_contents($target, str_ends_with($contents, "\n") ? $contents : $contents."\n");
     }
 
     $this->artisan('core-panel:update', [
@@ -1860,7 +1904,7 @@ it('adopts unchanged critical versioned scaffolds into the manifest during updat
             mkdir(dirname($target), 0777, true);
         }
 
-        file_put_contents($target, $contents);
+        file_put_contents($target, str_ends_with($contents, "\n") ? $contents : $contents."\n");
     }
 
     $this->artisan('core-panel:update', [

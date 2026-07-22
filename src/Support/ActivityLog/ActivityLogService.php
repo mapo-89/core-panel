@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\ActivityLog;
 
-use CorePanel\Domains\ActivityLog\DTOs\ActivityLogData;
+use CorePanel\Domain\ActivityLog\DTOs\ActivityLogData;
 use CorePanel\Support\Query\AllowedQuery;
 use CorePanel\Support\Query\QueryBuilderAdapter;
 use CorePanel\Support\RequiresPackage;

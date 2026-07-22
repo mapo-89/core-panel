@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Users;
 
-use CorePanel\Domains\UserGroup\Actions\ImportUserGroupsAction;
+use CorePanel\Domain\UserGroup\Actions\ImportUserGroupsAction;
 use CorePanel\Http\Requests\UserGroup\ImportUserGroupsRequest;
 use CorePanel\Http\Requests\UserGroup\StoreUserGroupRequest;
 use CorePanel\Http\Requests\UserGroup\UpdateUserGroupRequest;
