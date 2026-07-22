@@ -2,7 +2,7 @@
     "name": "mapo-89/core-panel",
     "description": "A Laravel admin starter kit built with Inertia, Vue, Tailwind CSS, Fortify, Passport, Horizon, and Wayfinder.",
     "type": "library",
-    "version": "1.3.7",
+    "version": "1.4.0",
     "license": "MIT",
     "require": {
         "darkaonline/l5-swagger": "^11.0",
