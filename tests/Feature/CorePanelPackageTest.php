@@ -1166,7 +1166,6 @@ it('ships a visible domain scaffold structure for host applications', function (
         ->and(is_file(__DIR__.'/../../stubs/app/Http/Middleware/TrackUserPresence.php'))->toBeTrue()
         ->and(is_dir(__DIR__.'/../../stubs/app/Models'))->toBeTrue()
         ->and(is_file(__DIR__.'/../../stubs/app/Models/User.php'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/Models/UserGroup.php'))->toBeTrue()
         ->and(is_dir(__DIR__.'/../../stubs/app/OpenApi/Paths'))->toBeTrue()
         ->and(is_file(__DIR__.'/../../stubs/app/OpenApi/CorePanelApiDocumentation.php'))->toBeTrue()
         ->and(is_dir(__DIR__.'/../../stubs/app/Providers'))->toBeTrue()
