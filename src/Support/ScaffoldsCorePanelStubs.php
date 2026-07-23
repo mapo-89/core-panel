@@ -479,6 +479,7 @@ final readonly class ScaffoldsCorePanelStubs
         return is_array($decoded) && ($decoded['managed_by_application'] ?? false) === true;
     }
 
+    /** @param list<string> $paths */
     private static function appendPathsFromRoot(array &$paths, string $root, string $prefix = ''): void
     {
         $iterator = new RecursiveIteratorIterator(

@@ -95,7 +95,6 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
             });
 
             $this->runStep($command, 'Preparing package runtime assets', function () use ($command, $options): void {
-                $this->publishMigrations($command, $options);
                 $this->publishAssets($command, $options);
             });
 
@@ -286,11 +285,6 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         ]);
     }
 
-    private function publishMigrations(Command $command, CorePanelInstallOptions $options): void
-    {
-        unset($command, $options);
-    }
-
     private function publishAssets(Command $command, CorePanelInstallOptions $options): void
     {
         foreach (PublishTag::installTags() as $tag) {
@@ -385,7 +379,6 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         /** @var Model&Authenticatable $model */
         $model = new $modelClass;
 
-        /** @var Model&Authenticatable|null $user */
         $user = Schema::hasColumn($model->getTable(), 'email')
             ? $modelClass::query()->where('email', $email)->first()
             : null;
@@ -412,7 +405,9 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 
         if ($this->permissionTablesExist()) {
             $this->ensureSuperAdminAccess($command);
-            $this->assignInstallerSuperAdminRole($user);
+            if ($user instanceof Authenticatable) {
+                $this->assignInstallerSuperAdminRole($user);
+            }
         }
 
         $command->info(sprintf('Admin user ready: %s', $email));
@@ -916,8 +911,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         $changed = false;
 
         $repositoryIndex = collect($repositories)->search(function (mixed $repository) use ($addon): bool {
-            return is_array($repository)
-                && ($repository['type'] ?? null) === 'path'
+            return ($repository['type'] ?? null) === 'path'
                 && ($repository['url'] ?? null) === $addon['path'];
         });
 

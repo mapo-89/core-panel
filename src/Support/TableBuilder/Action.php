@@ -38,6 +38,7 @@ abstract class Action
         return $this;
     }
 
+    /** @param array<string, mixed> $meta */
     public function meta(array $meta): static
     {
         $this->meta = [

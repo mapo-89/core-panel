@@ -7,6 +7,7 @@ namespace CorePanel\Support\Forms;
 use CorePanel\Models\Form;
 use CorePanel\Models\FormSubmission;
 use CorePanel\Models\FormVersion;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class FormModelManager
@@ -50,14 +51,16 @@ class FormModelManager
         return $form;
     }
 
-    public function formsQuery()
+    /** @return Builder<Form> */
+    public function formsQuery(): Builder
     {
         $query = $this->newForm()->newQuery()->orderBy('name');
 
         return $query;
     }
 
-    public function submissionsQuery(?Form $form = null)
+    /** @return Builder<FormSubmission> */
+    public function submissionsQuery(?Form $form = null): Builder
     {
         $query = $this->newSubmission()->newQuery()->latest();
 
@@ -68,7 +71,8 @@ class FormModelManager
         return $query;
     }
 
-    public function versionsQuery(Form $form)
+    /** @return Builder<FormVersion> */
+    public function versionsQuery(Form $form): Builder
     {
         return $this->newVersion()
             ->newQuery()

@@ -338,6 +338,7 @@ final class PermissionService
         ]);
     }
 
+    /** @param array<string, mixed> $attributes */
     public function updateRoleMetadata(Model $role, array $attributes): Model
     {
         $payload = [];
@@ -418,6 +419,10 @@ final class PermissionService
         return Schema::hasColumn($table, $column);
     }
 
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
     private function applyUserOrdering(Builder $query): Builder
     {
         $model = $query->getModel();

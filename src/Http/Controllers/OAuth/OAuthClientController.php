@@ -38,7 +38,7 @@ final class OAuthClientController extends Controller
         return Inertia::render('OAuthClients/Index', [
             'clients' => $this->listClients->execute($request),
             'personalAccessClientsEnabled' => (bool) config('core-panel.auth.passport.personal_access_clients_enabled', false),
-            'scopes' => array_values(CorePanelPermissions::defaults()),
+            'scopes' => CorePanelPermissions::defaults(),
         ]);
     }
 

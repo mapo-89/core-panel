@@ -14,10 +14,13 @@ final class UserGroupModelManager
      */
     public function modelClass(): string
     {
-        /** @var class-string<Model> $modelClass */
-        $modelClass = (string) config('core-panel.user_group_model', UserGroup::class);
+        $configuredModel = config('core-panel.user_group_model', UserGroup::class);
 
-        return $modelClass;
+        if (! is_string($configuredModel) || ! is_a($configuredModel, Model::class, true)) {
+            return UserGroup::class;
+        }
+
+        return $configuredModel;
     }
 
     public function newModel(): Model

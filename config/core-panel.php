@@ -167,5 +167,27 @@ return [
                 ],
             ],
         ],
+        'mysql_datetime_conversion' => [
+            'datasets' => [
+                'central' => [
+                    'activity_log' => ['created_at', 'updated_at'],
+                    'authentication_logs' => ['created_at', 'last_active_at', 'login_at', 'logout_at', 'updated_at'],
+                    'failed_jobs' => ['failed_at'],
+                    'file_folders' => ['created_at', 'updated_at'],
+                    'form_submissions' => ['created_at', 'updated_at'],
+                    'form_versions' => ['created_at', 'updated_at'],
+                    'forms' => ['created_at', 'updated_at'],
+                    'managed_files' => ['created_at', 'updated_at'],
+                    'oauth_access_tokens' => ['created_at', 'last_used_at', 'updated_at'],
+                    'oauth_clients' => ['created_at', 'updated_at'],
+                    'password_reset_tokens' => ['created_at'],
+                    'settings' => ['created_at', 'updated_at'],
+                    'social_accounts' => ['created_at', 'expires_at', 'updated_at'],
+                    'user_group_user' => ['created_at', 'updated_at'],
+                    'user_groups' => ['created_at', 'deleted_at', 'updated_at'],
+                    'users' => ['created_at', 'deleted_at', 'email_verified_at', 'invitation_accepted_at', 'invited_at', 'two_factor_confirmed_at', 'updated_at'],
+                ],
+            ],
+        ],
     ],
 ];

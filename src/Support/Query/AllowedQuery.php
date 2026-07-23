@@ -34,7 +34,7 @@ final class AllowedQuery
      */
     public function filters(array $filters): self
     {
-        $this->allowedFilters = array_values($filters);
+        $this->allowedFilters = $filters;
 
         return $this;
     }
@@ -44,7 +44,7 @@ final class AllowedQuery
      */
     public function includes(array $includes): self
     {
-        $this->allowedIncludes = array_values($includes);
+        $this->allowedIncludes = $includes;
 
         return $this;
     }
@@ -54,7 +54,7 @@ final class AllowedQuery
      */
     public function sorts(array $sorts): self
     {
-        $this->allowedSorts = array_values($sorts);
+        $this->allowedSorts = $sorts;
 
         return $this;
     }
@@ -64,7 +64,7 @@ final class AllowedQuery
      */
     public function globalSearch(array $columns, string $parameter = 'search'): self
     {
-        $this->globalSearchColumns = array_values($columns);
+        $this->globalSearchColumns = $columns;
         $this->searchParameter = $parameter;
 
         return $this;

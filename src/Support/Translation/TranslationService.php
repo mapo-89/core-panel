@@ -13,6 +13,7 @@ final readonly class TranslationService
         private CorePanelConfig $config,
     ) {}
 
+    /** @param Model|array<string, mixed> $source */
     public function get(Model|array $source, string $field, ?string $locale = null): mixed
     {
         $translations = $this->translationsFor($source, $field);
@@ -64,6 +65,10 @@ final readonly class TranslationService
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    /**
+     * @param  Model|array<string, mixed>  $source
      * @return array<string, mixed>|null
      */
     private function translationsFor(Model|array $source, string $field): ?array

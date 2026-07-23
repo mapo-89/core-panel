@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\TabBuilder;
 
-use InvalidArgumentException;
 use JsonSerializable;
 
 final class TabSchema implements JsonSerializable
@@ -19,12 +18,6 @@ final class TabSchema implements JsonSerializable
      */
     public static function make(array $tabs = []): self
     {
-        foreach ($tabs as $tab) {
-            if (! $tab instanceof Tab) {
-                throw new InvalidArgumentException('Tab schema entries must be tab instances.');
-            }
-        }
-
         return new self($tabs);
     }
 
@@ -54,6 +47,7 @@ final class TabSchema implements JsonSerializable
         ));
     }
 
+    /** @return list<array<string, mixed>> */
     public function jsonSerialize(): array
     {
         return $this->toArray();

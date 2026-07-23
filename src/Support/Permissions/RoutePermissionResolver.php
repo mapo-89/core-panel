@@ -55,8 +55,7 @@ final readonly class RoutePermissionResolver
             return null;
         }
 
-        $action = end($segments);
-        $ability = $this->resolveAbility(is_string($action) ? $action : null);
+        $ability = $this->resolveAbility($segments[array_key_last($segments)]);
 
         if ($ability === null) {
             return null;

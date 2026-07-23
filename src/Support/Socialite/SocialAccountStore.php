@@ -86,8 +86,9 @@ class SocialAccountStore
      */
     public function upsertForUserWithAttributes(Authenticatable $user, string $provider, array $attributes): SocialAccount
     {
-        /** @var Model $userModel */
-        $userModel = $user;
+        if (! $user instanceof Model) {
+            throw new \InvalidArgumentException('The configured user must be an Eloquent model.');
+        }
 
         /** @var SocialAccount $account */
         $account = SocialAccount::query()->updateOrCreate(
@@ -97,13 +98,13 @@ class SocialAccountStore
             ],
             [
                 'avatar_url' => $attributes['avatar_url'] ?? null,
-                'expires_at' => isset($attributes['expires_in']) && is_int($attributes['expires_in'])
+                'expires_at' => isset($attributes['expires_in'])
                     ? now()->addSeconds($attributes['expires_in'])
                     : null,
                 'provider_email' => $attributes['provider_email'] ?? null,
                 'refresh_token_encrypted' => $attributes['refresh_token'] ?? null,
                 'token_encrypted' => $attributes['token'] ?? null,
-                'user_id' => (string) $userModel->getKey(),
+                'user_id' => (string) $user->getKey(),
             ],
         );
 

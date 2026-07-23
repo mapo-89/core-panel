@@ -8,8 +8,6 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -385,9 +383,6 @@ final class UserModelManager
         return [];
     }
 
-    /**
-     * @return Collection<int, Model>
-     */
     public function hasColumn(string $column): bool
     {
         $model = $this->newModel();
@@ -441,12 +436,8 @@ final class UserModelManager
             return $url;
         }
 
-        $request = app('request', []);
+        $request = request();
         $suffix = $this->buildUrlSuffix($url);
-
-        if (! $request instanceof Request) {
-            return $path.$suffix;
-        }
 
         $host = parse_url($url, PHP_URL_HOST);
         $port = parse_url($url, PHP_URL_PORT);

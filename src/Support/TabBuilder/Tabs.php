@@ -35,6 +35,7 @@ final class Tabs implements JsonSerializable
         ];
     }
 
+    /** @return array{tabs:list<array<string, mixed>>} */
     public function jsonSerialize(): array
     {
         return $this->toArray();

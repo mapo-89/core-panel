@@ -303,7 +303,7 @@ final readonly class CorePanelPublisher
                     continue;
                 }
 
-                if (in_array($status, ['overwrite', 'update'], true) && $destinationExists) {
+                if (in_array($status, ['overwrite', 'update'], true)) {
                     $this->backups->backupPaths([$source => $destination], $root);
                     $backupsCreated = true;
                 }

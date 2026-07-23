@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\TableBuilder;
 
+/** @phpstan-consistent-constructor */
 abstract class Column
 {
     protected ?string $label = null;
@@ -43,6 +44,9 @@ abstract class Column
         return $this;
     }
 
+    /**
+     * @param  array<string, mixed>  $meta
+     */
     public function meta(array $meta): static
     {
         $this->meta = [

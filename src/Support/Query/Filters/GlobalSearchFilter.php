@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CorePanel\Support\Query\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 final class GlobalSearchFilter
 {
@@ -15,6 +16,12 @@ final class GlobalSearchFilter
         private readonly array $columns,
     ) {}
 
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
     public function apply(Builder $query, mixed $value): Builder
     {
         if (! is_scalar($value) || trim((string) $value) === '' || $this->columns === []) {

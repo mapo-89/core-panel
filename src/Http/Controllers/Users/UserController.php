@@ -149,7 +149,7 @@ final class UserController extends Controller
                 ->all(),
             'userGroupOptions' => $this->userGroupOptions(),
             'userGroups' => $canViewUserGroupTab ? $this->userGroupRows() : [],
-            'users' => UserResource::collection($users->getCollection())->resolve(),
+            'users' => UserResource::collection($users->items())->resolve(),
             'usersTable' => [
                 'pagination' => [
                     'page' => $users->currentPage(),

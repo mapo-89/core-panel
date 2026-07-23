@@ -65,7 +65,6 @@ class SocialUserManager
         $user->forceFill($attributes);
         $user->save();
 
-        /** @var Authenticatable $user */
         return $user;
     }
 

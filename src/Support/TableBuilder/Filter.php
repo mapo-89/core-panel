@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace CorePanel\Support\TableBuilder;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
+/** @phpstan-consistent-constructor */
 abstract class Filter
 {
     protected ?string $label = null;
@@ -43,6 +45,9 @@ abstract class Filter
         return $this;
     }
 
+    /**
+     * @param  array<string, mixed>  $meta
+     */
     public function meta(array $meta): static
     {
         $this->meta = [
@@ -63,8 +68,16 @@ abstract class Filter
         return $this;
     }
 
+    /**
+     * @param  Builder<Model>  $builder
+     * @return Builder<Model>
+     */
     abstract public function applyToBuilder(Builder $builder, mixed $value): Builder;
 
+    /**
+     * @param  Collection<array-key, mixed>  $items
+     * @return Collection<array-key, mixed>
+     */
     abstract public function applyToCollection(Collection $items, mixed $value): Collection;
 
     /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\FormBuilder;
 
-use InvalidArgumentException;
 use JsonSerializable;
 
 final class FormSchema implements JsonSerializable
@@ -21,12 +20,6 @@ final class FormSchema implements JsonSerializable
      */
     public static function make(array $fields = []): self
     {
-        foreach ($fields as $field) {
-            if (! $field instanceof Field) {
-                throw new InvalidArgumentException('Form schema entries must be field instances.');
-            }
-        }
-
         return new self($fields);
     }
 
@@ -45,6 +38,7 @@ final class FormSchema implements JsonSerializable
         return $this->fields;
     }
 
+    /** @return array<string, mixed> */
     public function rules(?string $prefix = null): array
     {
         $rules = [];
@@ -56,6 +50,7 @@ final class FormSchema implements JsonSerializable
         return $rules;
     }
 
+    /** @return array<string, string> */
     public function messages(?string $locale = null, ?string $prefix = null): array
     {
         $messages = [];
@@ -67,11 +62,13 @@ final class FormSchema implements JsonSerializable
         return $messages;
     }
 
+    /** @return list<array<string, mixed>> */
     public function jsonSerialize(): array
     {
         return $this->toArray();
     }
 
+    /** @return list<array<string, mixed>> */
     public function toArray(): array
     {
         return array_map(

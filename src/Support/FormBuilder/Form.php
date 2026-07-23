@@ -62,6 +62,7 @@ final class Form implements JsonSerializable
         return $this->toArray();
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

@@ -129,10 +129,10 @@ final class FormSubmissionValidator
             'email' => ['email'],
             'file' => ['file'],
             'group' => ['array'],
-            'multi-select' => array_values(array_filter([
+            'multi-select' => array_filter([
                 'array',
                 $options !== [] ? 'array' : null,
-            ])),
+            ]),
             'number' => ['numeric'],
             'radio', 'select' => $options !== [] ? ['in:'.implode(',', $options)] : [],
             'repeater' => ['array'],
@@ -154,15 +154,15 @@ final class FormSubmissionValidator
         }
 
         if (array_is_list($options)) {
-            return array_values(array_map(
+            return array_map(
                 static fn (mixed $option): string => is_array($option)
                     ? (string) ($option['value'] ?? '')
                     : (string) $option,
                 $options
-            ));
+            );
         }
 
-        return array_values(array_map('strval', array_keys($options)));
+        return array_map('strval', array_keys($options));
     }
 
     private function resolveTranslation(mixed $translation, ?string $locale = null): string

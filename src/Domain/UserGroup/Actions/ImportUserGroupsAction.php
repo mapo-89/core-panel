@@ -7,6 +7,7 @@ namespace CorePanel\Domain\UserGroup\Actions;
 use CorePanel\Domain\UserGroup\Services\UserGroupImportFileParser;
 use CorePanel\Support\UserGroups\UserGroupModelManager;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 
@@ -81,7 +82,7 @@ final readonly class ImportUserGroupsAction
         $modelClass = $this->userGroups->modelClass();
 
         $existingKeys = $modelClass::query()
-            ->withTrashed()
+            ->withoutGlobalScope(SoftDeletingScope::class)
             ->get(['id', 'name'])
             ->mapWithKeys(function (Model $userGroup): array {
                 $keys = [];
@@ -140,7 +141,7 @@ final readonly class ImportUserGroupsAction
         $modelClass = $this->userGroups->modelClass();
 
         if ($row['id'] !== null) {
-            $userGroup = $modelClass::query()->withTrashed()->find($row['id']);
+            $userGroup = $modelClass::query()->withoutGlobalScope(SoftDeletingScope::class)->find($row['id']);
 
             if ($userGroup instanceof Model) {
                 return $userGroup;
@@ -148,13 +149,13 @@ final readonly class ImportUserGroupsAction
         }
 
         return $modelClass::query()
-            ->withTrashed()
+            ->withoutGlobalScope(SoftDeletingScope::class)
             ->whereRaw('LOWER(name) = ?', [mb_strtolower($row['name'])])
             ->first();
     }
 
     /**
-     * @param  Collection<string, bool>  $existingKeys
+     * @param  Collection<string, true>  $existingKeys
      * @param  array{id:?int,name:string}  $row
      */
     private function hasExistingMatch(Collection $existingKeys, array $row): bool

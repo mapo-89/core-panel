@@ -27,6 +27,7 @@ final readonly class TableResult implements JsonSerializable
         public array $state,
     ) {}
 
+    /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {
         return $this->toArray();

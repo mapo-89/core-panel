@@ -6,6 +6,7 @@ namespace CorePanel;
 
 use CorePanel\Console\AssignSuperAdminCommand;
 use CorePanel\Console\CleanActivityLogsCommand;
+use CorePanel\Console\ConvertMySqlDatetimesCommand;
 use CorePanel\Console\ConvertTimestampsToTimestamptzCommand;
 use CorePanel\Console\InstallCommand;
 use CorePanel\Console\MakeActionCommand;
@@ -114,6 +115,13 @@ final class CorePanelServiceProvider extends PackageServiceProvider
 {
     public function registeringPackage(): void
     {
+        /** @var array<string, mixed> $corePanelConfig */
+        $corePanelConfig = require __DIR__.'/../config/core-panel.php';
+        $this->app['config']->set(
+            'core-panel',
+            array_replace_recursive($corePanelConfig, (array) $this->app['config']->get('core-panel', [])),
+        );
+
         /** @var array<string, mixed> $accessConfig */
         $accessConfig = require __DIR__.'/../config/core-panel-access.php';
         $this->app['config']->set(
@@ -180,6 +188,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
                 AssignSuperAdminCommand::class,
                 CleanActivityLogsCommand::class,
                 ConvertTimestampsToTimestamptzCommand::class,
+                ConvertMySqlDatetimesCommand::class,
                 InstallCommand::class,
                 MakeActionCommand::class,
                 MakeCrudCommand::class,

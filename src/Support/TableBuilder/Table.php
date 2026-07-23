@@ -58,8 +58,6 @@ final class Table
 
     private ?QueryBuilderAdapter $queryBuilderAdapter = null;
 
-    private mixed $exportHook = null;
-
     public static function make(): self
     {
         return new self;
@@ -85,9 +83,15 @@ final class Table
         return $this;
     }
 
+    /**
+     * Retain the legacy fluent export extension point for host table definitions.
+     *
+     * Export execution is handled by the consuming application; the table result itself
+     * does not expose an export pipeline.
+     */
     public function exportUsing(callable $hook): self
     {
-        $this->exportHook = $hook;
+        unset($hook);
 
         return $this;
     }

@@ -18,6 +18,7 @@ final readonly class CreateOAuthClientAction
 
     /**
      * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
      */
     public function execute(array $attributes, ?Authenticatable $actor = null): array
     {

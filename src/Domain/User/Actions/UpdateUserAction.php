@@ -6,6 +6,7 @@ namespace CorePanel\Domain\User\Actions;
 
 use CorePanel\Support\Media\MediaService;
 use CorePanel\Support\Users\UserModelManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -75,10 +76,11 @@ final readonly class UpdateUserAction
                 $this->media->upload($user, $attributes['avatar'], 'avatars');
             }
 
-            $this->assignRoles->execute(
-                $user,
-                $attributes['role_names'] ?? [],
-            );
+            if (! $user instanceof Authenticatable) {
+                throw new \LogicException('Configured user model must implement the authentication contract.');
+            }
+
+            $this->assignRoles->execute($user, $attributes['role_names'] ?? []);
 
             $this->assignUserGroups->execute(
                 $user,

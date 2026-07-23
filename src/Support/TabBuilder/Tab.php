@@ -151,6 +151,7 @@ final class Tab implements JsonSerializable
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {
         return $this->toArray();

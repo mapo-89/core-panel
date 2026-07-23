@@ -7,6 +7,7 @@ namespace CorePanel\Http\Controllers\Permissions;
 use CorePanel\Domain\User\Actions\AssignUserRolesAction;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Users\UserModelManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,10 +40,11 @@ final class AssignUserRoleController extends Controller
 
         $assignableUser = $this->findUser($user);
 
-        $this->assignRoles->execute(
-            $assignableUser,
-            array_values($validated['roles'] ?? []),
-        );
+        if (! $assignableUser instanceof Authenticatable) {
+            throw new \LogicException('Configured user model must implement the authentication contract.');
+        }
+
+        $this->assignRoles->execute($assignableUser, array_values($validated['roles'] ?? []));
 
         return back()->with('status', __('page-users.roles.assigned'));
     }

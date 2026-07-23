@@ -584,14 +584,6 @@ final class SettingsSchema
     /**
      * @return list<array{label:string,value:string}>
      */
-    private static function localeOptions(): array
-    {
-        return self::options(self::availableLanguages());
-    }
-
-    /**
-     * @return list<array{label:string,value:string}>
-     */
     private static function timezoneOptions(): array
     {
         return collect(timezone_identifiers_list())
@@ -601,14 +593,6 @@ final class SettingsSchema
             ])
             ->values()
             ->all();
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function availableLanguages(): array
-    {
-        return SupportedLocales::labels();
     }
 
     /**
