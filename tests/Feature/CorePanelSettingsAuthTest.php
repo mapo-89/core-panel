@@ -304,6 +304,18 @@ it('exposes a runtime-enabled generic OIDC provider with a normalized callback r
         ->and(collect($registry->enabledProviders())->firstWhere('provider', 'oidc')['logoUrl'] ?? null)->toBe(asset('storage/branding/oidc/authentik.svg'));
 });
 
+it('uses the HTTPS app URL for social callbacks behind a TLS-terminating proxy', function (): void {
+    config()->set('app.url', 'https://core-panel.example.test');
+    config()->set('services.oidc.redirect', '');
+
+    $settings = app(SettingsRepository::class);
+
+    (new ApplyCorePanelRuntimeSettings($settings))
+        ->handle(Request::create('http://tenant.example.test/login', 'GET'), static fn () => response('ok'));
+
+    expect(config('services.oidc.redirect'))->toBe('https://tenant.example.test/auth/oidc/callback');
+});
+
 it('hides disabled auth pages and skips verification redirects when email verification is disabled', function (): void {
     $settings = app(SettingsRepository::class);
     $settings->set('auth', 'email_verification_enabled', false, 'boolean', false);

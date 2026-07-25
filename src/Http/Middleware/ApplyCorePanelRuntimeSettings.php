@@ -186,6 +186,10 @@ final readonly class ApplyCorePanelRuntimeSettings
             return $target;
         }
 
-        return rtrim($request->getSchemeAndHttpHost(), '/').'/'.ltrim($target, '/');
+        $scheme = parse_url((string) config('app.url'), PHP_URL_SCHEME) === 'https'
+            ? 'https'
+            : $request->getScheme();
+
+        return $scheme.'://'.$request->getHost().'/'.ltrim($target, '/');
     }
 }

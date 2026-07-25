@@ -23,6 +23,15 @@ beforeEach(function (): void {
     Gate::before(static fn (...$arguments): bool => true);
 });
 
+it('maps settings logo routes to the settings update permission', function (): void {
+    /** @var array<string, string|null> $routePermissions */
+    $routePermissions = config('core-panel-access.route_permissions', []);
+
+    expect($routePermissions['core-panel.settings.logo.destroy'] ?? null)->toBe('settings.update')
+        ->and($routePermissions['core-panel.settings.logo.store'] ?? null)->toBe('settings.update')
+        ->and($routePermissions['core-panel.settings.oidc-logo.store'] ?? null)->toBe('settings.update');
+});
+
 it('uploads and removes the settings logo through dedicated endpoints', function (): void {
     $disk = (string) config('core-panel.files.logo.disk', config('core-panel.files.disk', 'public'));
 
