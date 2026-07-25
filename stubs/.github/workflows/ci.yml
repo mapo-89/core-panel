@@ -46,6 +46,12 @@ jobs:
             DB_DATABASE_TEST: core_panel_test
             DB_USERNAME: core_panel
             DB_PASSWORD: core_panel
+            TEST_DB_CONNECTION: pgsql
+            TEST_DB_HOST: 127.0.0.1
+            TEST_DB_PORT: 5432
+            TEST_DB_DATABASE: core_panel_test
+            TEST_DB_USERNAME: core_panel
+            TEST_DB_PASSWORD: core_panel
             REDIS_HOST: 127.0.0.1
             REDIS_PORT: 6379
             REDIS_PASSWORD: null
@@ -67,6 +73,10 @@ jobs:
                   node-version: '24'
                   cache: 'npm'
 
+            - name: Create test database
+              run: >-
+                  php -r '$pdo = new PDO("pgsql:host=".getenv("TEST_DB_HOST").";port=".getenv("TEST_DB_PORT").";dbname=postgres", getenv("TEST_DB_USERNAME"), getenv("TEST_DB_PASSWORD")); $database = getenv("TEST_DB_DATABASE"); if (! preg_match("/^[A-Za-z_][A-Za-z0-9_]*$/", $database)) { throw new InvalidArgumentException("Invalid test database name."); } $statement = $pdo->prepare("select 1 from pg_database where datname = ?"); $statement->execute([$database]); if (! $statement->fetchColumn()) { $pdo->exec("create database ".$database); }'
+
             - name: Install Composer dependencies
               run: composer install --no-interaction --no-progress --prefer-dist
 
@@ -82,11 +92,11 @@ jobs:
             - name: Run static analysis
               run: make analyze
 
-            - name: Run tests
-              run: make test-compact
-
             - name: Build frontend
               run: make build
+
+            - name: Run tests
+              run: make test-compact
 
             - name: Run host smoke checks
               run: make smoke

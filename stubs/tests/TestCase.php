@@ -18,12 +18,12 @@ abstract class TestCase extends BaseTestCase
 
     protected function setUp(): void
     {
-        $this->setTestingEnvironmentValue('DB_CONNECTION', 'pgsql');
-        $this->setTestingEnvironmentValue('DB_HOST', (string) env('DB_HOST', '127.0.0.1'));
-        $this->setTestingEnvironmentValue('DB_PORT', (string) env('DB_PORT', '5432'));
-        $this->setTestingEnvironmentValue('DB_DATABASE', (string) env('DB_DATABASE_TEST', 'core_panel_test'));
-        $this->setTestingEnvironmentValue('DB_USERNAME', (string) env('DB_USERNAME', 'core_panel'));
-        $this->setTestingEnvironmentValue('DB_PASSWORD', (string) env('DB_PASSWORD', 'core_panel'));
+        $this->setTestingEnvironmentValue('DB_CONNECTION', (string) env('TEST_DB_CONNECTION', env('DB_CONNECTION', 'pgsql')));
+        $this->setTestingEnvironmentValue('DB_HOST', (string) env('TEST_DB_HOST', env('DB_HOST', '127.0.0.1')));
+        $this->setTestingEnvironmentValue('DB_PORT', (string) env('TEST_DB_PORT', env('DB_PORT', '5432')));
+        $this->setTestingEnvironmentValue('DB_DATABASE', (string) env('TEST_DB_DATABASE', env('DB_DATABASE_TEST', 'core_panel_test')));
+        $this->setTestingEnvironmentValue('DB_USERNAME', (string) env('TEST_DB_USERNAME', env('DB_USERNAME', 'core_panel')));
+        $this->setTestingEnvironmentValue('DB_PASSWORD', (string) env('TEST_DB_PASSWORD', env('DB_PASSWORD', 'core_panel')));
 
         parent::setUp();
 

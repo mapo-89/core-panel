@@ -41,5 +41,5 @@ smoke: ## 🕵️ Run host smoke checks
 qa: format-dirty analyze test-compact ## 🚀 Run all code quality checks
 	@echo "✅ All quality checks passed successfully!"
 
-qa-ci: lint analyze test-compact build smoke ## 🚀 Run the full CI-like quality checks
+qa-ci: lint analyze build test-compact smoke ## 🚀 Run the full CI-like quality checks
 	@echo "✅ All CI checks passed"
