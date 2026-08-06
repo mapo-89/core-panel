@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CorePanel\Contracts\DatabaseBackupCloudUploader;
 use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\EnsureCorePanelEmailIsVerified;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupEncryptor;
@@ -272,6 +273,50 @@ it('does not render the horizon tab when horizon is inactive', function (): void
     $this->actingAs(administrationUser('horizon.view'))
         ->get(route('core-panel.administration.index'))
         ->assertForbidden();
+});
+
+it('streams database backups to the configured cloud uploader', function (): void {
+    $uploader = new class implements DatabaseBackupCloudUploader
+    {
+        public ?string $contents = null;
+
+        public ?string $name = null;
+
+        public bool $receivedStream = false;
+
+        public function status(): array
+        {
+            return [
+                'available' => true,
+                'connected' => true,
+                'enabled' => true,
+                'missing_scopes' => false,
+                'path' => 'Backups',
+                'provider_email' => 'admin@example.test',
+            ];
+        }
+
+        /**
+         * @param  resource  $stream
+         */
+        public function upload($stream, string $name): bool
+        {
+            $this->receivedStream = is_resource($stream);
+            $this->name = $name;
+            $contents = stream_get_contents($stream);
+            $this->contents = is_string($contents) ? $contents : null;
+
+            return true;
+        }
+    };
+    app()->instance(DatabaseBackupCloudUploader::class, $uploader);
+
+    $backup = app(DatabaseBackupService::class)->create();
+
+    expect($backup->storageLocations)->toBe(['local', 'cloud'])
+        ->and($uploader->receivedStream)->toBeTrue()
+        ->and($uploader->name)->toBe($backup->name)
+        ->and($uploader->contents)->toBeString()->not->toBe('');
 });
 
 it('creates a manual database backup', function (): void {

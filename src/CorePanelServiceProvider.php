@@ -23,6 +23,7 @@ use CorePanel\Console\SyncEnvironmentCommand;
 use CorePanel\Console\UpdateCommand;
 use CorePanel\Console\VendorFirstCleanupCommand;
 use CorePanel\Contracts\CorePanelInstallerInterface;
+use CorePanel\Contracts\DatabaseBackupCloudUploader;
 use CorePanel\Contracts\LocaleResolver;
 use CorePanel\Contracts\SettingsLogoUrlGenerator;
 use CorePanel\Domain\File\Policies\FilePolicy;
@@ -50,6 +51,7 @@ use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupRestoreStatus
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupService;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSqlExportService;
+use CorePanel\Support\Administration\DatabaseBackups\NullDatabaseBackupCloudUploader;
 use CorePanel\Support\Administration\DatabaseBackups\RunAutomaticDatabaseBackupAction;
 use CorePanel\Support\Administration\SystemUpdates\RunAutomaticSystemUpdateAction;
 use CorePanel\Support\Api\ApiResponseFactory;
@@ -130,6 +132,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         );
 
         $this->app->bind(LocaleResolver::class, RequestLocaleResolver::class);
+        $this->app->scoped(DatabaseBackupCloudUploader::class, NullDatabaseBackupCloudUploader::class);
         $this->app->bind(SettingsLogoUrlGenerator::class, AssetSettingsLogoUrlGenerator::class);
         $this->app->scoped(CorePanelConfig::class, static fn ($app): CorePanelConfig => CorePanelConfig::fromRepository($app['config']));
         $this->app->scoped(ActivityLogService::class);

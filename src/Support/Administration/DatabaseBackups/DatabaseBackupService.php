@@ -15,6 +15,7 @@ use RuntimeException;
 class DatabaseBackupService
 {
     public function __construct(
+        private readonly DatabaseBackupCloudBackupService $cloudBackups,
         private readonly DatabaseBackupEncryptor $encryptor,
         private readonly DatabaseBackupSettings $settings,
     ) {}
@@ -119,9 +120,7 @@ class DatabaseBackupService
                 encrypted: str_ends_with($name, '.enc'),
             );
 
-            $this->enforceRetention();
-
-            return $backup;
+            return $this->finalizeBackup($backup);
         }
 
         $result = match ($driver) {
@@ -173,9 +172,7 @@ class DatabaseBackupService
             encrypted: str_ends_with($name, '.enc'),
         );
 
-        $this->enforceRetention();
-
-        return $backup;
+        return $this->finalizeBackup($backup);
     }
 
     public function importUploaded(UploadedFile $file): DatabaseBackupFile
@@ -242,6 +239,29 @@ class DatabaseBackupService
         if (! File::isFile($dumpPath)) {
             throw new RuntimeException('SQLite backup failed: no backup file was created.');
         }
+    }
+
+    private function finalizeBackup(DatabaseBackupFile $backup): DatabaseBackupFile
+    {
+        try {
+            $uploaded = $this->cloudBackups->uploadIfEnabled($backup->path, $backup->name);
+        } catch (\Throwable $throwable) {
+            report($throwable);
+            $uploaded = false;
+        }
+
+        $this->enforceRetention();
+
+        return $uploaded
+            ? new DatabaseBackupFile(
+                name: $backup->name,
+                path: $backup->path,
+                size: $backup->size,
+                createdAt: $backup->createdAt,
+                encrypted: $backup->encrypted,
+                storageLocations: ['local', 'cloud'],
+            )
+            : $backup;
     }
 
     private function makeImportedName(bool $encrypted): string
