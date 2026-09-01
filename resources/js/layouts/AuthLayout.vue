@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3'
 import {
+    I18n,
     currentLocale as activeLocale,
     loadLanguageAsync,
 } from 'laravel-vue-i18n'
@@ -38,6 +39,7 @@ const page = usePage<{
     appLogo?: string | null
     locale?: {
         current?: string
+        fallback?: string
         supported?: string[]
         labels?: Record<string, string>
     }
@@ -56,11 +58,9 @@ const appSubtitle = computed(() => {
 const appLogo = computed(() => page.props.appLogo ?? null)
 const slots = useSlots()
 const currentLocale = computed(
-    () => activeLocale.value || page.props.locale?.current || 'en',
+    () => page.props.locale?.current || activeLocale.value || 'en',
 )
-const supportedLocales = computed(
-    () => page.props.locale?.supported ?? ['de', 'en'],
-)
+const supportedLocales = computed(() => page.props.locale?.supported ?? [])
 const currentLocaleLabel = computed(() =>
     displayLocaleLabel(currentLocale.value),
 )
@@ -94,6 +94,10 @@ async function switchLocale(code: string): Promise<void> {
     if (code === currentLocale.value) {
         return
     }
+
+    I18n.getSharedInstance().setOptions({
+        fallbackLang: page.props.locale?.fallback ?? 'en',
+    })
 
     router.post(
         locale.set.url(),

@@ -124,7 +124,7 @@ final readonly class ApplyCorePanelRuntimeSettings
         $supportedLocales = $this->settings->get(
             'i18n',
             'languages',
-            SupportedLocales::availableCodes(),
+            [],
         );
         $supportedLocaleCodes = SupportedLocales::normalize($supportedLocales);
         $resolvedTimezone = is_string($timezone) && $timezone !== '' ? $timezone : config('app.timezone', 'UTC');
@@ -134,7 +134,9 @@ final readonly class ApplyCorePanelRuntimeSettings
         date_default_timezone_set($resolvedTimezone);
         config()->set('app.locale', is_string($defaultLocale) && $defaultLocale !== '' ? $defaultLocale : config('app.locale', 'de'));
         config()->set('app.fallback_locale', is_string($fallbackLocale) && $fallbackLocale !== '' ? $fallbackLocale : config('app.fallback_locale', 'en'));
-        config()->set('app.languages', SupportedLocales::labelsFor($supportedLocaleCodes));
+        if ($supportedLocaleCodes !== []) {
+            config()->set('app.languages', SupportedLocales::labelsFor($supportedLocaleCodes));
+        }
         config()->set('core-panel.auth.registration_enabled', $registrationEnabled);
         config()->set('core-panel.auth.email_verification_enabled', $emailVerificationEnabled);
         config()->set('core-panel.auth.password_reset_enabled', $passwordResetEnabled);

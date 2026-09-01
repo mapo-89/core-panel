@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
+use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
 use CorePanel\Models\Setting;
 use CorePanel\Support\Settings\SettingsRepository;
 use CorePanel\Tests\FakeUser;
@@ -431,4 +432,43 @@ it('applies saved runtime settings to the request config', function (): void {
         ->and(config('app.languages'))->toBe([
             'de' => 'Deutsch',
         ]);
+});
+
+it('does not expose fallback locales when no active languages are configured', function (): void {
+    $settings = app(SettingsRepository::class);
+
+    config()->set('app.languages', [
+        'de' => 'Deutsch',
+        'en' => 'English',
+    ]);
+    config()->set('core-panel.i18n.supported_locales', ['de', 'en']);
+
+    (new ApplyCorePanelRuntimeSettings($settings))
+        ->handle(Request::create('/settings', 'GET'), static fn () => response('ok'));
+
+    expect(config('core-panel.i18n.supported_locales'))->toBe([])
+        ->and(config('app.languages'))->toBe([
+            'de' => 'Deutsch',
+            'en' => 'English',
+        ]);
+});
+
+it('shares the active language selection with Inertia after applying runtime settings', function (): void {
+    $settings = app(SettingsRepository::class);
+    $settings->set('i18n', 'languages', ['de'], 'multiselect', true);
+
+    $request = Request::create('/settings', 'GET');
+
+    (new ApplyCorePanelRuntimeSettings($settings))->handle(
+        $request,
+        static fn (Request $request) => (new ShareLocaleDataWithInertia(config()))->handle(
+            $request,
+            static fn () => response('ok'),
+        ),
+    );
+
+    expect($request->attributes->get('core-panel.locale'))->toMatchArray([
+        'supported' => ['de'],
+        'labels' => ['de' => 'Deutsch'],
+    ]);
 });

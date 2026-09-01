@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3'
 import {
+    I18n,
     currentLocale as activeLocale,
     loadLanguageAsync,
 } from 'laravel-vue-i18n'
@@ -21,6 +22,7 @@ const props = withDefaults(
 const page = usePage<{
     locale: {
         current: string
+        fallback?: string
         supported: string[]
         labels?: Record<string, string>
     }
@@ -34,13 +36,17 @@ const options = computed<LocaleOption[]>(() => {
 })
 
 const currentLocale = computed(
-    () => activeLocale.value || page.props.locale?.current || 'de',
+    () => page.props.locale?.current || activeLocale.value || 'de',
 )
 
 async function switchLocale(localeCode: string): Promise<void> {
     if (localeCode === currentLocale.value) {
         return
     }
+
+    I18n.getSharedInstance().setOptions({
+        fallbackLang: page.props.locale?.fallback ?? 'en',
+    })
 
     router.post(
         locale.set.url(),
@@ -62,7 +68,10 @@ async function switchLocale(localeCode: string): Promise<void> {
 </script>
 
 <template>
-    <div :class="props.compact ? 'grid min-w-[6.5rem] gap-2' : 'grid gap-2'">
+    <div
+        v-if="options.length > 1"
+        :class="props.compact ? 'grid min-w-[6.5rem] gap-2' : 'grid gap-2'"
+    >
         <label
             v-if="!props.compact"
             class="text-xs font-semibold text-[var(--cp-text-muted)]"

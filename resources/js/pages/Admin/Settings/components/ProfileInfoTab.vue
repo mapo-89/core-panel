@@ -37,6 +37,15 @@ const localeOptions = computed(() =>
         value: locale,
     })),
 )
+const selectedLocale = computed(() => {
+    const userLocale = user.value?.locale
+
+    if (userLocale && page.props.locale.supported.includes(userLocale)) {
+        return userLocale
+    }
+
+    return page.props.locale.supported[0] ?? ''
+})
 
 const initials = computed(() => {
     const firstName = user.value?.firstName?.trim() ?? ''
@@ -53,7 +62,7 @@ const form = useForm({
     email: user.value?.email ?? '',
     first_name: user.value?.firstName ?? '',
     last_name: user.value?.lastName ?? '',
-    locale: user.value?.locale ?? page.props.locale.supported[0] ?? 'de',
+    locale: selectedLocale.value,
 })
 
 const nameSchema = computed<FormSchema>(() => [
@@ -75,13 +84,17 @@ const detailsSchema = computed<FormSchema>(() => [
         name: 'email',
         type: 'email',
     },
-    {
-        label: trans('common.ui.locale'),
-        name: 'locale',
-        options: localeOptions.value,
-        placeholder: trans('common.ui.locale_select'),
-        type: 'select',
-    },
+    ...(localeOptions.value.length > 1
+        ? [
+              {
+                  label: trans('common.ui.locale'),
+                  name: 'locale',
+                  options: localeOptions.value,
+                  placeholder: trans('common.ui.locale_select'),
+                  type: 'select' as const,
+              },
+          ]
+        : []),
 ])
 
 function submit(): void {
@@ -97,7 +110,7 @@ function updateForm(value: Record<string, unknown>): void {
     form.first_name = String(value.first_name ?? '')
     form.last_name = String(value.last_name ?? '')
     form.email = String(value.email ?? '')
-    form.locale = String(value.locale ?? page.props.locale.supported[0] ?? 'de')
+    form.locale = String(value.locale ?? selectedLocale.value)
 }
 </script>
 

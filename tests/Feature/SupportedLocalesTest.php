@@ -66,7 +66,7 @@ it('falls back to core panel locales and native labels when app languages are no
         ]);
 });
 
-it('normalizes configured locale settings against the configured language source', function (): void {
+it('normalizes configured locale settings without adding unselected languages', function (): void {
     config()->set('app.languages', [
         'de' => 'Deutsch',
         'en' => 'English',
@@ -74,7 +74,7 @@ it('normalizes configured locale settings against the configured language source
     config()->set('core-panel.i18n.supported_locales', ['de']);
 
     expect(SupportedLocales::normalize(['de', '', 'de', 'en']))->toBe(['de', 'en'])
-        ->and(SupportedLocales::normalize([]))->toContain('de', 'en')
+        ->and(SupportedLocales::normalize([]))->toBe([])
         ->and(SupportedLocales::codes())->toBe(['de'])
         ->and(SupportedLocales::labelsFor(['de']))->toBe(['de' => 'Deutsch']);
 });

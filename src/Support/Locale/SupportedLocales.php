@@ -49,12 +49,10 @@ final class SupportedLocales
     {
         $config ??= config();
 
-        /** @var list<string> $configuredLocales */
-        $configuredLocales = array_values((array) $config->get('core-panel.i18n.supported_locales', []));
-        $normalizedLocales = self::normalizeCodes($configuredLocales);
+        $configuredLocales = $config->get('core-panel.i18n.supported_locales');
 
-        if ($normalizedLocales !== []) {
-            return $normalizedLocales;
+        if (is_array($configuredLocales)) {
+            return self::normalizeCodes($configuredLocales);
         }
 
         return self::availableCodes($config);
@@ -65,13 +63,7 @@ final class SupportedLocales
      */
     public static function normalize(mixed $locales, ?ConfigRepository $config = null): array
     {
-        $normalized = self::normalizeCodes(is_array($locales) ? $locales : []);
-
-        if ($normalized !== []) {
-            return $normalized;
-        }
-
-        return self::availableCodes($config);
+        return self::normalizeCodes(is_array($locales) ? $locales : []);
     }
 
     /**
