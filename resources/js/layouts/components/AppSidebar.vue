@@ -81,8 +81,11 @@ provide('adminMenu', { isGroupOpen, isItemActive })
 
 const isCollapsed = computed(() => props.collapsed && !props.isMobile)
 const isHovered = ref(false)
-const effectiveCollapsed = computed(() => isCollapsed.value && !isHovered.value)
 const tenantSwitcherMenuOpen = ref(false)
+const effectiveCollapsed = computed(
+    () =>
+        isCollapsed.value && !isHovered.value && !tenantSwitcherMenuOpen.value,
+)
 const tenantSwitcherMenuRef = ref()
 const tenantSwitcherQuery = ref('')
 const tenantSwitcherMenuItems = computed<TenantSwitcherMenuItem[]>(() =>
@@ -150,7 +153,7 @@ function switchTenant(option: TenantSwitcherOption): void {
     <aside
         class="app-sidebar"
         :class="{
-            'app-sidebar--collapsed': isCollapsed,
+            'app-sidebar--collapsed': isCollapsed && !tenantSwitcherMenuOpen,
             'app-sidebar--hidden': isMobile && !mobileOpen,
         }"
         @mouseenter="isHovered = true"

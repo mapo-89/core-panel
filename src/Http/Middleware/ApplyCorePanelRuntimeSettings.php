@@ -134,6 +134,12 @@ final readonly class ApplyCorePanelRuntimeSettings
         date_default_timezone_set($resolvedTimezone);
         config()->set('app.locale', is_string($defaultLocale) && $defaultLocale !== '' ? $defaultLocale : config('app.locale', 'de'));
         config()->set('app.fallback_locale', is_string($fallbackLocale) && $fallbackLocale !== '' ? $fallbackLocale : config('app.fallback_locale', 'en'));
+        if (! config()->has('core-panel.i18n.available_language_labels')) {
+            config()->set(
+                'core-panel.i18n.available_language_labels',
+                SupportedLocales::labelsFor(SupportedLocales::availableCodes()),
+            );
+        }
         if ($supportedLocaleCodes !== []) {
             config()->set('app.languages', SupportedLocales::labelsFor($supportedLocaleCodes));
         }

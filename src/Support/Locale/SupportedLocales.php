@@ -16,7 +16,10 @@ final class SupportedLocales
         $config ??= config();
 
         /** @var array<string, string> $configuredLanguages */
-        $configuredLanguages = (array) $config->get('app.languages', []);
+        $configuredLanguages = (array) $config->get(
+            'core-panel.i18n.available_language_labels',
+            $config->get('app.languages', []),
+        );
 
         return collect($configuredLanguages)
             ->filter(static fn (string $label, string $locale): bool => $locale !== '' && $label !== '')

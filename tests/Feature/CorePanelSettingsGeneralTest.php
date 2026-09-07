@@ -6,6 +6,7 @@ use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
 use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
 use CorePanel\Models\Setting;
 use CorePanel\Support\Settings\SettingsRepository;
+use CorePanel\Support\Settings\SettingsSchema;
 use CorePanel\Tests\FakeUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -395,10 +396,7 @@ it('applies saved runtime settings to the request config', function (): void {
     $settings->set('i18n', 'fallback_locale', 'en', 'select', true);
     $settings->set('i18n', 'languages', ['de'], 'multiselect', true);
 
-    config()->set('app.languages', [
-        'de' => 'Deutsch',
-        'en' => 'English',
-    ]);
+    config()->set('app.languages', []);
 
     expect(
         Setting::query()
@@ -421,6 +419,8 @@ it('applies saved runtime settings to the request config', function (): void {
 
     $middleware = new ApplyCorePanelRuntimeSettings($settings);
     $response = $middleware->handle(Request::create('/settings', 'GET'), static fn () => response('ok'));
+    $middleware->handle(Request::create('/settings', 'GET'), static fn () => response('ok'));
+    $availableLanguageOptions = data_get(SettingsSchema::group('i18n'), 'fields.languages.options', []);
 
     expect($response->getContent())->toBe('ok')
         ->and(config('app.name'))->toBe('Configured CorePanel')
@@ -429,9 +429,17 @@ it('applies saved runtime settings to the request config', function (): void {
         ->and(config('core-panel.i18n.default_locale'))->toBe('de')
         ->and(config('core-panel.i18n.fallback_locale'))->toBe('en')
         ->and(config('core-panel.i18n.supported_locales'))->toBe(['de'])
+        ->and(config('core-panel.i18n.available_language_labels'))->toBe([
+            'de' => 'Deutsch',
+            'en' => 'English',
+        ])
         ->and(config('app.languages'))->toBe([
             'de' => 'Deutsch',
-        ]);
+        ])
+        ->and($availableLanguageOptions)->toContain(
+            ['label' => 'Deutsch', 'value' => 'de'],
+            ['label' => 'English', 'value' => 'en'],
+        );
 });
 
 it('does not expose fallback locales when no active languages are configured', function (): void {

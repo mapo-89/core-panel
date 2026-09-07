@@ -1,5 +1,15 @@
 # Laravel CorePanel
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/mapo-89/core-panel.svg)](https://packagist.org/packages/mapo-89/core-panel)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE.md)
+[![Total Downloads](https://img.shields.io/packagist/dt/mapo-89/core-panel.svg)](https://packagist.org/packages/mapo-89/core-panel)
+[![PHP](https://img.shields.io/badge/PHP-8.5-777BB4.svg?logo=php&logoColor=white)](https://www.php.net/)
+[![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20.svg?logo=laravel&logoColor=white)](https://laravel.com/)
+[![GitHub stars](https://img.shields.io/github/stars/mapo-89/core-panel.svg?style=flat)](https://github.com/mapo-89/core-panel/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/mapo-89/core-panel.svg)](https://github.com/mapo-89/core-panel/commits/main)
+
+<a href="https://buymeacoffee.com/mapo"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60"></a>
+
 `mapo-89/core-panel` is a Laravel 13 admin package and scaffold built around Inertia v3, Vue 3, PrimeVue, Fortify, Passport, Socialite, Horizon, and Wayfinder.
 
 > Read-only split repository: this package repository is automatically synchronized from `mapo-89/core-panel-monorepo`.

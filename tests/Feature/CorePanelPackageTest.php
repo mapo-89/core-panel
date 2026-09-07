@@ -3014,6 +3014,15 @@ it('uses a scrollable main admin content container', function (): void {
         ->toContain('class="app-main flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pt-[4.5rem] pb-8 md:px-6 lg:px-8"');
 });
 
+it('keeps the expanding collapsed sidebar above the fixed app header', function (): void {
+    $adminStyles = file_get_contents(__DIR__.'/../../resources/css/theme/_admin.css');
+
+    expect($adminStyles)->not->toBeFalse()
+        ->and(preg_match('/\.app-sidebar\s*\{[^}]*z-index:\s*41;/s', $adminStyles))->toBe(1)
+        ->and(preg_match('/\.app-header\s*\{[^}]*z-index:\s*40;/s', $adminStyles))->toBe(1)
+        ->and($adminStyles)->toContain('.app-sidebar--collapsed:hover {');
+});
+
 it('uses wayfinder-driven user management endpoints in the user pages', function (): void {
     $index = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Index.vue');
     $create = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/Create.vue');
