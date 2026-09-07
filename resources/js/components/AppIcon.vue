@@ -66,7 +66,7 @@ import {
     Wrench,
     X,
     Zap,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 const props = withDefaults(
     defineProps<{

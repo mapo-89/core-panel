@@ -21,7 +21,7 @@ const hostThemePath = path.resolve(hostJsPath, 'theme/core-panel')
 const packageThemePath = path.resolve(packageJsPath, 'theme/core-panel')
 const additionalLangPaths = [
     path.resolve(__dirname, 'lang/vendor/core-panel'),
-    path.resolve(__dirname, '../resources/lang'),
+    path.resolve(__dirname, 'vendor/mapo-89/core-panel/resources/lang'),
 ].filter((candidate) => fs.existsSync(candidate))
 
 function resolveImportTarget(targetPath: string): string | null {
@@ -169,10 +169,10 @@ export default defineConfig({
                 ),
             },
             {
-                find: /^lucide-vue-next$/,
+                find: /^@lucide\/vue$/,
                 replacement: path.resolve(
                     __dirname,
-                    'node_modules/lucide-vue-next',
+                    'node_modules/@lucide/vue',
                 ),
             },
             {

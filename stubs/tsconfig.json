@@ -29,7 +29,7 @@
             "@primeuix/themes/types": ["./node_modules/@primeuix/themes/types"],
             "@vueuse/core": ["./node_modules/@vueuse/core"],
             "laravel-vue-i18n": ["./node_modules/laravel-vue-i18n"],
-            "lucide-vue-next": ["./node_modules/lucide-vue-next"],
+            "@lucide/vue": ["./node_modules/@lucide/vue"],
             "primevue": ["./node_modules/primevue"],
             "primevue/*": ["./node_modules/primevue/*"],
             "vue": ["./node_modules/vue"]

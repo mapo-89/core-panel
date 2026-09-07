@@ -846,7 +846,7 @@ it('adds laravel-vue-i18n to the scaffolded frontend dependencies', function ():
 
     expect($packageJson['dependencies'])->toHaveKey('laravel-vue-i18n')
         ->and($packageJson['dependencies'])->toHaveKey('@vueuse/core')
-        ->and($packageJson['dependencies'])->toHaveKey('lucide-vue-next')
+        ->and($packageJson['dependencies'])->toHaveKey('@lucide/vue', '^1.41.0')
         ->and($packageJson['dependencies'])->not->toHaveKey('primeicons')
         ->and($useColorMode)->toContain("import { useMediaQuery, useStorage } from '@vueuse/core'")
         ->and($useSidebar)->toContain("import { useMediaQuery, useStorage } from '@vueuse/core'")
@@ -1306,7 +1306,7 @@ it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 br
         ->and($contents)->toContain("import i18n from 'laravel-vue-i18n/vite'")
         ->and($contents)->toContain('const additionalLangPaths = [')
         ->and($contents)->toContain("path.resolve(__dirname, 'lang/vendor/core-panel')")
-        ->and($contents)->toContain("path.resolve(__dirname, '../resources/lang')")
+        ->and($contents)->toContain("path.resolve(__dirname, 'vendor/mapo-89/core-panel/resources/lang')")
         ->and($contents)->toContain('additionalLangPaths,')
         ->and($contents)->toContain("input: ['resources/css/app.css', 'resources/js/app.ts']")
         ->and($contents)->toContain("host: 'localhost'");
