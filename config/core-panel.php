@@ -128,6 +128,8 @@ return [
             'connect_timeout' => $env('SYSTEM_UPDATES_CONNECT_TIMEOUT', 'CORE_PANEL_SYSTEM_UPDATES_CONNECT_TIMEOUT', 3),
             'check_timeout' => $env('SYSTEM_UPDATES_CHECK_TIMEOUT', 'CORE_PANEL_SYSTEM_UPDATES_CHECK_TIMEOUT', 120),
             'update_timeout' => $env('SYSTEM_UPDATES_UPDATE_TIMEOUT', 'CORE_PANEL_SYSTEM_UPDATES_UPDATE_TIMEOUT', 600),
+            'status_store' => $env('SYSTEM_UPDATES_STATUS_STORE', 'CORE_PANEL_SYSTEM_UPDATES_STATUS_STORE', 'file'),
+            'restart_delay_seconds' => $env('SYSTEM_UPDATES_RESTART_DELAY_SECONDS', 'CORE_PANEL_SYSTEM_UPDATES_RESTART_DELAY_SECONDS', 3),
             'force_update_enabled' => $env('SYSTEM_UPDATES_FORCE_UPDATE_ENABLED', 'CORE_PANEL_SYSTEM_UPDATES_FORCE_UPDATE_ENABLED', false),
             'automatic' => [
                 'enabled' => $env('SYSTEM_UPDATES_AUTOMATIC_ENABLED', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_ENABLED', false),

@@ -30,8 +30,9 @@ final readonly class ScaffoldsCorePanelStubs
     ];
 
     /**
-     * Host-owned Docker/runtime files that should never be changed by the
-     * incremental update flow once an application has installed them.
+     * Host-owned Docker/runtime files that should never be replaced by the
+     * incremental update flow once an application has installed them. Explicit
+     * additive migrations may still extend a recognized configuration block.
      *
      * @var list<string>
      */
@@ -47,6 +48,17 @@ final readonly class ScaffoldsCorePanelStubs
         'docker-compose.prod.yml',
         'docker-compose.registry.yml',
         'docker-compose.yml',
+    ];
+
+    /**
+     * Environment mappings that must also reach existing, host-owned Docker
+     * Compose scaffolds without replacing the rest of those files.
+     *
+     * @var array<string, string>
+     */
+    private const UPDATE_PRESERVED_PHP_ENVIRONMENT_DEFAULTS = [
+        'SYSTEM_UPDATES_RESTART_DELAY_SECONDS' => '${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}',
+        'SYSTEM_UPDATES_STATUS_STORE' => '${SYSTEM_UPDATES_STATUS_STORE:-file}',
     ];
 
     /**
@@ -115,6 +127,7 @@ final readonly class ScaffoldsCorePanelStubs
         'routes/console.php',
         'routes/web.php',
         'scripts/smoke.sh',
+        'vite.config.ts',
     ];
 
     /**
@@ -270,6 +283,9 @@ final readonly class ScaffoldsCorePanelStubs
         'updater/main.go' => [
             'bef38635cb2ae2be66eaa0ef2ffa51da20ba6c2108c834c4d7f83a3b12466cb4',
         ],
+        'vite.config.ts' => [
+            '125a89df0aeabdd154fff978afb2c64005750ceb8792cb600513e11f3e38fdaf',
+        ],
     ];
 
     public function __construct(private Filesystem $files, private BackupManager $backups) {}
@@ -347,6 +363,13 @@ final readonly class ScaffoldsCorePanelStubs
             }
 
             if ($onlyManagedChanges && $this->isUpdatePreservedScaffold($relativePath)) {
+                $this->mergeUpdatePreservedPhpEnvironment(
+                    $relativePath,
+                    $sourcePath,
+                    $destinationPath,
+                    $root,
+                );
+
                 continue;
             }
 
@@ -414,6 +437,118 @@ final readonly class ScaffoldsCorePanelStubs
     private function isUpdatePreservedScaffold(string $relativePath): bool
     {
         return in_array($relativePath, self::UPDATE_PRESERVED_SCAFFOLDS, true);
+    }
+
+    private function mergeUpdatePreservedPhpEnvironment(
+        string $relativePath,
+        string $sourcePath,
+        string $destinationPath,
+        string $root,
+    ): void {
+        if (
+            ! in_array($relativePath, ['docker-compose.prod.yml', 'docker-compose.portainer.yml'], true)
+            || ! $this->files->isFile($destinationPath)
+        ) {
+            return;
+        }
+
+        $contents = (string) $this->files->get($destinationPath);
+        $lineEnding = str_contains($contents, "\r\n") ? "\r\n" : "\n";
+        $lines = preg_split('/\R/', $contents);
+
+        if (! is_array($lines)) {
+            return;
+        }
+
+        $blockStarts = array_keys(array_filter(
+            $lines,
+            fn (string $line): bool => $this->yamlLineStartsTopLevelMapping($line, 'x-php-environment'),
+        ));
+
+        if (count($blockStarts) !== 1) {
+            return;
+        }
+
+        $blockStart = $blockStarts[0];
+        $blockEnd = count($lines);
+        $indentation = null;
+
+        for ($index = $blockStart + 1; $index < count($lines); $index++) {
+            $line = $lines[$index];
+
+            if ($line !== '' && preg_match('/^[^\s#]/', $line) === 1) {
+                $blockEnd = $index;
+
+                break;
+            }
+
+            if (
+                $indentation === null
+                && preg_match("/^(\\s+)(?:[A-Za-z0-9_]+|\"[^\"]+\"|'[^']+')\\s*:/", $line, $matches) === 1
+            ) {
+                $indentation = $matches[1];
+            }
+        }
+
+        if ($indentation === null) {
+            return;
+        }
+
+        $missingMappings = [];
+
+        foreach (self::UPDATE_PRESERVED_PHP_ENVIRONMENT_DEFAULTS as $key => $value) {
+            $mappingExists = false;
+
+            for ($index = $blockStart + 1; $index < $blockEnd; $index++) {
+                if ($this->yamlLineHasMappingKey($lines[$index], $key)) {
+                    $mappingExists = true;
+
+                    break;
+                }
+            }
+
+            if (! $mappingExists) {
+                $missingMappings[] = $indentation.$key.': '.$value;
+            }
+        }
+
+        if ($missingMappings === []) {
+            return;
+        }
+
+        $insertionIndex = $blockEnd;
+
+        for ($index = $blockStart + 1; $index < $blockEnd; $index++) {
+            if ($this->yamlLineHasMappingKey($lines[$index], 'SYSTEM_UPDATES_TIMEOUT')) {
+                $insertionIndex = $index;
+
+                break;
+            }
+        }
+
+        array_splice($lines, $insertionIndex, 0, $missingMappings);
+        $mergedContents = implode($lineEnding, $lines);
+
+        $this->backups->backupPaths([$sourcePath => $destinationPath], $root);
+        $this->files->put($destinationPath, $mergedContents);
+        $this->storeScaffoldManifestEntry($relativePath, $sourcePath, $destinationPath, $root);
+    }
+
+    private function yamlLineHasMappingKey(string $line, string $key): bool
+    {
+        $escapedKey = preg_quote($key, '/');
+
+        return preg_match("/^\\s+(?:{$escapedKey}|\"{$escapedKey}\"|'{$escapedKey}')\\s*:/", $line) === 1;
+    }
+
+    private function yamlLineStartsTopLevelMapping(string $line, string $key): bool
+    {
+        $escapedKey = preg_quote($key, '/');
+
+        return preg_match(
+            "/^(?:{$escapedKey}|\"{$escapedKey}\"|'{$escapedKey}')\\s*:\\s*(?:&[^\\s#]+\\s*)?(?:#.*)?$/",
+            $line,
+        ) === 1;
     }
 
     /**
@@ -1006,6 +1141,7 @@ final readonly class ScaffoldsCorePanelStubs
             'updater/Dockerfile',
             'updater/go.mod',
             'updater/main.go',
+            'vite.config.ts',
         ], true);
     }
 

@@ -1029,7 +1029,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($addonPhpstanScript)->toContain('cd "${addon_path}"')
         ->and($addonPhpstanScript)->toContain('composer config repositories.core-panel')
         ->and($addonPhpstanScript)->toContain('composer update --no-interaction --no-progress --prefer-dist')
-        ->and($addonPhpstanScript)->toContain('vendor/bin/phpstan analyse --no-progress --memory-limit=1G -c phpstan.neon.dist')
+        ->and($addonPhpstanScript)->toContain('cd "${repo_root}"')
+        ->and($addonPhpstanScript)->toContain('php vendor/bin/phpstan analyse --no-progress --memory-limit=1G -c packages/core-panel-tenancy/phpstan.neon.dist')
         ->and($workflow)->toContain('name: Frontend Quality (core-package)')
         ->and($workflow)->toContain('name: Frontend Quality (tenancy-addon)')
         ->and($workflow)->toContain('bash .github/scripts/frontend-quality.sh core-package')
@@ -1053,6 +1054,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($workflow)->toContain('bash .github/scripts/install-smoke.sh core-package')
         ->and($workflow)->toContain('bash .github/scripts/install-smoke.sh tenancy-addon')
         ->and($installSmokeScript)->toContain('php artisan core-panel:install')
+        ->and($installSmokeScript)->toContain('composer require mapo-89/core-panel:dev-main --with-all-dependencies --no-interaction --prefer-dist')
         ->and($installSmokeScript)->toContain('mkdir -p "${repo_root}/apps"')
         ->and($installSmokeScript)->toContain('app_dir="${repo_root}/apps/ci-${variant}"')
         ->and($installSmokeScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel\\":\\"dev-main\\"}')
@@ -1066,8 +1068,9 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($provisionPlaygroundsScript)->toContain('composer config repositories.core-panel')
         ->and($provisionPlaygroundsScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel\\":\\"dev-main\\"}')
         ->and($provisionPlaygroundsScript)->toContain('\\"versions\\":{\\"mapo-89/core-panel-tenancy\\":\\"dev-main\\"}')
-        ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel:dev-main --no-interaction --prefer-dist')
-        ->and($provisionPlaygroundsScript)->toContain('composer require mapo-89/core-panel-tenancy:dev-main --no-interaction --prefer-dist')
+        ->and($provisionPlaygroundsScript)->toContain('local core_panel_packages=("mapo-89/core-panel:dev-main")')
+        ->and($provisionPlaygroundsScript)->toContain('core_panel_packages+=("mapo-89/core-panel-tenancy:dev-main")')
+        ->and($provisionPlaygroundsScript)->toContain('--with-all-dependencies')
         ->and($provisionPlaygroundsScript)->toContain('php artisan core-panel:install')
         ->and($provisionPlaygroundsScript)->toContain('--install-tenancy="${install_tenancy}"')
         ->and($provisionPlaygroundsScript)->toContain('npm ci')
@@ -1383,6 +1386,7 @@ it('ships passport-oriented defaults in the scaffold environment template', func
         ->and($contents)->toContain('DATABASE_BACKUPS_ENABLED=true')
         ->and($contents)->toContain('SYSTEM_UPDATES_ENABLED=true')
         ->and($contents)->toContain('SYSTEM_UPDATES_DOCKER_ONLY=true')
+        ->and($contents)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS=3')
         ->and($contents)->not->toContain('SANCTUM_STATEFUL_DOMAINS=')
         ->and($contents)->not->toContain('CORE_PANEL_API_DRIVER=')
         ->and($contents)->not->toContain('CORE_PANEL_DARK_MODE=')
@@ -1471,6 +1475,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($dockerfile)->toContain('default-mysql-client')
         ->and($dockerfile)->toContain('postgresql-client-${POSTGRES_CLIENT_MAJOR}')
         ->and($dockerfile)->toContain('sqlite3')
+        ->and($dockerfile)->toContain('RUN npm install --package-lock-only --ignore-scripts')
         ->and($dockerfile)->toContain('RUN npm ci')
         ->and($dockerfile)->toContain('install-php-extensions')
         ->and($phpDevDockerfile)->toContain('postgresql-client')
@@ -1523,6 +1528,8 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($portainerCompose)->toContain('container_name: core-panel-nginx')
         ->and($portainerCompose)->toContain('container_name: core-panel-postgres')
         ->and($portainerCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS: ${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_STATUS_STORE: ${SYSTEM_UPDATES_STATUS_STORE:-file}')
         ->and($portainerCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:?Set SYSTEM_UPDATES_TOKEN}')
         ->and($portainerCompose)->toContain('${PORTAINER_DATA_PATH:-/srv/docker/portainer/data}:/data:ro')
         ->and($portainerCompose)->toContain('proxy-network:')
@@ -1531,6 +1538,8 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($productionCompose)->toContain('target: nginx-prod')
         ->and($productionCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
         ->and($productionCompose)->toContain('x-php-environment: &php-environment')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS: ${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_STATUS_STORE: ${SYSTEM_UPDATES_STATUS_STORE:-file}')
         ->and($productionCompose)->toContain('system-updater:')
         ->and($productionCompose)->toContain('UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-docker-compose.prod.yml}')
         ->and($productionCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:-}')
@@ -3706,4 +3715,247 @@ it('bundles fixed passport, activitylog, and medialibrary migrations from instal
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000021_change_activity_log_morph_ids_to_strings.php'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/database/migrations/2026_01_01_000022_change_media_model_morph_ids_to_strings.php'))->toBeFalse()
         ->and($mediaMigration)->toContain("Schema::create('media'");
+});
+
+it('ships the persistent system update restart and completion experience', function (): void {
+    $dialog = file_get_contents(__DIR__.'/../../resources/js/components/Dialogs/SystemUpdateRestartDialog.vue');
+    $polling = file_get_contents(__DIR__.'/../../resources/js/composables/useSystemRestartPolling.ts');
+    $tab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/SystemUpdatesTab.vue');
+    preg_match(
+        '/function observeRestartTransition\(\): void \{(?<body>.*?)\n\}\n\nfunction startRestartStatusPolling/s',
+        $tab,
+        $restartTransitionMatches,
+    );
+    $restartTransition = $restartTransitionMatches['body'] ?? '';
+
+    expect($dialog)
+        ->toContain('restart_dialog_title')
+        ->toContain("header: { class: 'relative' }")
+        ->toContain("headerActions: { class: 'absolute right-5' }")
+        ->toContain("title: { class: 'w-full text-center' }")
+        ->toContain(':closable="canClose"')
+        ->toContain(':close-on-escape="canClose"')
+        ->toContain(':dismissable-mask="false"')
+        ->toContain('restart_dialog_timeout')
+        ->toContain('system_updates.update_completed')
+        ->toContain('system_updates.update_failed')
+        ->toContain('props.failureMessage ||')
+        ->toContain('circle-check-big')
+        ->toContain('triangle-alert')
+        ->toContain("emit('close')")
+        ->and($polling)
+        ->toContain('const DEFAULT_INTERVAL_MS = 3_000')
+        ->toContain('const DEFAULT_TIMEOUT_MS = 120_000')
+        ->toContain('const unavailable = ref(false)')
+        ->toContain('unavailable.value = true')
+        ->toContain('return { active, start, stop, timedOut, unavailable }')
+        ->toContain('const restartConfirmed = options.isRestartConfirmed?.() ?? true')
+        ->toMatch('/if \(!restartConfirmed \|\| timeoutTimer !== null\) \{\s+return/s')
+        ->toMatch('/response\.ok &&\s+unavailableObserved &&\s+restartConfirmed &&\s+active\.value/s')
+        ->toMatch('/function observeUnavailable\(\): void \{.*?timeoutTimer = window\.setTimeout/s')
+        ->toMatch('/if \(!response\.ok\) \{\s*observeUnavailable\(\)/')
+        ->toMatch('/catch \{\s*observeUnavailable\(\)/')
+        ->toMatch('/unavailableObserved = false;?\s*void poll\(\);?/')
+        ->toContain('window.location.reload()')
+        ->toContain('if (active.value)')
+        ->toContain('onUnmounted(stop)')
+        ->and(substr_count($polling, 'timeoutTimer = window.setTimeout'))->toBe(1)
+        ->and($tab)
+        ->toContain('response.status !== 202 || body.accepted !== true')
+        ->toContain('restartDialogVisible.value = true')
+        ->toContain("phase: 'waiting'")
+        ->toContain('restartObserved: false')
+        ->toContain('runningObserved: false')
+        ->toContain('marker = { ...marker, runningObserved: true }')
+        ->toContain('function observeRestartTransition(): void')
+        ->toContain('marker.runningObserved !== true')
+        ->toContain('writeRestartMarker({ ...marker, restartObserved: true })')
+        ->toMatch('/if \(!response\.ok && response\.status >= 500\) \{\s*observeRestartTransition\(\)/s')
+        ->toMatch('/catch \{\s*if \(!requestController\.signal\.aborted\) \{\s*observeRestartTransition\(\)/s')
+        ->toContain('isRestartConfirmed: () =>')
+        ->toContain('readRestartMarker()?.restartObserved === true')
+        ->toContain("marker.phase === 'recovered'")
+        ->not->toContain('Date.parse(status?.last_update_at')
+        ->toContain('let restartMarkerFallback: RestartMarker | null = null')
+        ->toContain('let restartMarkerStorageUsable = true')
+        ->toMatch('/if \(!restartMarkerStorageUsable\) \{\s+return restartMarkerFallback/s')
+        ->toMatch('/restartMarkerFallback = marker\s+try \{\s+window\.sessionStorage\.setItem/s')
+        ->toContain('function writeRestartMarker(marker: RestartMarker): boolean')
+        ->toContain('const markerPersisted = writeRestartMarker({')
+        ->toMatch('/if \(!markerPersisted\) \{.*?startRestartStatusPolling\(\).*?return/s')
+        ->toContain('restartMarkerStorageUsable = false')
+        ->toContain('return restartMarkerFallback')
+        ->toContain('function removeRestartMarker(): void')
+        ->toContain('removeRestartMarker()')
+        ->toContain("statusUrl.searchParams.set('attempt_id', requestedMarker.attemptId)")
+        ->toContain('fetch(statusUrl')
+        ->toMatch('/if \(response\.ok && payload\.logs\) \{\s+logsPayload\.value = payload\.logs/s')
+        ->toMatch("/status\\?\\.last_update_state === 'success'\\s*&&\\s*!status\\.update_running\\s*\\) \\{\\s*stopRestartPolling\\(\\)/")
+        ->toMatch("/const completionMarkerPersisted = writeRestartMarker\\(\\{.*?outcome: 'success'.*?phase: 'completed'.*?if \\(marker\\.phase !== 'recovered' && completionMarkerPersisted\\) \\{\\s*window\\.location\\.reload\\(\\)\\s*return/s")
+        ->toContain('restartStatusDeadline > 0')
+        ->toContain('const PRE_RESTART_TIMEOUT_MS = 10 * 60_000')
+        ->toContain('restartMarker.startedAt + PRE_RESTART_TIMEOUT_MS')
+        ->toContain('setRestartDeadlines(startedAt + PRE_RESTART_TIMEOUT_MS, 0)')
+        ->toContain('let restartDeadlineTimer: number | null = null')
+        ->toContain('function scheduleRestartDeadline(): void')
+        ->toContain('restartDeadlineTimer = window.setTimeout(')
+        ->toContain('Math.max(0, deadline - Date.now())')
+        ->toMatch('/restartDeadlineTimer = window\.setTimeout\(.*?expireRestartMonitoring\(\)/s')
+        ->toMatch('/function expireRestartMonitoring\(\): void \{.*?stopRestartStatusPolling\(\).*?restartDialogState\.value = \'timeout\'/s')
+        ->toContain('setRestartDeadlines(0, Date.now() + 120_000)')
+        ->toMatch('/restartStatusPollingActive = true\\s+scheduleRestartDeadline\\(\\)\\s+void checkRestartStatus\\(\\)/s')
+        ->toMatch('/watch\\(restartUnavailable, \\(unavailable\\) => \\{\\s+if \\(\\s*unavailable &&\\s*readRestartMarker\\(\\)\\?\\.restartObserved === true\\s*\\) \\{\\s*setRestartDeadlines\\(0, restartStatusDeadline\\)/s')
+        ->toContain('let restartStatusPollingActive = false')
+        ->toContain('let restartStatusRequestController: AbortController | null = null')
+        ->toContain('function stopRestartStatusPolling(): void')
+        ->toContain('window.clearTimeout(restartDeadlineTimer)')
+        ->toContain('restartStatusRequestController?.abort()')
+        ->toContain('if (!restartStatusPollingActive)')
+        ->toContain('signal: requestController.signal')
+        ->toMatch('/onUnmounted\\(\\(\\) => \\{\\s+stopRestartStatusPolling\\(\\)/')
+        ->toContain('attemptId?: string')
+        ->toContain('update_attempt_id?: string | null')
+        ->toContain('const updaterAttemptId = status?.update_attempt_id?.trim()')
+        ->toContain('updaterAttemptId === marker.attemptId')
+        ->toContain('const supportsAttemptCorrelation = Boolean(updaterAttemptId)')
+        ->toContain('matchesAttempt ||')
+        ->toMatch('/matchesAttempt \\|\\|\\s*\\(!supportsAttemptCorrelation &&\\s*\\(marker\\.runningObserved === true \\|\\|\\s*marker\\.phase === \'recovered\'/s')
+        ->toContain('body.attempt_id?.trim() || attemptId')
+        ->toContain('function createUpdateAttemptId(): string')
+        ->toContain('window.crypto.randomUUID()')
+        ->toContain('function beginRestartMonitoring(attemptId: string, startedAt: number): void')
+        ->toContain('body: JSON.stringify({ attempt_id: attemptId, force })')
+        ->toMatch('/catch \{\s+beginRestartMonitoring\(attemptId, restartStartedAt\)\s+\} finally/s')
+        ->toContain("restartDialogState.value = 'success'")
+        ->toContain("restartDialogState.value = 'failed'")
+        ->toContain('useSystemRestartPolling(props.routes.health, {')
+        ->toContain('const checkStarting = ref(false)')
+        ->toContain("detail: trans('system_updates.check_started')")
+        ->toContain(':loading="checkStarting"')
+        ->toContain(":class=\"{ 'animate-spin': checkStarting }\"")
+        ->toContain('checkStarting.value = false')
+        ->toContain("page.props.appName?.trim() || 'CorePanel'");
+
+    expect($restartTransition)
+        ->toContain('writeRestartMarker({ ...marker, restartObserved: true })')
+        ->not->toContain('preRestartDeadline = 0');
+});
+
+it('ships updater attempt correlation for terminal statuses between polls', function (): void {
+    $updater = file_get_contents(__DIR__.'/../../stubs/updater/main.go');
+    $updaterTest = file_get_contents(__DIR__.'/../../stubs/updater/main_test.go');
+
+    expect($updater)
+        ->toContain('AttemptResults')
+        ->toContain('json:"attempt_results,omitempty"')
+        ->toContain('UpdateAttemptID string')
+        ->toContain('server.state.UpdateAttemptID = attemptID')
+        ->toContain('request.Header.Get("X-Update-Attempt-ID")')
+        ->toContain('server.stateForAttempt(attemptID)')
+        ->toContain('[]string{"up", "-d", "--no-deps", "--force-recreate"}')
+        ->toContain('SelfUpdatePending bool')
+        ->toContain('server.state.SelfUpdatePending = true')
+        ->toContain('server.compose(server.selfUpdateHelperArgs(attemptID)...)')
+        ->toContain('"system-updater",')
+        ->toContain('innerComposeArgs := server.composeCommandArgs(')
+        ->toContain('if state.UpdateRunning && state.SelfUpdatePending')
+        ->toContain('completionAttemptID == server.state.UpdateAttemptID')
+        ->toContain('server.selfUpdateHelperIsLive()')
+        ->toContain('system update completed after verified updater service restart')
+        ->toContain('updater service restart was not confirmed')
+        ->and($updaterTest)
+        ->toContain('TestUpdateAttemptIDReadsAndTrimsHeader')
+        ->toContain('TestAttemptStatusUsesStoredStateWithoutInspectingImages')
+        ->toContain('TestNewUpdateAttemptIDReturnsUUID')
+        ->toContain('TestStateForAttemptRetainsTerminalResultAfterNextAttemptStarts')
+        ->toContain('TestRuntimeUpdateArgsForceRecreatesAllRuntimeServices')
+        ->toContain('TestSelfUpdateUsesIndependentComposeHelper')
+        ->toContain('expected self-update to remain nonterminal while Compose is running')
+        ->toContain('TestLoadStateCompletesPendingSelfUpdateAfterServiceRestart')
+        ->toContain('TestLoadStateDoesNotCompletePendingSelfUpdateWithoutConfirmation')
+        ->toContain('TestLoadStateFailsExpiredUnconfirmedSelfUpdate')
+        ->toContain('TestLoadStateKeepsExpiredSelfUpdateRunningWhileHelperHeartbeatIsFresh')
+        ->toContain('TestSelfUpdateHelperWritesCompletionAfterComposeSucceeds')
+        ->toContain('TestSelfUpdateHelperDoesNotConfirmFailedCompose');
+});
+
+it('keeps the framework health endpoint public and minimal in the application scaffold', function (): void {
+    $bootstrap = file_get_contents(__DIR__.'/../../stubs/bootstrap/app.php');
+
+    expect($bootstrap)
+        ->toContain("'health' => '/up'")
+        ->toContain('health: $healthRoute');
+});
+
+it('keeps Wayfinder action generation enabled for generated CRUD pages', function (): void {
+    $viteConfig = file_get_contents(__DIR__.'/../../stubs/vite.config.ts');
+    $scaffolder = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
+
+    expect($viteConfig)
+        ->toContain('? [wayfinder()]')
+        ->not->toContain('actions: false')
+        ->and($scaffolder)->toContain("'vite.config.ts'");
+});
+
+it('runs Composer binary proxies through PHP in the Makefile stub', function (): void {
+    $makefile = file_get_contents(__DIR__.'/../../stubs/Makefile');
+
+    expect($makefile)
+        ->toContain('PHP_PINT := php ./vendor/bin/pint')
+        ->toContain('PHP_STAN := php ./vendor/bin/phpstan');
+});
+
+it('provisions playground packages in one dependency-wide Composer transaction', function (): void {
+    $script = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
+
+    expect($script)
+        ->toContain('local core_panel_packages=("mapo-89/core-panel:dev-main")')
+        ->toContain('core_panel_packages+=("mapo-89/core-panel-tenancy:dev-main")')
+        ->toContain('"${core_panel_packages[@]}"')
+        ->toContain('--with-all-dependencies')
+        ->and(substr_count($script, 'composer require'))
+        ->toBe(1);
+});
+
+it('synchronizes merged frontend lockfiles before clean npm installs', function (): void {
+    $installSmokeScript = file_get_contents(__DIR__.'/../../../../.github/scripts/install-smoke.sh');
+    $provisionPlaygroundsScript = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
+    $dockerfile = file_get_contents(__DIR__.'/../../stubs/Dockerfile');
+
+    expect($installSmokeScript)
+        ->toMatch('/"\$\{install_args\[@\]\}"\s*\n\s*npm install --package-lock-only/')
+        ->not->toContain('"${install_args[@]}" &&')
+        ->and($provisionPlaygroundsScript)
+        ->toContain('npm install --package-lock-only')
+        ->toContain('npm ci')
+        ->and($dockerfile)
+        ->toContain('RUN npm install --package-lock-only --ignore-scripts')
+        ->toContain('RUN npm ci')
+        ->not->toContain('RUN npm ci --ignore-scripts');
+});
+
+it('allows playground provisioning to reuse standard database environment variables', function (): void {
+    $script = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
+    $readme = file_get_contents(__DIR__.'/../../../../README.md');
+
+    expect($script)
+        ->toContain('PLAYGROUND_DB_CONNECTION:-${DB_CONNECTION:-pgsql}')
+        ->toContain('PLAYGROUND_DB_HOST:-${DB_HOST:-${PGHOST:-127.0.0.1}}')
+        ->toContain('PLAYGROUND_DB_PORT:-${DB_PORT:-${PGPORT:-${default_db_port}}}')
+        ->toContain('PLAYGROUND_DB_USERNAME:-${DB_USERNAME:-${PGUSER:-${POSTGRES_USER:-core_panel}}}')
+        ->toContain('PLAYGROUND_DB_PASSWORD-${DB_PASSWORD-${PGPASSWORD-${POSTGRES_PASSWORD-core_panel}}}')
+        ->and($readme)
+        ->toContain("PLAYGROUND_DB_PASSWORD='your-password'");
+});
+
+it('backs up incomplete playgrounds before recreating their Laravel skeleton', function (): void {
+    $script = file_get_contents(__DIR__.'/../../../../.github/scripts/provision-playgrounds.sh');
+
+    expect($script)
+        ->toContain('ensure_playground_skeleton "${app_dir}" "${playground}"')
+        ->toContain('[[ ! -f "${app_dir}/bootstrap/app.php" ]]')
+        ->toContain('[[ ! -f "${app_dir}/artisan" ]]')
+        ->toContain('[[ ! -f "${app_dir}/composer.json" ]]')
+        ->toContain('mv "${app_dir}" "${backup_dir}"')
+        ->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0"');
 });

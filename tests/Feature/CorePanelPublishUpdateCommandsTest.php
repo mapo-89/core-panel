@@ -526,6 +526,7 @@ function criticalVersionedUpdateScaffoldPaths(): array
         'updater/Dockerfile',
         'updater/go.mod',
         'updater/main.go',
+        'vite.config.ts',
     ];
 }
 
@@ -571,6 +572,103 @@ it('versions the managed update scaffolds that still require host copies', funct
     )->not->toContain(
         'bootstrap/providers.php',
     );
+});
+
+it('creates a missing Vite scaffold during updates and records it in the manifest', function (): void {
+    $basePath = makePublishBasePath('missing-vite-scaffold');
+    $target = $basePath.'/vite.config.ts';
+    $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/vite.config.ts');
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    $manifestEntry = $manifest['files']['vite.config.ts'] ?? null;
+    $expectedHash = hash('sha256', $expectedContents);
+
+    expect(file_get_contents($target))->toBe($expectedContents)
+        ->and($manifestEntry)->toBeArray()
+        ->and($manifestEntry['source_hash'] ?? null)->toBe($expectedHash)
+        ->and($manifestEntry['destination_hash'] ?? null)->toBe($expectedHash)
+        ->and(glob($basePath.'/.core-panel-backups/*/vite.config.ts'))->toBe([]);
+});
+
+it('preserves an existing customized untracked Vite scaffold during updates', function (): void {
+    $basePath = makePublishBasePath('untracked-vite-scaffold');
+    $target = $basePath.'/vite.config.ts';
+    $hostContents = <<<'TYPESCRIPT'
+import customPlugin from 'custom-vite-plugin'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+    plugins: [customPlugin()],
+    resolve: { alias: { '@host': '/custom/host/path' } },
+})
+TYPESCRIPT;
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($target, $hostContents."\n");
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/vite.config.ts');
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    expect(file_get_contents($target))->toBe($hostContents."\n")
+        ->and($backups)->toBe([])
+        ->and($manifest['files']['vite.config.ts'] ?? null)->toBeNull();
+});
+
+it('backs up and updates a known legacy Vite scaffold without manifest tracking', function (): void {
+    $basePath = makePublishBasePath('known-legacy-vite-scaffold');
+    $target = $basePath.'/vite.config.ts';
+    $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/vite.config.ts');
+    $legacyContents = str_replace(
+        '? [wayfinder()]',
+        '? [wayfinder({ actions: false })]',
+        $expectedContents,
+    );
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($target, $legacyContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    $manifestEntry = $manifest['files']['vite.config.ts'] ?? null;
+    $backups = glob($basePath.'/.core-panel-backups/*/vite.config.ts');
+    $expectedHash = hash('sha256', $expectedContents);
+
+    expect(hash('sha256', $legacyContents))->toBe('125a89df0aeabdd154fff978afb2c64005750ceb8792cb600513e11f3e38fdaf')
+        ->and(file_get_contents($target))->toBe($expectedContents)
+        ->and($backups)->not->toBeFalse()
+        ->and($backups)->toHaveCount(1)
+        ->and(file_get_contents($backups[0]))->toBe($legacyContents)
+        ->and($manifestEntry)->toBeArray()
+        ->and($manifestEntry['source_hash'] ?? null)->toBe($expectedHash)
+        ->and($manifestEntry['destination_hash'] ?? null)->toBe($expectedHash);
 });
 
 it('keeps vendor-first administration pages absent during update for existing applications', function (): void {
@@ -2055,6 +2153,97 @@ it('keeps update-preserved docker scaffolds untouched during updates', function 
             ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([])
             ->and($manifest['files'][$relativePath] ?? null)->toBeNull();
     }
+});
+
+it('merges system update environment mappings into preserved production compose scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('merge-preserved-compose-environment');
+    mkdir($basePath, 0777, true);
+
+    $composeFiles = [
+        'docker-compose.prod.yml' => <<<'YAML'
+"x-php-environment": &custom-production-php # host-specific shared environment
+  APP_NAME: ${APP_NAME:-Custom Production}
+  "SYSTEM_UPDATES_STATUS_STORE": ${SYSTEM_UPDATES_STATUS_STORE:-redis}
+  SYSTEM_UPDATES_TIMEOUT: ${SYSTEM_UPDATES_TIMEOUT:-42}
+  CUSTOM_HOST_SETTING: preserved-production
+
+services:
+  app:
+    environment: *custom-production-php
+    labels:
+      custom.host: preserved
+YAML,
+        'docker-compose.portainer.yml' => <<<'YAML'
+'x-php-environment': &portainer-runtime # retained inline comment
+  APP_NAME: ${APP_NAME:-Custom Portainer}
+  'SYSTEM_UPDATES_RESTART_DELAY_SECONDS': ${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-9}
+  SYSTEM_UPDATES_TIMEOUT: ${SYSTEM_UPDATES_TIMEOUT:-84}
+  CUSTOM_HOST_SETTING: preserved-portainer
+
+services:
+  app:
+    environment: *portainer-runtime
+YAML,
+    ];
+
+    foreach ($composeFiles as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents."\n");
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $productionContents = (string) file_get_contents($basePath.'/docker-compose.prod.yml');
+    $portainerContents = (string) file_get_contents($basePath.'/docker-compose.portainer.yml');
+    $productionBackups = glob($basePath.'/.core-panel-backups/*/docker-compose.prod.yml');
+    $portainerBackups = glob($basePath.'/.core-panel-backups/*/docker-compose.portainer.yml');
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($productionContents)
+        ->toContain('"x-php-environment": &custom-production-php # host-specific shared environment')
+        ->toContain('environment: *custom-production-php')
+        ->toContain('CUSTOM_HOST_SETTING: preserved-production')
+        ->toContain('custom.host: preserved')
+        ->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS: ${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}')
+        ->toContain('"SYSTEM_UPDATES_STATUS_STORE": ${SYSTEM_UPDATES_STATUS_STORE:-redis}')
+        ->and(substr_count($productionContents, '  SYSTEM_UPDATES_RESTART_DELAY_SECONDS:'))->toBe(1)
+        ->and(preg_match_all("/^\\s+(?:SYSTEM_UPDATES_STATUS_STORE|\"SYSTEM_UPDATES_STATUS_STORE\"|'SYSTEM_UPDATES_STATUS_STORE')\\s*:/m", $productionContents))->toBe(1)
+        ->and($productionBackups)->not->toBeEmpty()
+        ->and(file_get_contents($productionBackups[0]))->toBe($composeFiles['docker-compose.prod.yml']."\n")
+        ->and($portainerContents)
+        ->toContain("'x-php-environment': &portainer-runtime # retained inline comment")
+        ->toContain('environment: *portainer-runtime')
+        ->toContain('CUSTOM_HOST_SETTING: preserved-portainer')
+        ->toContain("'SYSTEM_UPDATES_RESTART_DELAY_SECONDS': \${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-9}")
+        ->toContain('SYSTEM_UPDATES_STATUS_STORE: ${SYSTEM_UPDATES_STATUS_STORE:-file}')
+        ->and(preg_match_all("/^\\s+(?:SYSTEM_UPDATES_RESTART_DELAY_SECONDS|\"SYSTEM_UPDATES_RESTART_DELAY_SECONDS\"|'SYSTEM_UPDATES_RESTART_DELAY_SECONDS')\\s*:/m", $portainerContents))->toBe(1)
+        ->and(substr_count($portainerContents, '  SYSTEM_UPDATES_STATUS_STORE:'))->toBe(1)
+        ->and($portainerBackups)->not->toBeEmpty()
+        ->and(file_get_contents($portainerBackups[0]))->toBe($composeFiles['docker-compose.portainer.yml']."\n");
+
+    foreach (array_keys($composeFiles) as $relativePath) {
+        $manifestEntry = $manifest['files'][$relativePath] ?? null;
+        $sourceContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+
+        expect($manifestEntry)->toBeArray()
+            ->and($manifestEntry['destination_hash'] ?? null)->toBe(hash('sha256', (string) file_get_contents($basePath.'/'.$relativePath)))
+            ->and($manifestEntry['source_hash'] ?? null)->toBe(hash('sha256', $sourceContents))
+            ->and($manifestEntry['snapshot'] ?? null)->toBeString()
+            ->and(file_get_contents($basePath.'/'.$manifestEntry['snapshot']))->toBe($sourceContents);
+    }
+
+    $manifestContents = (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json');
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    expect(file_get_contents($basePath.'/docker-compose.prod.yml'))->toBe($productionContents)
+        ->and(file_get_contents($basePath.'/docker-compose.portainer.yml'))->toBe($portainerContents)
+        ->and(glob($basePath.'/.core-panel-backups/*/docker-compose.prod.yml'))->toBe($productionBackups)
+        ->and(glob($basePath.'/.core-panel-backups/*/docker-compose.portainer.yml'))->toBe($portainerBackups)
+        ->and(file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'))->toBe($manifestContents);
 });
 
 it('does not overwrite customized legacy critical scaffolds without a previous baseline during updates', function (): void {

@@ -13,6 +13,8 @@ use Throwable;
 
 final class SystemUpdaterClient
 {
+    public function __construct(private readonly SystemUpdateJobStatus $jobStatus) {}
+
     public function enabled(): bool
     {
         if (! (bool) config('core-panel.administration.system_updates.enabled', true)) {
@@ -39,9 +41,15 @@ final class SystemUpdaterClient
     /**
      * @return array<string, mixed>
      */
-    public function status(): array
+    public function status(?string $attemptId = null): array
     {
-        return $this->sanitizePayload($this->request()->get('/status')->throw()->json());
+        $request = $this->request();
+
+        if (is_string($attemptId) && trim($attemptId) !== '') {
+            $request = $request->withQueryParameters(['attempt_id' => trim($attemptId)]);
+        }
+
+        return $this->sanitizePayload($request->get('/status')->throw()->json());
     }
 
     /**
@@ -60,11 +68,16 @@ final class SystemUpdaterClient
     /**
      * @return array<string, mixed>
      */
-    public function update(): array
+    public function update(?string $attemptId = null): array
     {
+        $request = $this->request(timeout: (int) config('core-panel.administration.system_updates.update_timeout', 600));
+
+        if (is_string($attemptId) && trim($attemptId) !== '') {
+            $request = $request->withHeader('X-Update-Attempt-ID', trim($attemptId));
+        }
+
         return $this->sanitizePayload(
-            $this->request(timeout: (int) config('core-panel.administration.system_updates.update_timeout', 600))
-                ->post('/update')
+            $request->post('/update')
                 ->throw()
                 ->json(),
         );
@@ -81,51 +94,53 @@ final class SystemUpdaterClient
     /**
      * @return array<string, mixed>
      */
-    public function safeStatus(): array
+    public function safeStatus(?string $attemptId = null, bool $reportFailures = true): array
     {
         if (! $this->enabled()) {
-            return [
+            return $this->jobStatus->apply([
                 'configured' => false,
                 'error' => __('system_updates.disabled'),
                 'images' => [],
                 'update_available' => false,
                 'update_running' => false,
-            ];
+            ], $attemptId);
         }
 
         if (! $this->isConfigured()) {
-            return [
+            return $this->jobStatus->apply([
                 'configured' => false,
                 'error' => __('system_updates.not_configured'),
                 'images' => [],
                 'update_available' => false,
                 'update_running' => false,
-            ];
+            ], $attemptId);
         }
 
         try {
-            return $this->sanitizePayload([
-                ...$this->status(),
+            return $this->jobStatus->apply($this->sanitizePayload([
+                ...$this->status($attemptId),
                 'configured' => true,
                 'error' => null,
-            ]);
+            ]), $attemptId);
         } catch (Throwable $exception) {
-            report($exception);
+            if ($reportFailures) {
+                report($exception);
+            }
 
-            return [
+            return $this->jobStatus->apply([
                 'configured' => true,
                 'error' => __('system_updates.unreachable'),
                 'images' => [],
                 'update_available' => false,
                 'update_running' => false,
-            ];
+            ], $attemptId);
         }
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function safeLogs(): array
+    public function safeLogs(bool $reportFailures = true): array
     {
         if (! $this->enabled() || ! $this->isConfigured()) {
             return ['entries' => []];
@@ -134,7 +149,9 @@ final class SystemUpdaterClient
         try {
             return $this->logs();
         } catch (Throwable $exception) {
-            report($exception);
+            if ($reportFailures) {
+                report($exception);
+            }
 
             return ['entries' => []];
         }

@@ -79,6 +79,7 @@ FROM php-build-base AS frontend-build
 
 COPY package.json package-lock.json ./
 
+RUN npm install --package-lock-only --ignore-scripts
 RUN npm ci
 
 COPY . .

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,14 +46,24 @@ type LogEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type AttemptResult struct {
+	LastUpdateAt    *time.Time `json:"last_update_at,omitempty"`
+	LastUpdateState string     `json:"last_update_state,omitempty"`
+	UpdateAttemptID string     `json:"update_attempt_id"`
+	UpdateRunning   bool       `json:"update_running"`
+}
+
 type State struct {
-	Images          []ImageState `json:"images"`
-	LastCheckAt     *time.Time   `json:"last_check_at,omitempty"`
-	LastUpdateAt    *time.Time   `json:"last_update_at,omitempty"`
-	LastUpdateState string       `json:"last_update_state,omitempty"`
-	Logs            []LogEntry   `json:"logs"`
-	UpdateAvailable bool         `json:"update_available"`
-	UpdateRunning   bool         `json:"update_running"`
+	AttemptResults    map[string]AttemptResult `json:"attempt_results,omitempty"`
+	Images            []ImageState             `json:"images"`
+	LastCheckAt       *time.Time               `json:"last_check_at,omitempty"`
+	LastUpdateAt      *time.Time               `json:"last_update_at,omitempty"`
+	LastUpdateState   string                   `json:"last_update_state,omitempty"`
+	Logs              []LogEntry               `json:"logs"`
+	SelfUpdatePending bool                     `json:"self_update_pending,omitempty"`
+	UpdateAvailable   bool                     `json:"update_available"`
+	UpdateAttemptID   string                   `json:"update_attempt_id,omitempty"`
+	UpdateRunning     bool                     `json:"update_running"`
 }
 
 type Server struct {
@@ -88,6 +99,9 @@ const (
 	defaultComposeFiles       = "docker-compose.prod.yml"
 	defaultComposeProjectName = "core-panel"
 	defaultComposeWorkdir     = "/workspace"
+	maxAttemptResults         = 50
+	selfUpdateConfirmationTTL = 2 * time.Minute
+	selfUpdateHeartbeatPeriod = 10 * time.Second
 )
 
 var loadComposeLabelsFunc = loadComposeLabels
@@ -95,6 +109,14 @@ var commandOutputFunc = commandOutput
 var sleepFunc = time.Sleep
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "self-update-helper" {
+		if err := runSelfUpdateHelper(os.Args[2:]); err != nil {
+			log.Fatalf("self-update helper failed: %v", err)
+		}
+
+		return
+	}
+
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatalf("configuration error: %v", err)
@@ -366,6 +388,13 @@ func (server *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 func (server *Server) status(response http.ResponseWriter, request *http.Request) {
 	server.mu.Lock()
 	defer server.mu.Unlock()
+	server.reconcilePendingSelfUpdate()
+	attemptID := strings.TrimSpace(request.URL.Query().Get("attempt_id"))
+
+	if attemptID != "" {
+		writeJSON(response, http.StatusOK, server.stateForAttempt(attemptID))
+		return
+	}
 
 	images, err := server.collectImages()
 	if err == nil {
@@ -376,7 +405,7 @@ func (server *Server) status(response http.ResponseWriter, request *http.Request
 		server.addLog("error", fmt.Sprintf("status failed: %s", err.Error()))
 	}
 
-	writeJSON(response, http.StatusOK, server.state)
+	writeJSON(response, http.StatusOK, server.stateForAttempt(""))
 }
 
 func (server *Server) check(response http.ResponseWriter, request *http.Request) {
@@ -419,7 +448,7 @@ func (server *Server) check(response http.ResponseWriter, request *http.Request)
 	server.addLog("info", "image update check completed")
 	server.saveState()
 
-	writeJSON(response, http.StatusOK, server.state)
+	writeJSON(response, http.StatusOK, server.stateForAttempt(""))
 }
 
 func (server *Server) update(response http.ResponseWriter, request *http.Request) {
@@ -431,6 +460,12 @@ func (server *Server) update(response http.ResponseWriter, request *http.Request
 	}
 
 	now := time.Now().UTC()
+	attemptID := updateAttemptID(request)
+	if attemptID == "" {
+		attemptID = newUpdateAttemptID()
+	}
+	server.state.SelfUpdatePending = false
+	server.state.UpdateAttemptID = attemptID
 	server.state.UpdateRunning = true
 	server.state.LastUpdateAt = &now
 	server.state.LastUpdateState = "running"
@@ -438,14 +473,30 @@ func (server *Server) update(response http.ResponseWriter, request *http.Request
 	server.saveState()
 	server.mu.Unlock()
 
-	go server.runUpdate()
+	go server.runUpdate(attemptID)
 
 	server.mu.Lock()
 	defer server.mu.Unlock()
-	writeJSON(response, http.StatusAccepted, server.state)
+	writeJSON(response, http.StatusAccepted, server.stateForAttempt(attemptID))
 }
 
-func (server *Server) runUpdate() {
+func updateAttemptID(request *http.Request) string {
+	return strings.TrimSpace(request.Header.Get("X-Update-Attempt-ID"))
+}
+
+func newUpdateAttemptID() string {
+	value := make([]byte, 16)
+	if _, err := rand.Read(value); err == nil {
+		value[6] = (value[6] & 0x0f) | 0x40
+		value[8] = (value[8] & 0x3f) | 0x80
+
+		return fmt.Sprintf("%x-%x-%x-%x-%x", value[0:4], value[4:6], value[6:8], value[8:10], value[10:16])
+	}
+
+	return fmt.Sprintf("updater-%d", time.Now().UTC().UnixNano())
+}
+
+func (server *Server) runUpdate(attemptID string) {
 	err := server.compose("pull")
 	if err == nil {
 		err = server.compose(server.runtimeUpdateArgs()...)
@@ -455,10 +506,11 @@ func (server *Server) runUpdate() {
 
 	now := time.Now().UTC()
 	server.state.LastUpdateAt = &now
-	server.state.UpdateRunning = false
 
 	if err != nil {
+		server.state.UpdateRunning = false
 		server.state.LastUpdateState = "failed"
+		server.recordAttemptResult(attemptID)
 		server.addLog("error", fmt.Sprintf("system update failed: %s", err.Error()))
 		server.saveState()
 		server.mu.Unlock()
@@ -471,44 +523,200 @@ func (server *Server) runUpdate() {
 		server.state.UpdateAvailable = anyUpdateAvailable(images)
 	}
 
-	server.state.LastUpdateState = "success"
-	server.addLog("info", "system update completed")
-	server.saveState()
-	server.mu.Unlock()
-
 	if server.config.SelfUpdate {
-		if err := server.updateSelfService(); err != nil {
-			server.mu.Lock()
+		if err := server.clearSelfUpdateArtifacts(); err != nil {
+			server.state.UpdateRunning = false
 			server.state.LastUpdateState = "failed"
-			server.addLog("error", fmt.Sprintf("updater service update failed: %s", err.Error()))
+			server.recordAttemptResult(attemptID)
+			server.addLog("error", fmt.Sprintf("updater service update failed: could not clear helper markers: %s", err.Error()))
 			server.saveState()
 			server.mu.Unlock()
+			return
 		}
+
+		now = time.Now().UTC()
+		server.state.LastUpdateAt = &now
+		server.state.SelfUpdatePending = true
+		server.saveState()
+		server.mu.Unlock()
+
+		selfUpdateErr := server.updateSelfService(attemptID)
+
+		server.mu.Lock()
+		now = time.Now().UTC()
+		server.state.LastUpdateAt = &now
+		server.state.SelfUpdatePending = false
+		server.state.UpdateRunning = false
+
+		if selfUpdateErr != nil {
+			server.state.LastUpdateState = "failed"
+			server.recordAttemptResult(attemptID)
+			server.addLog("error", fmt.Sprintf("updater service update failed: %s", selfUpdateErr.Error()))
+			server.saveState()
+			server.mu.Unlock()
+			return
+		}
+
+		server.state.LastUpdateState = "success"
+		server.recordAttemptResult(attemptID)
+		server.addLog("info", "system update completed")
+		server.saveState()
+		server.mu.Unlock()
 
 		return
 	}
 
-	server.mu.Lock()
+	server.state.UpdateRunning = false
+	server.state.LastUpdateState = "success"
+	server.recordAttemptResult(attemptID)
+	server.addLog("info", "system update completed")
 	server.addLog("info", fmt.Sprintf("updater service self-update skipped for %q", server.config.SelfService))
 	server.saveState()
 	server.mu.Unlock()
 }
 
-func (server *Server) runtimeUpdateArgs() []string {
-	return append([]string{"up", "-d", "--no-deps"}, server.config.RuntimeServices...)
+func (server *Server) stateForAttempt(attemptID string) State {
+	state := server.state
+	state.AttemptResults = nil
+
+	if attemptID == "" || attemptID == state.UpdateAttemptID {
+		return state
+	}
+
+	result, exists := server.state.AttemptResults[attemptID]
+	if !exists {
+		return state
+	}
+
+	state.LastUpdateAt = result.LastUpdateAt
+	state.LastUpdateState = result.LastUpdateState
+	state.UpdateAttemptID = result.UpdateAttemptID
+	state.UpdateRunning = result.UpdateRunning
+
+	return state
 }
 
-func (server *Server) updateSelfService() error {
+func (server *Server) recordAttemptResult(attemptID string) {
+	if server.state.LastUpdateAt == nil {
+		return
+	}
+
+	server.recordAttemptResultState(attemptID, server.state.LastUpdateState, server.state.UpdateRunning, *server.state.LastUpdateAt)
+}
+
+func (server *Server) recordAttemptResultState(attemptID string, updateState string, updateRunning bool, updatedAt time.Time) {
+	if attemptID == "" {
+		return
+	}
+
+	if server.state.AttemptResults == nil {
+		server.state.AttemptResults = make(map[string]AttemptResult)
+	}
+
+	updatedAt = updatedAt.UTC()
+	server.state.AttemptResults[attemptID] = AttemptResult{
+		LastUpdateAt:    &updatedAt,
+		LastUpdateState: updateState,
+		UpdateAttemptID: attemptID,
+		UpdateRunning:   updateRunning,
+	}
+
+	for len(server.state.AttemptResults) > maxAttemptResults {
+		oldestAttemptID := ""
+		var oldestAt *time.Time
+
+		for candidateAttemptID, result := range server.state.AttemptResults {
+			if oldestAttemptID == "" || result.LastUpdateAt == nil || (oldestAt != nil && result.LastUpdateAt.Before(*oldestAt)) {
+				oldestAttemptID = candidateAttemptID
+				oldestAt = result.LastUpdateAt
+			}
+		}
+
+		delete(server.state.AttemptResults, oldestAttemptID)
+	}
+}
+
+func (server *Server) runtimeUpdateArgs() []string {
+	return append([]string{"up", "-d", "--no-deps", "--force-recreate"}, server.config.RuntimeServices...)
+}
+
+func (server *Server) updateSelfService(attemptID string) error {
 	server.mu.Lock()
 	server.addLog("info", fmt.Sprintf("updating updater service %q last", server.config.SelfService))
 	server.saveState()
 	server.mu.Unlock()
 
-	if err := server.compose("up", "-d", "--no-deps", server.config.SelfService); err != nil {
+	if err := server.compose(server.selfUpdateHelperArgs(attemptID)...); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (server *Server) selfUpdateHelperArgs(attemptID string) []string {
+	innerComposeArgs := server.composeCommandArgs("up", "-d", "--no-deps", server.config.SelfService)
+	helperArgs := []string{
+		"run",
+		"--rm",
+		"--no-deps",
+		"-T",
+		"--entrypoint",
+		"system-updater",
+		server.config.SelfService,
+		"self-update-helper",
+		server.config.StatePath,
+		attemptID,
+		server.config.Workdir,
+	}
+
+	return append(helperArgs, innerComposeArgs...)
+}
+
+func runSelfUpdateHelper(args []string) error {
+	if len(args) < 4 {
+		return errors.New("self-update-helper requires state path, attempt ID, workdir, and Docker arguments")
+	}
+
+	statePath := strings.TrimSpace(args[0])
+	attemptID := strings.TrimSpace(args[1])
+	workdir := strings.TrimSpace(args[2])
+	if statePath == "" || attemptID == "" {
+		return errors.New("self-update-helper requires a non-empty state path and attempt ID")
+	}
+
+	if err := writeSelfUpdateHeartbeat(statePath, attemptID); err != nil {
+		return fmt.Errorf("could not write self-update heartbeat: %w", err)
+	}
+
+	stopHeartbeat := make(chan struct{})
+	heartbeatStopped := make(chan struct{})
+	go func() {
+		defer close(heartbeatStopped)
+		ticker := time.NewTicker(selfUpdateHeartbeatPeriod)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := writeSelfUpdateHeartbeat(statePath, attemptID); err != nil {
+					log.Printf("failed to refresh self-update heartbeat: %v", err)
+				}
+			case <-stopHeartbeat:
+				return
+			}
+		}
+	}()
+	defer func() {
+		close(stopHeartbeat)
+		<-heartbeatStopped
+		_ = clearSelfUpdateHeartbeat(statePath)
+	}()
+
+	if _, err := commandOutputFunc(workdir, "docker", args[3:]...); err != nil {
+		return err
+	}
+
+	return writeSelfUpdateCompletion(statePath, attemptID)
 }
 
 func (server *Server) logs(response http.ResponseWriter, request *http.Request) {
@@ -624,6 +832,10 @@ func (server *Server) compose(args ...string) error {
 }
 
 func (server *Server) composeOutput(args ...string) ([]byte, error) {
+	return commandOutputFunc(server.config.Workdir, "docker", server.composeCommandArgs(args...)...)
+}
+
+func (server *Server) composeCommandArgs(args ...string) []string {
 	commandArgs := []string{"compose"}
 	if server.config.ComposeEnvFile != "" {
 		commandArgs = append(commandArgs, "--env-file", server.config.ComposeEnvFile)
@@ -634,7 +846,7 @@ func (server *Server) composeOutput(args ...string) ([]byte, error) {
 	}
 	commandArgs = append(commandArgs, args...)
 
-	return commandOutputFunc(server.config.Workdir, "docker", commandArgs...)
+	return commandArgs
 }
 
 func commandOutput(workdir string, name string, args ...string) ([]byte, error) {
@@ -675,10 +887,17 @@ func (server *Server) loadState() State {
 		return State{Logs: []LogEntry{}}
 	}
 
+	if state.UpdateRunning && state.SelfUpdatePending {
+		server.state = state
+		server.reconcilePendingSelfUpdate()
+		return server.state
+	}
+
 	if state.UpdateRunning {
 		server.state = state
 		server.state.UpdateRunning = false
 		server.state.LastUpdateState = "failed"
+		server.recordAttemptResult(server.state.UpdateAttemptID)
 		server.addLog("error", "stale running update state found on startup; marking update as failed")
 		server.saveState()
 
@@ -686,6 +905,140 @@ func (server *Server) loadState() State {
 	}
 
 	return state
+}
+
+func (server *Server) reconcilePendingSelfUpdate() {
+	if !server.state.UpdateRunning || !server.state.SelfUpdatePending {
+		return
+	}
+
+	completionAttemptID, err := server.readSelfUpdateCompletion()
+	if err == nil && completionAttemptID == server.state.UpdateAttemptID {
+		now := time.Now().UTC()
+		server.state.LastUpdateAt = &now
+		server.state.LastUpdateState = "success"
+		server.state.SelfUpdatePending = false
+		server.state.UpdateRunning = false
+		server.recordAttemptResult(server.state.UpdateAttemptID)
+		server.addLog("info", "system update completed after verified updater service restart")
+		server.saveState()
+		_ = server.clearSelfUpdateCompletion()
+		_ = server.clearSelfUpdateHeartbeat()
+		return
+	}
+	if server.selfUpdateHelperIsLive() {
+		return
+	}
+
+	if server.state.LastUpdateAt == nil || time.Since(*server.state.LastUpdateAt) < selfUpdateConfirmationTTL {
+		return
+	}
+
+	now := time.Now().UTC()
+	server.state.LastUpdateAt = &now
+	server.state.LastUpdateState = "failed"
+	server.state.SelfUpdatePending = false
+	server.state.UpdateRunning = false
+	server.recordAttemptResult(server.state.UpdateAttemptID)
+	server.addLog("error", "updater service restart was not confirmed")
+	server.saveState()
+}
+
+func selfUpdateCompletionPath(statePath string) string {
+	return statePath + ".self-update-complete"
+}
+
+func selfUpdateHeartbeatPath(statePath string) string {
+	return statePath + ".self-update-heartbeat"
+}
+
+func writeSelfUpdateCompletion(statePath string, attemptID string) error {
+	return writeSelfUpdateMarker(selfUpdateCompletionPath(statePath), attemptID)
+}
+
+func writeSelfUpdateHeartbeat(statePath string, attemptID string) error {
+	return writeSelfUpdateMarker(selfUpdateHeartbeatPath(statePath), attemptID)
+}
+
+func writeSelfUpdateMarker(path string, attemptID string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".self-update-marker-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+
+	if err := temporary.Chmod(0o640); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if _, err := temporary.WriteString(strings.TrimSpace(attemptID)); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(temporaryPath, path)
+}
+
+func (server *Server) readSelfUpdateCompletion() (string, error) {
+	content, err := os.ReadFile(selfUpdateCompletionPath(server.config.StatePath))
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(content)), nil
+}
+
+func (server *Server) selfUpdateHelperIsLive() bool {
+	path := selfUpdateHeartbeatPath(server.config.StatePath)
+	content, err := os.ReadFile(path)
+	if err != nil || strings.TrimSpace(string(content)) != server.state.UpdateAttemptID {
+		return false
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return time.Since(info.ModTime()) < selfUpdateConfirmationTTL
+}
+
+func (server *Server) clearSelfUpdateCompletion() error {
+	err := os.Remove(selfUpdateCompletionPath(server.config.StatePath))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	return err
+}
+
+func clearSelfUpdateHeartbeat(statePath string) error {
+	err := os.Remove(selfUpdateHeartbeatPath(statePath))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	return err
+}
+
+func (server *Server) clearSelfUpdateHeartbeat() error {
+	return clearSelfUpdateHeartbeat(server.config.StatePath)
+}
+
+func (server *Server) clearSelfUpdateArtifacts() error {
+	if err := server.clearSelfUpdateCompletion(); err != nil {
+		return err
+	}
+
+	return server.clearSelfUpdateHeartbeat()
 }
 
 func (server *Server) saveState() {

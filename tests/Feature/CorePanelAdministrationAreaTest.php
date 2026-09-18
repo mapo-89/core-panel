@@ -5,6 +5,8 @@ declare(strict_types=1);
 use CorePanel\Contracts\DatabaseBackupCloudUploader;
 use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\EnsureCorePanelEmailIsVerified;
+use CorePanel\Jobs\RunSystemUpdate;
+use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupEncryptor;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupFile;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupRestoreService;
@@ -12,17 +14,25 @@ use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupRestoreStatus
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupService;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSqlExportService;
+use CorePanel\Support\Administration\SystemUpdates\ApplicationHealthUrl;
+use CorePanel\Support\Administration\SystemUpdates\SystemUpdateJobStatus;
 use CorePanel\Tests\FakeUser;
+use Illuminate\Foundation\Configuration\ApplicationBuilder;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Sleep;
+use Illuminate\Support\Str;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -42,6 +52,7 @@ beforeEach(function (): void {
     config()->set('core-panel.administration.database_backups.path', $this->backupPath);
     config()->set('core-panel.administration.system_updates.enabled', true);
     config()->set('core-panel.administration.system_updates.docker_only', false);
+    app(SystemUpdateJobStatus::class)->clear();
 
     Gate::before(static fn (...$arguments): bool => true);
 });
@@ -67,6 +78,19 @@ function administrationUser(string ...$permissions): FakeUser
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     return $user;
+}
+
+function useAdministrationHealthRoute(string $path): void
+{
+    $router = new Router(app('events'), app());
+    $action = Closure::bind(static fn (): array => ['status' => 'up'], null, ApplicationBuilder::class);
+
+    if (! $action instanceof Closure) {
+        throw new RuntimeException('Unable to create the application health route fixture.');
+    }
+
+    $router->get($path, $action);
+    app()->instance(ApplicationHealthUrl::class, new ApplicationHealthUrl($router));
 }
 
 function mockHorizonStatus(string ...$statuses): void
@@ -152,6 +176,8 @@ it('renders the administration area with database backup, horizon, and system up
         ]),
     ]);
 
+    useAdministrationHealthRoute('/health');
+
     $this->actingAs(administrationUser('database-backups.view', 'horizon.view', 'system-updates.view'))
         ->withHeaders([
             'X-Inertia' => 'true',
@@ -176,6 +202,7 @@ it('renders the administration area with database backup, horizon, and system up
         ->assertJsonPath('props.databaseBackupsTab.settings.automatic_enabled', false)
         ->assertJsonPath('props.horizonTab.url', '/horizon')
         ->assertJsonPath('props.systemUpdatesTab.status.images.0.service', 'app')
+        ->assertJsonPath('props.systemUpdatesTab.routes.health', url('/health'))
         ->assertJsonPath('props.systemUpdatesTab.routes.status', route('core-panel.system-updates.status'));
 });
 
@@ -947,28 +974,673 @@ it('returns the system update status payload', function (): void {
     Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/logs');
 });
 
-it('allows forced system updates when the host-level force update setting is enabled', function (): void {
+it('reports a completed system update check after the updater finishes', function (): void {
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
-    config()->set('core-panel.administration.system_updates.force_update_enabled', false);
+
+    Http::fake([
+        'system-updater:8080/check' => Http::response([
+            'images' => [],
+            'update_available' => false,
+            'update_running' => false,
+        ]),
+    ]);
+
+    $this->actingAs(administrationUser('system-updates.update'))
+        ->from('/admin/system/administration?tab=system-updates')
+        ->post(route('core-panel.system-updates.check'))
+        ->assertRedirect('/admin/system/administration?tab=system-updates')
+        ->assertSessionHas('info', __('system_updates.check_completed'));
+
+    Http::assertSent(
+        fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/check',
+    );
+});
+
+it('returns the updater status when the auxiliary job status store is unavailable', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    config()->set('core-panel.administration.system_updates.status_store', 'unavailable-system-update-status-store');
+
+    Http::fake([
+        'system-updater:8080/status' => Http::response([
+            'images' => [],
+            'last_update_state' => 'success',
+            'update_available' => false,
+            'update_running' => false,
+        ]),
+        'system-updater:8080/logs' => Http::response(['entries' => []]),
+    ]);
+
+    Exceptions::fake();
+    $user = administrationUser('system-updates.view');
+
+    foreach (range(1, 3) as $_poll) {
+        $this->actingAs($user)
+            ->getJson(route('core-panel.system-updates.status'))
+            ->assertSuccessful()
+            ->assertJsonPath('status.error', null)
+            ->assertJsonPath('status.last_update_state', 'success')
+            ->assertJsonPath('status.update_running', false);
+    }
+
+    Exceptions::assertNothingReported();
+});
+
+it('returns the unreachable fallback when the updater and auxiliary job status store are unavailable', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    config()->set('core-panel.administration.system_updates.status_store', 'unavailable-system-update-status-store');
+
+    Http::fake([
+        'system-updater:8080/status' => Http::failedConnection(),
+        'system-updater:8080/logs' => Http::response(['entries' => []]),
+    ]);
+
+    Exceptions::fake();
+
+    $this->actingAs(administrationUser('system-updates.view'))
+        ->getJson(route('core-panel.system-updates.status'))
+        ->assertSuccessful()
+        ->assertJsonPath('status.configured', true)
+        ->assertJsonPath('status.error', __('system_updates.unreachable'))
+        ->assertJsonPath('status.update_running', false);
+
+    Exceptions::assertReportedCount(1);
+});
+
+it('does not report expected updater connection failures during restart polling', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    Http::fake([
+        'system-updater:8080/status*' => Http::failedConnection(),
+        'system-updater:8080/logs' => Http::failedConnection(),
+    ]);
+
+    Exceptions::fake();
+    $user = administrationUser('system-updates.view');
+    $attemptId = (string) Str::uuid();
+
+    foreach (range(1, 3) as $_poll) {
+        $this->actingAs($user)
+            ->getJson(route('core-panel.system-updates.status', ['attempt_id' => $attemptId]))
+            ->assertSuccessful()
+            ->assertJsonPath('status.configured', true)
+            ->assertJsonPath('status.error', __('system_updates.unreachable'))
+            ->assertJsonPath('status.update_running', false);
+    }
+
+    Exceptions::assertNothingReported();
+});
+
+it('accepts authorized system updates and dispatches the restart after the response', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
     config()->set('system-updates.force_update_enabled', true);
+    config()->set('core-panel.administration.system_updates.restart_delay_seconds', 3);
+    Bus::fake();
+    Http::fake();
+    useAdministrationHealthRoute('/health');
+
+    $user = administrationUser('system-updates.update');
+    $attemptId = (string) Str::uuid();
+    app(SystemUpdateJobStatus::class)->fail();
+
+    $this->actingAs($user)
+        ->postJson(route('core-panel.system-updates.update'), [
+            'attempt_id' => $attemptId,
+            'force' => true,
+        ])
+        ->assertAccepted()
+        ->assertJsonPath('accepted', true)
+        ->assertJsonPath('attempt_id', $attemptId)
+        ->assertJsonPath('health_url', url('/health'));
+
+    Bus::assertDispatchedAfterResponse(
+        RunSystemUpdate::class,
+        fn (RunSystemUpdate $job): bool => $job->user->is($user)
+            && $job->connection === 'sync'
+            && $job->delay === null
+            && $job->restartDelaySeconds === 3
+            && $job->attemptId === $attemptId,
+    );
+    expect(app(SystemUpdateJobStatus::class)->apply(['update_running' => false]))
+        ->not->toHaveKey('last_update_state');
+    Http::assertNothingSent();
+});
+
+it('rejects invalid client-generated system update attempt identifiers', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    Bus::fake();
+
+    $this->actingAs(administrationUser('system-updates.update'))
+        ->postJson(route('core-panel.system-updates.update'), ['attempt_id' => 'not-a-uuid'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('attempt_id');
+
+    Bus::assertNothingDispatched();
+});
+
+it('starts system updates after the response without an asynchronous queue worker', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    config()->set('core-panel.administration.system_updates.restart_delay_seconds', 3);
+    config()->set('queue.default', 'database');
+    Sleep::fake();
 
     Http::fake([
         'system-updater:8080/update' => Http::response([
             'images' => [],
-            'update_available' => true,
+            'update_available' => false,
             'update_running' => true,
         ]),
     ]);
 
     $this->actingAs(administrationUser('system-updates.update'))
-        ->post(route('core-panel.system-updates.update'), [
-            'force' => '1',
+        ->postJson(route('core-panel.system-updates.update'))
+        ->assertAccepted()
+        ->assertJsonPath('accepted', true);
+
+    Sleep::assertSlept(
+        static fn ($duration): bool => (int) $duration->totalSeconds === 3,
+    );
+    Http::assertSentCount(1);
+    Http::assertSent(
+        fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/update',
+    );
+});
+
+it('redirects non-JSON system update requests after dispatch', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    Bus::fake();
+
+    $user = administrationUser('system-updates.update');
+    $returnUrl = '/admin/administration?tab=system-updates';
+
+    $this->actingAs($user)
+        ->from($returnUrl)
+        ->withHeaders([
+            'Accept' => 'text/html, application/xhtml+xml',
+            'X-Inertia' => 'true',
+            'X-Requested-With' => 'XMLHttpRequest',
         ])
-        ->assertRedirect()
+        ->post(route('core-panel.system-updates.update'))
+        ->assertRedirect($returnUrl)
         ->assertSessionHas('success', __('system_updates.update_started'));
 
-    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/update');
+    Bus::assertDispatchedAfterResponse(
+        RunSystemUpdate::class,
+        fn (RunSystemUpdate $job): bool => $job->user->is($user),
+    );
+});
+
+it('waits inside the after-response job before requesting the updater', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+    Sleep::fake();
+
+    $updateRequested = false;
+
+    Sleep::whenFakingSleep(function () use (&$updateRequested): void {
+        expect($updateRequested)->toBeFalse();
+    });
+    Http::fake([
+        'system-updater:8080/update' => function () use (&$updateRequested) {
+            $updateRequested = true;
+
+            return Http::response([
+                'images' => [],
+                'update_available' => false,
+                'update_running' => true,
+            ]);
+        },
+    ]);
+
+    $user = administrationUser('system-updates.update');
+
+    dispatch_sync(new RunSystemUpdate($user, 7, 'attempt-123'));
+
+    Sleep::assertSlept(
+        static fn ($duration): bool => (int) $duration->totalSeconds === 7,
+    );
+    expect($updateRequested)->toBeTrue();
+    Http::assertSent(
+        fn (HttpRequest $request): bool => $request->hasHeader('X-Update-Attempt-ID', 'attempt-123'),
+    );
+});
+
+it('does not mark an accepted system update as failed when activity logging fails', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    Http::fake([
+        'system-updater:8080/update' => Http::response([
+            'images' => [],
+            'update_available' => false,
+            'update_running' => true,
+        ], 202),
+    ]);
+
+    $activityLog = Mockery::mock(ActivityLogService::class);
+    $activityLog->shouldReceive('withCauser')->once()->andReturnSelf();
+    $activityLog->shouldReceive('log')->once()->andThrow(new RuntimeException('Activity log unavailable.'));
+    $this->app->instance(ActivityLogService::class, $activityLog);
+
+    dispatch_sync(new RunSystemUpdate(administrationUser('system-updates.update'), 0));
+
+    Http::assertSent(
+        fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/update',
+    );
+    expect(app(SystemUpdateJobStatus::class)->apply(['update_running' => false]))
+        ->not->toHaveKey('last_update_state');
+});
+
+it('exposes terminal queued updater transport failures through status polling', function (Closure $updateResponse): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    Http::fake([
+        'system-updater:8080/update' => $updateResponse(),
+        'system-updater:8080/status' => Http::response([
+            'images' => [],
+            'last_update_at' => now()->subMinute()->toIso8601String(),
+            'last_update_state' => 'success',
+            'update_available' => true,
+            'update_running' => false,
+        ]),
+        'system-updater:8080/logs' => Http::response(['entries' => []]),
+    ]);
+
+    $user = administrationUser('system-updates.update', 'system-updates.view');
+    $thrown = null;
+
+    try {
+        dispatch_sync(new RunSystemUpdate($user, 0));
+    } catch (Throwable $exception) {
+        $thrown = $exception;
+    }
+
+    expect($thrown)->toBeInstanceOf(Throwable::class);
+
+    $this->actingAs($user)
+        ->getJson(route('core-panel.system-updates.status'))
+        ->assertSuccessful()
+        ->assertJsonPath('status.error', __('system_updates.action_failed'))
+        ->assertJsonPath('status.last_update_state', 'failed')
+        ->assertJsonPath('status.update_running', false)
+        ->assertJson(fn ($json) => $json
+            ->whereType('status.last_update_at', 'string')
+            ->etc());
+})->with([
+    'updater is unreachable' => [static fn (): Closure => Http::failedConnection()],
+    'updater rejects the token' => [static fn () => Http::response([], 401)],
+    'updater returns a server error' => [static fn () => Http::response([], 503)],
+]);
+
+it('keeps a transport failure scoped after a newer update attempt begins', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $failedAttemptId = (string) Str::uuid();
+    $newAttemptId = (string) Str::uuid();
+
+    $jobStatus->begin($failedAttemptId);
+    $jobStatus->fail($failedAttemptId);
+    $jobStatus->begin($newAttemptId);
+
+    $updaterStatus = [
+        'error' => null,
+        'last_update_state' => null,
+        'update_available' => true,
+        'update_running' => false,
+    ];
+
+    expect($jobStatus->apply($updaterStatus, $failedAttemptId))
+        ->toMatchArray([
+            'error' => __('system_updates.action_failed'),
+            'last_update_state' => 'failed',
+            'update_attempt_id' => $failedAttemptId,
+            'update_running' => false,
+        ])
+        ->and($jobStatus->apply($updaterStatus, $newAttemptId))
+        ->toMatchArray([
+            'error' => null,
+            'last_update_state' => null,
+            'update_running' => false,
+        ]);
+});
+
+it('preserves an updater-reported running state when a competing update job is rejected', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    $runningAttemptId = (string) Str::uuid();
+    $rejectedAttemptId = (string) Str::uuid();
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->begin($runningAttemptId);
+    $jobStatus->accept($runningAttemptId);
+
+    Http::fake([
+        'system-updater:8080/update' => Http::response([
+            'message' => 'update already running',
+        ], 409),
+        'system-updater:8080/status*' => Http::response([
+            'images' => [],
+            'last_update_at' => now()->subSecond()->toIso8601String(),
+            'last_update_state' => 'running',
+            'update_attempt_id' => $runningAttemptId,
+            'update_available' => true,
+            'update_running' => true,
+        ]),
+        'system-updater:8080/logs' => Http::response(['entries' => []]),
+    ]);
+
+    $user = administrationUser('system-updates.update', 'system-updates.view');
+    $thrown = null;
+
+    try {
+        dispatch_sync(new RunSystemUpdate($user, 0, $rejectedAttemptId));
+    } catch (Throwable $exception) {
+        $thrown = $exception;
+    }
+
+    expect($thrown)->toBeInstanceOf(Throwable::class);
+
+    $this->actingAs($user)
+        ->getJson(route('core-panel.system-updates.status', ['attempt_id' => $runningAttemptId]))
+        ->assertSuccessful()
+        ->assertJsonPath('status.error', null)
+        ->assertJsonPath('status.last_update_state', 'running')
+        ->assertJsonPath('status.update_attempt_id', $runningAttemptId)
+        ->assertJsonPath('status.update_running', true);
+
+    $this->actingAs($user)
+        ->getJson(route('core-panel.system-updates.status', ['attempt_id' => $rejectedAttemptId]))
+        ->assertSuccessful()
+        ->assertJsonPath('status.error', __('system_updates.update_conflict'))
+        ->assertJsonPath('status.last_update_state', 'failed')
+        ->assertJsonPath('status.update_attempt_id', $rejectedAttemptId)
+        ->assertJsonPath('status.update_running', false);
+
+    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/status?attempt_id='.$runningAttemptId);
+    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/status?attempt_id='.$rejectedAttemptId);
+});
+
+it('preserves a manual conflict while an uncorrelated automatic update is running', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $manualAttemptId = (string) Str::uuid();
+    $jobStatus->begin($manualAttemptId);
+    $jobStatus->reject($manualAttemptId);
+
+    $automaticUpdateStatus = [
+        'error' => null,
+        'last_update_state' => 'running',
+        'update_attempt_id' => null,
+        'update_available' => true,
+        'update_running' => true,
+    ];
+
+    expect($jobStatus->apply($automaticUpdateStatus, $manualAttemptId))
+        ->toMatchArray([
+            'error' => __('system_updates.update_conflict'),
+            'last_update_state' => 'failed',
+            'update_attempt_id' => $manualAttemptId,
+            'update_running' => false,
+        ])
+        ->and($jobStatus->apply($automaticUpdateStatus, $manualAttemptId))
+        ->toMatchArray([
+            'error' => __('system_updates.update_conflict'),
+            'last_update_state' => 'failed',
+            'update_attempt_id' => $manualAttemptId,
+            'update_running' => false,
+        ]);
+});
+
+it('preserves a scoped transport failure while an uncorrelated automatic update is running', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $manualAttemptId = (string) Str::uuid();
+    $jobStatus->begin($manualAttemptId);
+    $jobStatus->fail($manualAttemptId);
+
+    $automaticUpdateStatus = [
+        'error' => null,
+        'last_update_state' => 'running',
+        'update_attempt_id' => null,
+        'update_available' => true,
+        'update_running' => true,
+    ];
+
+    expect($jobStatus->apply($automaticUpdateStatus, $manualAttemptId))
+        ->toMatchArray([
+            'error' => __('system_updates.action_failed'),
+            'last_update_state' => 'failed',
+            'update_attempt_id' => $manualAttemptId,
+            'update_running' => false,
+        ])
+        ->and($jobStatus->apply($automaticUpdateStatus, $manualAttemptId))
+        ->toMatchArray([
+            'error' => __('system_updates.action_failed'),
+            'last_update_state' => 'failed',
+            'update_attempt_id' => $manualAttemptId,
+            'update_running' => false,
+        ]);
+});
+
+it('discards a queued updater failure after the updater reports a newer result', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->fail();
+
+    Http::fake([
+        'system-updater:8080/status' => Http::response([
+            'images' => [],
+            'last_update_at' => now()->addMinute()->toIso8601String(),
+            'last_update_state' => 'success',
+            'update_available' => false,
+            'update_running' => false,
+        ]),
+        'system-updater:8080/logs' => Http::response(['entries' => []]),
+    ]);
+
+    $this->actingAs(administrationUser('system-updates.view'))
+        ->getJson(route('core-panel.system-updates.status'))
+        ->assertSuccessful()
+        ->assertJsonPath('status.error', null)
+        ->assertJsonPath('status.last_update_state', 'success');
+
+    expect($jobStatus->apply(['update_running' => false]))
+        ->not->toHaveKey('last_update_state');
+});
+
+it('preserves a successful updater result completed before a lost response is recorded as failed', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+
+    try {
+        Carbon::setTestNow('2026-09-09T10:00:00.100000Z');
+        $jobStatus->begin();
+
+        Carbon::setTestNow('2026-09-09T10:00:00.900000Z');
+        $jobStatus->fail();
+
+        $status = $jobStatus->apply([
+            'error' => null,
+            'last_update_at' => '2026-09-09T10:00:00.500000Z',
+            'last_update_state' => 'success',
+            'update_available' => false,
+            'update_running' => false,
+        ]);
+
+        expect($status)
+            ->toMatchArray([
+                'error' => null,
+                'last_update_at' => '2026-09-09T10:00:00.500000Z',
+                'last_update_state' => 'success',
+                'update_running' => false,
+            ])
+            ->and($jobStatus->apply(['update_running' => false]))
+            ->not->toHaveKey('last_update_state');
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('preserves a matching terminal updater result without observing its running state', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->begin('attempt-123');
+    $jobStatus->fail('attempt-123');
+
+    $status = $jobStatus->apply([
+        'error' => null,
+        'last_update_at' => now()->subMinute()->toISOString(),
+        'last_update_state' => 'success',
+        'update_attempt_id' => 'attempt-123',
+        'update_available' => false,
+        'update_running' => false,
+    ]);
+
+    expect($status)
+        ->toMatchArray([
+            'error' => null,
+            'last_update_state' => 'success',
+            'update_attempt_id' => 'attempt-123',
+            'update_running' => false,
+        ])
+        ->and($jobStatus->apply(['update_running' => false]))
+        ->not->toHaveKey('last_update_state');
+});
+
+it('correlates an accepted terminal result from an older updater without attempt IDs', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->begin('attempt-123');
+    $jobStatus->accept('attempt-123');
+
+    $status = $jobStatus->apply([
+        'error' => null,
+        'last_update_at' => now()->toISOString(),
+        'last_update_state' => 'success',
+        'update_available' => false,
+        'update_running' => false,
+    ]);
+
+    expect($status)
+        ->toMatchArray([
+            'last_update_state' => 'success',
+            'update_attempt_id' => 'attempt-123',
+            'update_running' => false,
+        ])
+        ->and($jobStatus->apply(['update_running' => false]))
+        ->not->toHaveKey('update_attempt_id');
+});
+
+it('does not reconcile a scoped terminal result from a different update attempt', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->begin('current-attempt');
+    $jobStatus->fail('current-attempt');
+
+    $status = $jobStatus->apply([
+        'error' => null,
+        'last_update_at' => now()->addMinute()->toISOString(),
+        'last_update_state' => 'success',
+        'update_attempt_id' => 'other-attempt',
+        'update_available' => false,
+        'update_running' => false,
+    ], 'current-attempt');
+
+    expect($status)->toMatchArray([
+        'error' => __('system_updates.action_failed'),
+        'last_update_state' => 'failed',
+        'update_attempt_id' => 'current-attempt',
+        'update_running' => false,
+    ]);
+});
+
+it('does not let unscoped status adopt an older terminal result from a different update attempt', function (): void {
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->begin('current-attempt');
+    $jobStatus->fail('current-attempt');
+
+    $status = $jobStatus->apply([
+        'error' => null,
+        'last_update_at' => now()->subMinute()->toISOString(),
+        'last_update_state' => 'success',
+        'update_attempt_id' => 'older-attempt',
+        'update_available' => false,
+        'update_running' => false,
+    ]);
+
+    expect($status)->toMatchArray([
+        'error' => __('system_updates.action_failed'),
+        'last_update_state' => 'failed',
+        'update_attempt_id' => 'current-attempt',
+        'update_running' => false,
+    ]);
+});
+
+it('lets unscoped status adopt a newer terminal result from a different update attempt', function (bool $conflict): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    $jobStatus = app(SystemUpdateJobStatus::class);
+    $jobStatus->begin('manual-attempt');
+
+    if ($conflict) {
+        $jobStatus->reject('manual-attempt');
+    } else {
+        $jobStatus->fail('manual-attempt');
+    }
+
+    $expectedError = $conflict
+        ? __('system_updates.update_conflict')
+        : __('system_updates.action_failed');
+
+    Http::fake([
+        'system-updater:8080/status' => Http::response([
+            'images' => [],
+            'last_update_at' => now()->addMinute()->toISOString(),
+            'last_update_state' => 'success',
+            'update_attempt_id' => 'automatic-attempt',
+            'update_available' => false,
+            'update_running' => false,
+        ]),
+        'system-updater:8080/logs' => Http::response(['entries' => []]),
+    ]);
+
+    $this->actingAs(administrationUser('system-updates.view'))
+        ->getJson(route('core-panel.system-updates.status'))
+        ->assertSuccessful()
+        ->assertJsonPath('status.error', null)
+        ->assertJsonPath('status.last_update_state', 'success')
+        ->assertJsonPath('status.update_attempt_id', 'automatic-attempt')
+        ->assertJsonPath('status.update_running', false);
+
+    expect($jobStatus->apply(['update_running' => false], 'manual-attempt'))
+        ->toMatchArray([
+            'error' => $expectedError,
+            'last_update_state' => 'failed',
+            'update_attempt_id' => 'manual-attempt',
+            'update_running' => false,
+        ])
+        ->and($jobStatus->apply(['update_running' => false]))
+        ->not->toHaveKey('last_update_state');
+})->with([
+    'transport failure' => false,
+    'conflict' => true,
+]);
+
+it('forbids unauthorized system update starts', function (): void {
+    Bus::fake();
+
+    $gate = Gate::getFacadeRoot();
+    $beforeCallbacks = new ReflectionProperty($gate, 'beforeCallbacks');
+    $beforeCallbacks->setValue($gate, []);
+    $this->actingAs(administrationUser('system-updates.view'))
+        ->postJson(route('core-panel.system-updates.update'))
+        ->assertForbidden();
+
+    Bus::assertNothingDispatched();
 });
 
 it('runs the automatic system update command inside the maintenance window', function (): void {
@@ -1012,7 +1684,8 @@ it('runs the automatic system update command inside the maintenance window', fun
 
     Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/status');
     Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/check');
-    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/update');
+    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/update'
+        && Str::isUuid((string) ($request->header('X-Update-Attempt-ID')[0] ?? '')));
 });
 
 it('skips automatic system updates when only manual-update-required images are pending', function (): void {

@@ -9,6 +9,7 @@ use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupRestoreServic
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupService;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupTable;
+use CorePanel\Support\Administration\SystemUpdates\ApplicationHealthUrl;
 use CorePanel\Support\Administration\SystemUpdates\SystemUpdaterClient;
 use CorePanel\Support\Permissions\PermissionService;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -28,6 +29,7 @@ final class AdministrationController extends Controller
         private readonly DatabaseBackupSettings $backupSettings,
         private readonly DatabaseBackupService $backups,
         private readonly DatabaseBackupTable $backupTable,
+        private readonly ApplicationHealthUrl $healthUrl,
         private readonly PermissionService $permissions,
         private readonly SystemUpdaterClient $systemUpdater,
     ) {}
@@ -151,6 +153,7 @@ final class AdministrationController extends Controller
             'logs' => $this->systemUpdater->safeLogs(),
             'routes' => [
                 'check' => route('core-panel.system-updates.check'),
+                'health' => $this->healthUrl->resolve(),
                 'status' => route('core-panel.system-updates.status'),
                 'update' => route('core-panel.system-updates.update'),
             ],

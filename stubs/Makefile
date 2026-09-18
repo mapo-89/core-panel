@@ -3,9 +3,9 @@
 
 .DEFAULT_GOAL := help
 
-PHP_PINT := ./vendor/bin/pint
+PHP_PINT := php ./vendor/bin/pint
 PHP_ARTISAN := php artisan
-PHP_STAN := ./vendor/bin/phpstan
+PHP_STAN := php ./vendor/bin/phpstan
 
 help: ## ✨ Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)

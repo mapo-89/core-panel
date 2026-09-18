@@ -40,8 +40,8 @@ final class SupportedLocales
 
         return self::normalizeCodes([
             ...$labelCodes,
-            ...$filesystemCodes,
             ...$fallbackLocales,
+            ...$filesystemCodes,
         ]);
     }
 

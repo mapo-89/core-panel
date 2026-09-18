@@ -11,7 +11,7 @@ it('prefers app language keys as the available locale catalog', function (): voi
     ]);
     config()->set('core-panel.i18n.supported_locales', ['de']);
 
-    expect(SupportedLocales::availableCodes())->toContain('de', 'en')
+    expect(SupportedLocales::availableCodes())->toBe(['de', 'en'])
         ->and(SupportedLocales::codes())->toBe(['de'])
         ->and(SupportedLocales::labels())->toBe([
             'de' => 'Deutsch',
@@ -56,7 +56,7 @@ it('falls back to core panel locales and native labels when app languages are no
     config()->set('app.languages', []);
     config()->set('core-panel.i18n.supported_locales', ['de', 'en']);
 
-    expect(SupportedLocales::availableCodes())->toContain('de', 'en')
+    expect(SupportedLocales::availableCodes())->toBe(['de', 'en'])
         ->and(SupportedLocales::codes())->toBe(['de', 'en'])
         ->and(SupportedLocales::labels())->toBe([])
         ->and(SupportedLocales::labelsFor(['de', 'en', 'tr']))->toBe([

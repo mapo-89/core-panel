@@ -51,5 +51,9 @@ return [
         'updated' => 'Settings updated',
     ],
     'system' => 'System',
+    'system_updates' => [
+        'checked' => 'Checked for updates',
+        'updated' => 'System updated',
+    ],
     'updated' => 'Updated',
 ];

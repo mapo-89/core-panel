@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 final readonly class RunAutomaticSystemUpdateAction
@@ -57,9 +58,11 @@ final readonly class RunAutomaticSystemUpdateAction
                 ];
             }
 
-            $update = $this->updater->update();
+            $attemptId = (string) Str::uuid();
+            $update = $this->updater->update($attemptId);
 
             Log::info('Automatic system update started.', [
+                'attempt_id' => $attemptId,
                 'images' => data_get($update, 'images', []),
             ]);
 

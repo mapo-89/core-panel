@@ -53,6 +53,7 @@ use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSqlExportService;
 use CorePanel\Support\Administration\DatabaseBackups\NullDatabaseBackupCloudUploader;
 use CorePanel\Support\Administration\DatabaseBackups\RunAutomaticDatabaseBackupAction;
+use CorePanel\Support\Administration\SystemUpdates\ApplicationHealthUrl;
 use CorePanel\Support\Administration\SystemUpdates\RunAutomaticSystemUpdateAction;
 use CorePanel\Support\Api\ApiResponseFactory;
 use CorePanel\Support\Api\ApiTokenAbilityOptions;
@@ -161,6 +162,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(OctaneStateResetter::class);
         $this->app->scoped(PermissionCacheResetter::class);
         $this->app->scoped(RunAutomaticSystemUpdateAction::class);
+        $this->app->scoped(ApplicationHealthUrl::class);
         $this->app->scoped(CorePanelAccess::class);
         $this->app->scoped(PermissionService::class);
         $this->app->scoped(RoutePermissionResolver::class);
