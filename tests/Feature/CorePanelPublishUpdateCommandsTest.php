@@ -567,6 +567,7 @@ it('versions the managed update scaffolds that still require host copies', funct
         'public/sw.js',
         'resources/css/app.css',
         'resources/js/routes/core-panel/log-files.ts',
+        'resources/js/routes/core-panel/system-updates.ts',
         'routes/console.php',
         'routes/web.php',
     )->not->toContain(
@@ -1363,8 +1364,63 @@ it('creates missing versioned application scaffolds during updates without a pre
     expect(file_exists($target))->toBeTrue()
         ->and(file_get_contents($target))->toContain('database-backups:auto')
         ->and(file_get_contents($target))->toContain('system-updates:auto')
+        ->and(file_get_contents($target))->toContain('->everyMinute()')
+        ->and(file_get_contents($target))->toContain('->withoutOverlapping(20)')
+        ->and(file_get_contents($target))->toContain('->onOneServer()')
         ->and(file_get_contents($target))->not->toContain("app()->bound('command.database-backups:auto')")
         ->and(file_get_contents($target))->not->toContain("app()->bound('command.system-updates:auto')");
+});
+
+it('creates the missing system update route scaffold during upgrades', function (): void {
+    $basePath = makePublishBasePath('missing-system-update-route-scaffold');
+    $relativePath = 'resources/js/routes/core-panel/system-updates.ts';
+    $target = $basePath.'/'.$relativePath;
+    $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    expect(file_get_contents($target))->toBe($expectedContents)
+        ->and($manifest['files'][$relativePath] ?? null)->toBeArray()
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+});
+
+it('backs up and updates an existing untracked system update route scaffold during upgrades', function (): void {
+    $basePath = makePublishBasePath('untracked-system-update-route-scaffold');
+    $relativePath = 'resources/js/routes/core-panel/system-updates.ts';
+    $target = $basePath.'/'.$relativePath;
+    $customContents = "export default { custom: true }\n";
+    $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $customContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+    expect(file_get_contents($target))->toBe($expectedContents)
+        ->and($backups)->not->toBeEmpty()
+        ->and(file_get_contents($backups[0]))->toBe($customContents)
+        ->and($manifest['files'][$relativePath] ?? null)->toBeArray();
 });
 
 it('creates the OIDC services scaffold when it is missing during an update', function (): void {
@@ -2052,6 +2108,8 @@ it('updates known legacy critical versioned scaffolds without a previous baselin
         ->and($manifest['files']['bootstrap/app.php'] ?? null)->toBeArray()
         ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('database-backups:auto')")
         ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('system-updates:auto')")
+        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain('->withoutOverlapping(20)')
+        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain('->onOneServer()')
         ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->not->toBeEmpty()
         ->and($manifest['files']['routes/console.php'] ?? null)->toBeArray()
         ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('.gitea')
@@ -2200,6 +2258,15 @@ YAML,
     $portainerBackups = glob($basePath.'/.core-panel-backups/*/docker-compose.portainer.yml');
     $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
 
+    $automaticUpdateEnvironmentMappings = [
+        'SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES: ${SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES:-15}',
+        'SYSTEM_UPDATES_AUTOMATIC_INTERVAL: ${SYSTEM_UPDATES_AUTOMATIC_INTERVAL:-daily}',
+        'SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED: ${SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED:-true}',
+        'SYSTEM_UPDATES_AUTOMATIC_MODE: ${SYSTEM_UPDATES_AUTOMATIC_MODE:-install}',
+        'SYSTEM_UPDATES_AUTOMATIC_TIME: ${SYSTEM_UPDATES_AUTOMATIC_TIME:-${SYSTEM_UPDATES_AUTOMATIC_WINDOW_START:-02:00}}',
+        'SYSTEM_UPDATES_AUTOMATIC_WEEKDAY: ${SYSTEM_UPDATES_AUTOMATIC_WEEKDAY:-monday}',
+    ];
+
     expect($productionContents)
         ->toContain('"x-php-environment": &custom-production-php # host-specific shared environment')
         ->toContain('environment: *custom-production-php')
@@ -2221,6 +2288,13 @@ YAML,
         ->and(substr_count($portainerContents, '  SYSTEM_UPDATES_STATUS_STORE:'))->toBe(1)
         ->and($portainerBackups)->not->toBeEmpty()
         ->and(file_get_contents($portainerBackups[0]))->toBe($composeFiles['docker-compose.portainer.yml']."\n");
+
+    foreach ([$productionContents, $portainerContents] as $contents) {
+        foreach ($automaticUpdateEnvironmentMappings as $mapping) {
+            expect($contents)->toContain($mapping)
+                ->and(substr_count($contents, '  '.$mapping))->toBe(1);
+        }
+    }
 
     foreach (array_keys($composeFiles) as $relativePath) {
         $manifestEntry = $manifest['files'][$relativePath] ?? null;
@@ -2492,7 +2566,11 @@ it('synchronizes missing environment defaults during update', function (): void 
     $basePath = makePublishBasePath('env-sync');
 
     mkdir($basePath, 0777, true);
-    file_put_contents($basePath.'/.env', "APP_NAME=CorePanel\n");
+    file_put_contents($basePath.'/.env', implode(PHP_EOL, [
+        'APP_NAME=CorePanel',
+        'SYSTEM_UPDATES_AUTOMATIC_WINDOW_START=03:00',
+        '',
+    ]));
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
@@ -2501,7 +2579,9 @@ it('synchronizes missing environment defaults during update', function (): void 
     $contents = file_get_contents($basePath.'/.env');
 
     expect($contents)->toContain("APP_NAME=CorePanel\n")
-        ->and($contents)->toContain("LOG_CHANNEL=daily\n");
+        ->and($contents)->toContain("LOG_CHANNEL=daily\n")
+        ->and($contents)->toContain("SYSTEM_UPDATES_AUTOMATIC_TIME=03:00\n")
+        ->and($contents)->toContain("SYSTEM_UPDATES_AUTOMATIC_WINDOW_START=03:00\n");
 });
 
 it('preserves a customized published app version metadata file during update', function (): void {

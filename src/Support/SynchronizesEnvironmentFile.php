@@ -41,6 +41,14 @@ final readonly class SynchronizesEnvironmentFile
 
         $currentContents = (string) $this->files->get($environmentPath);
         $current = $this->parse($currentContents);
+
+        if (! $replaceTemplateValues
+            && ! array_key_exists('SYSTEM_UPDATES_AUTOMATIC_TIME', $current)
+            && ! array_key_exists('SYSTEM_UPDATES_AUTOMATIC_TIME', $overrides)
+            && array_key_exists('SYSTEM_UPDATES_AUTOMATIC_WINDOW_START', $current)) {
+            $templateWithOverrides['SYSTEM_UPDATES_AUTOMATIC_TIME'] = $current['SYSTEM_UPDATES_AUTOMATIC_WINDOW_START'];
+        }
+
         $synchronized = $current;
 
         foreach ($templateWithOverrides as $key => $value) {

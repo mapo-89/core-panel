@@ -53,6 +53,7 @@ return [
     'system' => 'System',
     'system_updates' => [
         'checked' => 'Checked for updates',
+        'settings_updated' => 'System update settings updated',
         'updated' => 'System updated',
     ],
     'updated' => 'Updated',

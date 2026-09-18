@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace CorePanel\Support\Administration\SystemUpdates;
 
+use CorePanel\Domain\SystemUpdate\Enums\SystemUpdateInterval;
+use CorePanel\Domain\SystemUpdate\Enums\SystemUpdateMode;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -15,30 +18,74 @@ use Throwable;
 
 final readonly class RunAutomaticSystemUpdateAction
 {
-    public function __construct(private SystemUpdaterClient $updater) {}
+    private const SCHEDULER_INTERVAL_MINUTES = 1;
 
-    /**
-     * @return array{message:string,status:string}
-     */
+    public function __construct(
+        private SystemUpdaterClient $updater,
+        private SystemUpdateSettings $settings,
+    ) {}
+
+    /** @return array{message:string,status:string} */
     public function execute(): array
     {
         if (! $this->updater->enabled()) {
             return $this->skipped('disabled');
         }
 
-        if (! $this->automaticUpdateEnabled()) {
+        $settings = $this->settings->toArray();
+
+        if (! $settings['automatic_enabled']) {
             return $this->skipped('automatic updates disabled');
         }
 
-        if (! $this->isWithinMaintenanceWindow()) {
-            return $this->skipped('outside maintenance window');
+        $now = now($settings['timezone']);
+        $dueSlot = $this->dueSlot($settings, $now);
+        $pendingAttempt = $this->settings->pendingAutomaticAttempt();
+        $retryableSlot = $this->settings->retryableAutomaticSlot();
+
+        if ($dueSlot === null && $pendingAttempt === null && $retryableSlot === null) {
+            return $this->skipped('not due');
         }
 
-        if ($this->hasRecentUserActivity()) {
-            return $this->skipped('recent user activity detected');
+        $lock = Cache::lock('core-panel:system-updates:auto', 900);
+
+        if (! $lock->get()) {
+            return $this->skipped('automatic update already being coordinated');
         }
 
-        return Cache::lock('core-panel:system-updates:auto', 900)->block(1, function (): array {
+        try {
+            if ($pendingAttempt !== null) {
+                $pendingResult = $this->reconcilePendingAttempt($pendingAttempt);
+
+                if ($pendingResult !== null) {
+                    return $pendingResult;
+                }
+
+                $retryableSlot = $pendingAttempt['slot'];
+            }
+
+            $executionSlot = $retryableSlot !== null
+                ? ['key' => $retryableSlot, 'scheduled_at' => $now]
+                : $dueSlot;
+
+            if ($executionSlot === null) {
+                return $this->skipped('not due');
+            }
+
+            if ($settings['mode'] === SystemUpdateMode::Install->value
+                && $settings['maintenance_window_enabled']
+                && ! $this->isWithinMaintenanceWindow($settings, $executionSlot['scheduled_at'])) {
+                return $this->skipped('outside maintenance window');
+            }
+
+            if ($this->hasRecentUserActivity()) {
+                return $this->skipped('recent user activity detected');
+            }
+
+            if ($this->slotAlreadyHandled($executionSlot['key'])) {
+                return $this->skipped('scheduled run already handled');
+            }
+
             $status = $this->updater->status();
 
             if ((bool) data_get($status, 'update_running', false)) {
@@ -47,71 +94,162 @@ final readonly class RunAutomaticSystemUpdateAction
 
             $check = $this->updater->check();
 
-            if (! (bool) data_get($check, 'update_available', false)) {
-                Log::info('System update check completed without available update.', [
-                    'images' => data_get($check, 'images', []),
+            if ($settings['mode'] === SystemUpdateMode::Install->value && (bool) data_get($check, 'update_available', false)) {
+                $attemptId = (string) Str::uuid();
+                $update = $this->updater->update($attemptId);
+                Log::info('Automatic system update started.', [
+                    'attempt_id' => $attemptId,
+                    'images' => data_get($update, 'images', []),
                 ]);
-
-                return [
-                    'message' => 'no update available',
+                $this->settings->recordAutomaticAttempt($executionSlot['key'], $attemptId);
+                $result = ['message' => 'update started', 'status' => 'updated'];
+            } else {
+                Log::info('Automatic system update check completed.', [
+                    'images' => data_get($check, 'images', []),
+                    'update_available' => data_get($check, 'update_available'),
+                ]);
+                $result = [
+                    'message' => (bool) data_get($check, 'update_available', false) ? 'update available' : 'no update available',
                     'status' => 'checked',
                 ];
+
+                $this->completeSlot($executionSlot['key']);
             }
 
-            $attemptId = (string) Str::uuid();
-            $update = $this->updater->update($attemptId);
-
-            Log::info('Automatic system update started.', [
-                'attempt_id' => $attemptId,
-                'images' => data_get($update, 'images', []),
-            ]);
-
-            return [
-                'message' => 'update started',
-                'status' => 'updated',
-            ];
-        });
+            return $result;
+        } finally {
+            $this->release($lock);
+        }
     }
 
     /**
-     * @return array{message:string,status:string}
+     * @param  array{attempt_id:string,slot:string}  $pendingAttempt
+     * @return array{message:string,status:string}|null
      */
-    private function skipped(string $message): array
+    private function reconcilePendingAttempt(array $pendingAttempt): ?array
     {
-        return [
-            'message' => $message,
-            'status' => 'skipped',
-        ];
+        $status = $this->updater->status($pendingAttempt['attempt_id']);
+        $statusAttemptId = data_get($status, 'update_attempt_id');
+
+        if (! is_string($statusAttemptId) || $statusAttemptId !== $pendingAttempt['attempt_id']) {
+            if ((bool) data_get($status, 'update_running', false)) {
+                return $this->skipped('update already running');
+            }
+
+            $this->markAttemptForRetry($pendingAttempt, 'Automatic system update attempt is no longer known by the updater and remains eligible for retry.');
+
+            return null;
+        }
+
+        if ((bool) data_get($status, 'update_running', false)) {
+            return $this->skipped('update already running');
+        }
+
+        $state = data_get($status, 'last_update_state');
+
+        if ($state === 'success') {
+            $this->completeSlot($pendingAttempt['slot']);
+
+            Log::info('Automatic system update completed.', [
+                'attempt_id' => $pendingAttempt['attempt_id'],
+            ]);
+
+            return $this->skipped('scheduled run already handled');
+        }
+
+        if ($state !== 'failed') {
+            return $this->skipped('automatic update outcome pending');
+        }
+
+        $this->markAttemptForRetry($pendingAttempt, 'Automatic system update failed and remains eligible for retry.');
+
+        return null;
     }
 
-    private function isWithinMaintenanceWindow(): bool
+    /** @param array{attempt_id:string,slot:string} $pendingAttempt */
+    private function markAttemptForRetry(array $pendingAttempt, string $message): void
     {
-        $timezone = (string) $this->automaticUpdateConfig('timezone', config('app.timezone'));
-        $now = now($timezone);
-        $start = $this->timeToday((string) $this->automaticUpdateConfig('window_start', '02:00'), $now);
-        $end = $this->timeToday((string) $this->automaticUpdateConfig('window_end', '04:00'), $now);
+        $this->settings->markAutomaticAttemptForRetry($pendingAttempt['attempt_id'], $pendingAttempt['slot']);
+        Cache::forget($this->slotCacheKey($pendingAttempt['slot']));
+        Log::warning($message, [
+            'attempt_id' => $pendingAttempt['attempt_id'],
+        ]);
+    }
+
+    private function completeSlot(string $slot): void
+    {
+        Cache::put($this->slotCacheKey($slot), true, now()->addDays(8));
+        $this->settings->recordAutomaticRun($slot, now());
+    }
+
+    /**
+     * @param  array{interval:string,time:string,weekday:?string}  $settings
+     * @return array{key:string,scheduled_at:Carbon}|null
+     */
+    private function dueSlot(array $settings, Carbon $now): ?array
+    {
+        $graceMinutes = max(1, (int) $this->automaticUpdateConfig('grace_minutes', 15))
+            + $this->inactiveMinutes()
+            + self::SCHEDULER_INTERVAL_MINUTES;
+        $scheduledToday = $this->timeToday($settings['time'], $now);
+
+        foreach ([$scheduledToday, $scheduledToday->copy()->subDay()] as $scheduledAt) {
+            if ($settings['interval'] === SystemUpdateInterval::Weekly->value
+                && strtolower($scheduledAt->englishDayOfWeek) !== $settings['weekday']) {
+                continue;
+            }
+
+            if ($now->lessThan($scheduledAt) || $now->greaterThan($scheduledAt->copy()->addMinutes($graceMinutes))) {
+                continue;
+            }
+
+            return [
+                'key' => implode('|', [
+                    $settings['interval'],
+                    $scheduledAt->toDateString(),
+                    $settings['time'],
+                    $now->getTimezone()->getName(),
+                ]),
+                'scheduled_at' => $scheduledAt,
+            ];
+        }
+
+        return null;
+    }
+
+    private function slotAlreadyHandled(string $slot): bool
+    {
+        return $this->settings->lastAutomaticSlot() === $slot || Cache::has($this->slotCacheKey($slot));
+    }
+
+    private function slotCacheKey(string $slot): string
+    {
+        return 'core-panel:system-updates:auto:slot:'.hash('sha256', $slot);
+    }
+
+    /** @param array{window_end:string,window_start:string} $settings */
+    private function isWithinMaintenanceWindow(array $settings, Carbon $now): bool
+    {
+        $start = $this->timeToday($settings['window_start'], $now);
+        $end = $this->timeToday($settings['window_end'], $now);
 
         if ($end->lessThanOrEqualTo($start)) {
             return $now->greaterThanOrEqualTo($start) || $now->lessThan($end);
         }
 
-        return $now->betweenIncluded($start, $end);
+        return $now->greaterThanOrEqualTo($start) && $now->lessThan($end);
     }
 
     private function timeToday(string $time, Carbon $now): Carbon
     {
-        try {
-            [$hour, $minute] = array_map('intval', explode(':', $time, 2));
+        [$hour, $minute] = array_map('intval', explode(':', $time, 2));
 
-            return $now->copy()->setTime($hour, $minute);
-        } catch (Throwable) {
-            return $now->copy()->setTime(2, 0);
-        }
+        return $now->copy()->setTime($hour, $minute);
     }
 
     private function hasRecentUserActivity(): bool
     {
-        $inactiveMinutes = max(0, (int) $this->automaticUpdateConfig('inactive_minutes', 15));
+        $inactiveMinutes = $this->inactiveMinutes();
 
         if ($inactiveMinutes === 0) {
             return false;
@@ -119,11 +257,13 @@ final readonly class RunAutomaticSystemUpdateAction
 
         $cutoffTimestamp = now()->subMinutes($inactiveMinutes)->timestamp;
 
-        if ($this->hasRecentDatabaseSessionActivity($cutoffTimestamp)) {
-            return true;
-        }
+        return $this->hasRecentDatabaseSessionActivity($cutoffTimestamp)
+            || $this->hasRecentPresenceActivity($cutoffTimestamp);
+    }
 
-        return $this->hasRecentPresenceActivity($cutoffTimestamp);
+    private function inactiveMinutes(): int
+    {
+        return max(0, (int) $this->automaticUpdateConfig('inactive_minutes', 15));
     }
 
     private function hasRecentDatabaseSessionActivity(int $cutoffTimestamp): bool
@@ -138,10 +278,7 @@ final readonly class RunAutomaticSystemUpdateAction
             return false;
         }
 
-        return DB::table($sessionsTable)
-            ->whereNotNull('user_id')
-            ->where('last_activity', '>=', $cutoffTimestamp)
-            ->exists();
+        return DB::table($sessionsTable)->whereNotNull('user_id')->where('last_activity', '>=', $cutoffTimestamp)->exists();
     }
 
     private function hasRecentPresenceActivity(int $cutoffTimestamp): bool
@@ -159,9 +296,7 @@ final readonly class RunAutomaticSystemUpdateAction
         }
 
         /** @var iterable<object> $users */
-        $users = $userModel->newQuery()
-            ->select($userModel->getKeyName())
-            ->cursor();
+        $users = $userModel->newQuery()->select($userModel->getKeyName())->cursor();
 
         foreach ($users as $user) {
             if (! method_exists($user, 'corePanelPresenceLastSeenAt')) {
@@ -178,19 +313,23 @@ final readonly class RunAutomaticSystemUpdateAction
         return false;
     }
 
-    private function automaticUpdateEnabled(): bool
-    {
-        return (bool) config(
-            'system-updates.automatic.enabled',
-            config('core-panel.administration.system_updates.automatic.enabled', false),
-        );
-    }
-
     private function automaticUpdateConfig(string $key, string|int|null $default): string|int|null
     {
-        return config(
-            "system-updates.automatic.{$key}",
-            config("core-panel.administration.system_updates.automatic.{$key}", $default),
-        );
+        return config("system-updates.automatic.{$key}", config("core-panel.administration.system_updates.automatic.{$key}", $default));
+    }
+
+    /** @return array{message:string,status:string} */
+    private function skipped(string $message): array
+    {
+        return ['message' => $message, 'status' => 'skipped'];
+    }
+
+    private function release(Lock $lock): void
+    {
+        try {
+            $lock->release();
+        } catch (Throwable $throwable) {
+            report($throwable);
+        }
     }
 }

@@ -53,6 +53,7 @@ return [
     'system' => 'System',
     'system_updates' => [
         'checked' => 'Auf Updates geprüft',
+        'settings_updated' => 'System-Update-Einstellungen aktualisiert',
         'updated' => 'System aktualisiert',
     ],
     'updated' => 'Aktualisiert',

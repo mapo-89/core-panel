@@ -80,6 +80,29 @@ final class InMemorySettingsRepository extends SettingsRepository
     }
 }
 
+final class TransactionalSettingsRepository extends SettingsRepository
+{
+    public int $cacheInvalidations = 0;
+
+    public ?string $failingKey = null;
+
+    protected function persist(Setting $record): Setting
+    {
+        if ($record->getAttribute('key') === $this->failingKey) {
+            throw new RuntimeException('Simulated grouped settings write failure.');
+        }
+
+        return parent::persist($record);
+    }
+
+    protected function forgetCaches(string $group): void
+    {
+        $this->cacheInvalidations++;
+
+        parent::forgetCaches($group);
+    }
+}
+
 function settingsRepository(): InMemorySettingsRepository
 {
     return new InMemorySettingsRepository(new CacheRepository(new ArrayStore), new Setting);
@@ -150,6 +173,33 @@ it('stores grouped settings with typed values', function (): void {
         'radius_token' => 'none',
         'show_app_footer' => false,
     ]);
+});
+
+it('persists grouped settings atomically and invalidates caches after the complete write', function (): void {
+    $this->migrateScaffoldDatabase();
+
+    $repository = new TransactionalSettingsRepository(app('cache.store'), new Setting);
+    $repository->updateGroup('system_updates', [
+        'automatic_enabled' => ['type' => 'boolean', 'value' => false],
+        'mode' => ['type' => 'string', 'value' => 'check'],
+    ]);
+
+    expect($repository->cacheInvalidations)->toBe(1);
+
+    $repository->cacheInvalidations = 0;
+    $repository->failingKey = 'mode';
+
+    expect(fn () => $repository->updateGroup('system_updates', [
+        'automatic_enabled' => ['type' => 'boolean', 'value' => true],
+        'mode' => ['type' => 'string', 'value' => 'install'],
+    ]))->toThrow(RuntimeException::class, 'Simulated grouped settings write failure.');
+
+    $enabled = Setting::query()->where('group', 'system_updates')->where('key', 'automatic_enabled')->first();
+    $mode = Setting::query()->where('group', 'system_updates')->where('key', 'mode')->first();
+
+    expect($repository->cacheInvalidations)->toBe(0)
+        ->and($enabled?->getAttribute('value_json'))->toBeFalse()
+        ->and($mode?->getAttribute('value_json'))->toBe('check');
 });
 
 it('namespaces settings cache keys per application installation context', function (): void {

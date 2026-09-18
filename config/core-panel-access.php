@@ -94,6 +94,7 @@ return [
         'core-panel.settings.oidc-logo.store' => 'settings.update',
         'core-panel.system-updates.check' => 'system-updates.update',
         'core-panel.system-updates.status' => 'system-updates.view',
+        'core-panel.system-updates.settings.update' => 'system-updates.update',
         'core-panel.system-updates.update' => 'system-updates.update',
         'core-panel.user-groups.import' => 'user-groups.create',
         'core-panel.user-groups.preview' => 'user-groups.create',

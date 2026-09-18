@@ -70,16 +70,7 @@ class SettingsRepository
         bool $isPublic = false,
         bool $isLocalized = false,
     ): Setting {
-        $record = $this->findWritableRecord($group, $key) ?? $this->newWritableRecord($group, $key);
-        $record->forceFill([
-            'group' => $group,
-            'is_localized' => $isLocalized,
-            'is_public' => $isPublic,
-            'key' => $key,
-            'type' => $type,
-            'value_json' => $this->normalizeStoredValue($value, $type, $isLocalized),
-        ]);
-        $record = $this->persist($record);
+        $record = $this->writeSetting($group, $key, $value, $type, $isPublic, $isLocalized);
 
         $this->forgetCaches($group);
 
@@ -92,22 +83,49 @@ class SettingsRepository
      */
     public function updateGroup(string $group, array $values): array
     {
-        $updated = [];
+        $updated = $this->settings->getConnection()->transaction(function () use ($group, $values): array {
+            $updated = [];
 
-        foreach ($values as $key => $payload) {
-            $setting = $this->set(
-                $group,
-                $key,
-                $payload['value'] ?? null,
-                (string) ($payload['type'] ?? 'string'),
-                (bool) ($payload['is_public'] ?? false),
-                (bool) ($payload['is_localized'] ?? false),
-            );
+            foreach ($values as $key => $payload) {
+                $setting = $this->writeSetting(
+                    $group,
+                    $key,
+                    $payload['value'] ?? null,
+                    (string) ($payload['type'] ?? 'string'),
+                    (bool) ($payload['is_public'] ?? false),
+                    (bool) ($payload['is_localized'] ?? false),
+                );
 
-            $updated[$key] = $this->resolveRecordValue($setting, $this->resolveLocale());
-        }
+                $updated[$key] = $this->resolveRecordValue($setting, $this->resolveLocale());
+            }
+
+            return $updated;
+        });
+
+        $this->forgetCaches($group);
 
         return $updated;
+    }
+
+    private function writeSetting(
+        string $group,
+        string $key,
+        mixed $value,
+        string $type,
+        bool $isPublic,
+        bool $isLocalized,
+    ): Setting {
+        $record = $this->findWritableRecord($group, $key) ?? $this->newWritableRecord($group, $key);
+        $record->forceFill([
+            'group' => $group,
+            'is_localized' => $isLocalized,
+            'is_public' => $isPublic,
+            'key' => $key,
+            'type' => $type,
+            'value_json' => $this->normalizeStoredValue($value, $type, $isLocalized),
+        ]);
+
+        return $this->persist($record);
     }
 
     /**

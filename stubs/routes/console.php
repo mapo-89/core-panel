@@ -20,6 +20,9 @@ if ((bool) config('database-backups.enabled', config('core-panel.administration.
         ->withoutOverlapping(60);
 }
 
-if ((bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false))) {
-    Schedule::command('system-updates:auto')->everyFiveMinutes();
+if ((bool) config('core-panel.administration.system_updates.enabled', true)) {
+    Schedule::command('system-updates:auto')
+        ->everyMinute()
+        ->withoutOverlapping(20)
+        ->onOneServer();
 }

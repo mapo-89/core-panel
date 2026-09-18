@@ -11,6 +11,7 @@ use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupTable;
 use CorePanel\Support\Administration\SystemUpdates\ApplicationHealthUrl;
 use CorePanel\Support\Administration\SystemUpdates\SystemUpdaterClient;
+use CorePanel\Support\Administration\SystemUpdates\SystemUpdateSettingsPayload;
 use CorePanel\Support\Permissions\PermissionService;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
@@ -32,6 +33,7 @@ final class AdministrationController extends Controller
         private readonly ApplicationHealthUrl $healthUrl,
         private readonly PermissionService $permissions,
         private readonly SystemUpdaterClient $systemUpdater,
+        private readonly SystemUpdateSettingsPayload $systemUpdateSettingsPayload,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -142,14 +144,8 @@ final class AdministrationController extends Controller
         }
 
         return [
-            'automatic' => [
-                'enabled' => (bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false)),
-                'forceUpdateEnabled' => (bool) config('system-updates.force_update_enabled', config('core-panel.administration.system_updates.force_update_enabled', false)),
-                'inactiveMinutes' => (int) config('system-updates.automatic.inactive_minutes', config('core-panel.administration.system_updates.automatic.inactive_minutes', 15)),
-                'timezone' => (string) config('system-updates.automatic.timezone', config('core-panel.administration.system_updates.automatic.timezone', config('app.timezone'))),
-                'windowEnd' => (string) config('system-updates.automatic.window_end', config('core-panel.administration.system_updates.automatic.window_end', '04:00')),
-                'windowStart' => (string) config('system-updates.automatic.window_start', config('core-panel.administration.system_updates.automatic.window_start', '02:00')),
-            ],
+            'automatic' => $this->systemUpdateSettingsPayload->forUser($user),
+            'forceUpdateEnabled' => $this->systemUpdater->forceUpdateEnabled(),
             'logs' => $this->systemUpdater->safeLogs(),
             'routes' => [
                 'check' => route('core-panel.system-updates.check'),

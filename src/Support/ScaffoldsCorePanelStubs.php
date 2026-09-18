@@ -57,6 +57,12 @@ final readonly class ScaffoldsCorePanelStubs
      * @var array<string, string>
      */
     private const UPDATE_PRESERVED_PHP_ENVIRONMENT_DEFAULTS = [
+        'SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES' => '${SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES:-15}',
+        'SYSTEM_UPDATES_AUTOMATIC_INTERVAL' => '${SYSTEM_UPDATES_AUTOMATIC_INTERVAL:-daily}',
+        'SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED' => '${SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED:-true}',
+        'SYSTEM_UPDATES_AUTOMATIC_MODE' => '${SYSTEM_UPDATES_AUTOMATIC_MODE:-install}',
+        'SYSTEM_UPDATES_AUTOMATIC_TIME' => '${SYSTEM_UPDATES_AUTOMATIC_TIME:-${SYSTEM_UPDATES_AUTOMATIC_WINDOW_START:-02:00}}',
+        'SYSTEM_UPDATES_AUTOMATIC_WEEKDAY' => '${SYSTEM_UPDATES_AUTOMATIC_WEEKDAY:-monday}',
         'SYSTEM_UPDATES_RESTART_DELAY_SECONDS' => '${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}',
         'SYSTEM_UPDATES_STATUS_STORE' => '${SYSTEM_UPDATES_STATUS_STORE:-file}',
     ];
@@ -124,6 +130,7 @@ final readonly class ScaffoldsCorePanelStubs
         'resources/js/components/AppIcon.vue',
         'resources/js/routes/core-panel/administration.ts',
         'resources/js/routes/core-panel/log-files.ts',
+        'resources/js/routes/core-panel/system-updates.ts',
         'routes/console.php',
         'routes/web.php',
         'scripts/smoke.sh',
@@ -270,6 +277,7 @@ final readonly class ScaffoldsCorePanelStubs
             '96d1e75ae3e0eae24dfcc5bccd7300902c47624179acc24a71da13435ef7175f',
         ],
         'routes/console.php' => [
+            'b42ad0fb4b4f8d3aaf5c8ac5f8818e45062016e8ecb8422466b32bd34471cbad',
             '857319a1d1d0557fabfccfd9aa9afcf58b57a52c40e61e7162edc4abbecfe44a',
             'bf7252ade53ffaf4a9ad800c4bbc1020ae1f3f183785f0087bd1b38745c81474',
             'e4b5f7e4cc006cddfd7b23756862e6909376851c2779c512689562e7509a6f8a',

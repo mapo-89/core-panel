@@ -12,7 +12,7 @@ final class RunAutomaticSystemUpdateCommand extends Command
 {
     protected $signature = 'system-updates:auto';
 
-    protected $description = 'Check and install system updates during the configured maintenance window.';
+    protected $description = 'Run a due automatic system update check or installation.';
 
     public function handle(RunAutomaticSystemUpdateAction $action): int
     {

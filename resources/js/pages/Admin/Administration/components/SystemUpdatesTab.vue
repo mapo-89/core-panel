@@ -10,6 +10,12 @@ import SystemUpdateRestartDialog from '@core-panel/components/Dialogs/SystemUpda
 import { useCan } from '@core-panel/composables/useCan'
 import { useDateTime } from '@core-panel/composables/useDateTime'
 import { useSystemRestartPolling } from '@core-panel/composables/useSystemRestartPolling'
+import SystemUpdateSettingsDialog from '@core-panel/pages/Admin/Administration/components/SystemUpdateSettingsDialog.vue'
+
+type SelectOption = {
+    label: string
+    value: string
+}
 
 type UpdateImage = {
     available_digest: string | null
@@ -55,13 +61,22 @@ const PRE_RESTART_TIMEOUT_MS = 10 * 60_000
 
 const props = defineProps<{
     automatic: {
+        canUpdate: boolean
         enabled: boolean
-        forceUpdateEnabled: boolean
-        inactiveMinutes: number
+        interval: 'daily' | 'weekly'
+        intervalOptions: SelectOption[]
+        lastAutomaticRunAt: string | null
+        maintenanceWindowEnabled: boolean
+        mode: 'check' | 'install'
+        modeOptions: SelectOption[]
+        time: string
         timezone: string
+        weekday: string | null
+        weekdayOptions: SelectOption[]
         windowEnd: string
         windowStart: string
-    }
+    } | null
+    forceUpdateEnabled: boolean
     logs: UpdateLogs
     routes: {
         check: string
@@ -97,6 +112,7 @@ const digestPopoverImage = ref<UpdateImage | null>(null)
 const copiedDigest = ref<'available' | 'current' | null>(null)
 const logsPayload = ref<UpdateLogs>(props.logs)
 const statusPayload = ref<UpdateStatus>(props.status)
+const settingsDialogVisible = ref(false)
 const { formatDateTime } = useDateTime()
 let restartStatusTimer: number | null = null
 let restartDeadlineTimer: number | null = null
@@ -514,6 +530,35 @@ const statusLabel = computed(() => {
         ? trans('system_updates.status_available')
         : trans('system_updates.status_current')
 })
+const automaticIntervalLabel = computed(() =>
+    selectOptionLabel(
+        props.automatic?.intervalOptions ?? [],
+        props.automatic?.interval,
+    ),
+)
+const automaticModeLabel = computed(() =>
+    selectOptionLabel(
+        props.automatic?.modeOptions ?? [],
+        props.automatic?.mode,
+    ),
+)
+const automaticWeekdayLabel = computed(() =>
+    selectOptionLabel(
+        props.automatic?.weekdayOptions ?? [],
+        props.automatic?.weekday,
+    ),
+)
+const automaticMaintenanceWindowLabel = computed(() => {
+    if (!props.automatic?.maintenanceWindowEnabled) {
+        return trans('system_updates.disabled')
+    }
+
+    return trans('system_updates.maintenance_window', {
+        end: props.automatic.windowEnd,
+        start: props.automatic.windowStart,
+        timezone: props.automatic.timezone,
+    })
+})
 
 watch(
     () => props.status,
@@ -533,6 +578,13 @@ watch(
 
 function formatDate(value?: string | null): string {
     return value ? formatDateTime(value) : '-'
+}
+
+function selectOptionLabel(
+    options: SelectOption[],
+    value?: string | null,
+): string {
+    return options.find((option) => option.value === value)?.label ?? '-'
 }
 
 function imageStatusSeverity(image: UpdateImage): 'danger' | 'success' {
@@ -791,6 +843,17 @@ function forceUpdate(): void {
 
                 <div class="flex flex-wrap gap-2">
                     <Button
+                        v-if="automatic?.canUpdate"
+                        severity="secondary"
+                        type="button"
+                        @click="settingsDialogVisible = true"
+                    >
+                        <AppIcon name="settings" class="cp-icon" />
+                        <span>{{
+                            trans('system_updates.settings_button')
+                        }}</span>
+                    </Button>
+                    <Button
                         :disabled="!canUpdate"
                         :loading="checkStarting"
                         severity="secondary"
@@ -817,7 +880,7 @@ function forceUpdate(): void {
                         }}</span>
                     </Button>
                     <Button
-                        v-if="automatic.forceUpdateEnabled"
+                        v-if="forceUpdateEnabled"
                         :disabled="!canUpdate"
                         :loading="updateStarting"
                         severity="warn"
@@ -978,44 +1041,108 @@ function forceUpdate(): void {
         </section>
 
         <section
+            v-if="automatic"
             class="rounded-lg border border-[var(--cp-surface-border)] bg-[var(--cp-surface-panel)] p-5 shadow-sm"
         >
-            <h2
-                class="mb-3 text-lg font-semibold text-[var(--cp-text-primary)]"
-            >
-                {{ trans('system_updates.automatic_title') }}
-            </h2>
-            <div class="flex flex-wrap gap-2 text-sm">
-                <Badge
-                    :severity="automatic.enabled ? 'success' : 'secondary'"
-                    :value="
-                        automatic.enabled
-                            ? trans('system_updates.enabled')
-                            : trans('system_updates.disabled')
-                    "
-                />
-                <span
-                    class="rounded-md bg-[var(--cp-surface-muted)] px-2.5 py-1"
+            <div class="flex flex-col gap-4">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h2
+                            class="text-lg font-semibold text-[var(--cp-text-primary)]"
+                        >
+                            {{ trans('system_updates.automatic_title') }}
+                        </h2>
+                        <Badge
+                            :severity="
+                                automatic.enabled ? 'success' : 'secondary'
+                            "
+                            :value="
+                                automatic.enabled
+                                    ? trans('system_updates.enabled')
+                                    : trans('system_updates.disabled')
+                            "
+                        />
+                    </div>
+                    <p class="mt-1 text-sm text-[var(--cp-text-secondary)]">
+                        {{ trans('system_updates.automatic_description') }}
+                    </p>
+                </div>
+                <dl
+                    class="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4"
                 >
-                    {{
-                        trans('system_updates.maintenance_window', {
-                            end: automatic.windowEnd,
-                            start: automatic.windowStart,
-                            timezone: automatic.timezone,
-                        })
-                    }}
-                </span>
-                <span
-                    class="rounded-md bg-[var(--cp-surface-muted)] px-2.5 py-1"
-                >
-                    {{
-                        trans('system_updates.inactive_minutes', {
-                            minutes: String(automatic.inactiveMinutes),
-                        })
-                    }}
-                </span>
+                    <div>
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{ trans('system_updates.mode') }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{ automaticModeLabel }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{ trans('system_updates.interval') }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{ automaticIntervalLabel }}
+                        </dd>
+                    </div>
+                    <div v-if="automatic.interval === 'weekly'">
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{ trans('system_updates.weekday') }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{ automaticWeekdayLabel }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{ trans('system_updates.execution_time') }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{ automatic.time }}
+                        </dd>
+                    </div>
+                    <div v-if="automatic.mode === 'install'">
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{
+                                trans('system_updates.maintenance_window_label')
+                            }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{ automaticMaintenanceWindowLabel }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{ trans('system_updates.timezone') }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{ automatic.timezone }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[var(--cp-text-muted)]">
+                            {{ trans('system_updates.last_automatic_run') }}
+                        </dt>
+                        <dd class="font-medium text-[var(--cp-text-primary)]">
+                            {{
+                                automatic.lastAutomaticRunAt
+                                    ? formatDate(automatic.lastAutomaticRunAt)
+                                    : trans(
+                                          'system_updates.last_automatic_run_never',
+                                      )
+                            }}
+                        </dd>
+                    </div>
+                </dl>
             </div>
         </section>
+
+        <SystemUpdateSettingsDialog
+            v-if="automatic"
+            v-model:visible="settingsDialogVisible"
+            :settings="automatic"
+        />
 
         <section
             class="rounded-lg border border-[var(--cp-surface-border)] bg-[var(--cp-surface-panel)] p-5 shadow-sm"

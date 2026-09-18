@@ -26,6 +26,7 @@ use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Contracts\DatabaseBackupCloudUploader;
 use CorePanel\Contracts\LocaleResolver;
 use CorePanel\Contracts\SettingsLogoUrlGenerator;
+use CorePanel\Contracts\SystemUpdateSettingsAccess;
 use CorePanel\Domain\File\Policies\FilePolicy;
 use CorePanel\Domain\Form\Policies\FormPolicy;
 use CorePanel\Domain\Permission\Policies\RolePolicy;
@@ -53,8 +54,11 @@ use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSettings;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupSqlExportService;
 use CorePanel\Support\Administration\DatabaseBackups\NullDatabaseBackupCloudUploader;
 use CorePanel\Support\Administration\DatabaseBackups\RunAutomaticDatabaseBackupAction;
+use CorePanel\Support\Administration\SystemUpdates\AllowSystemUpdateSettingsAccess;
 use CorePanel\Support\Administration\SystemUpdates\ApplicationHealthUrl;
 use CorePanel\Support\Administration\SystemUpdates\RunAutomaticSystemUpdateAction;
+use CorePanel\Support\Administration\SystemUpdates\SystemUpdateSettings;
+use CorePanel\Support\Administration\SystemUpdates\SystemUpdateSettingsPayload;
 use CorePanel\Support\Api\ApiResponseFactory;
 use CorePanel\Support\Api\ApiTokenAbilityOptions;
 use CorePanel\Support\Auth\AuthenticationLogRecorder;
@@ -133,6 +137,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         );
 
         $this->app->bind(LocaleResolver::class, RequestLocaleResolver::class);
+        $this->app->bindIf(SystemUpdateSettingsAccess::class, AllowSystemUpdateSettingsAccess::class);
         $this->app->scoped(DatabaseBackupCloudUploader::class, NullDatabaseBackupCloudUploader::class);
         $this->app->bind(SettingsLogoUrlGenerator::class, AssetSettingsLogoUrlGenerator::class);
         $this->app->scoped(CorePanelConfig::class, static fn ($app): CorePanelConfig => CorePanelConfig::fromRepository($app['config']));
@@ -163,6 +168,8 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(PermissionCacheResetter::class);
         $this->app->scoped(RunAutomaticSystemUpdateAction::class);
         $this->app->scoped(ApplicationHealthUrl::class);
+        $this->app->scoped(SystemUpdateSettings::class);
+        $this->app->scoped(SystemUpdateSettingsPayload::class);
         $this->app->scoped(CorePanelAccess::class);
         $this->app->scoped(PermissionService::class);
         $this->app->scoped(RoutePermissionResolver::class);

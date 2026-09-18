@@ -38,6 +38,14 @@ final class SystemUpdaterClient
         return $this->baseUrl() !== '' && $this->token() !== '';
     }
 
+    public function forceUpdateEnabled(): bool
+    {
+        return (bool) config(
+            'system-updates.force_update_enabled',
+            config('core-panel.administration.system_updates.force_update_enabled', false),
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */

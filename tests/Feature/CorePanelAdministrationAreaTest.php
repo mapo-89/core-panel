@@ -1647,6 +1647,7 @@ it('runs the automatic system update command inside the maintenance window', fun
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
     config()->set('system-updates.automatic.enabled', true);
+    config()->set('system-updates.automatic.time', now('UTC')->format('H:i'));
     config()->set('system-updates.automatic.timezone', 'UTC');
     config()->set('system-updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
     config()->set('system-updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
@@ -1692,6 +1693,7 @@ it('skips automatic system updates when only manual-update-required images are p
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
     config()->set('system-updates.automatic.enabled', true);
+    config()->set('system-updates.automatic.time', now('UTC')->format('H:i'));
     config()->set('system-updates.automatic.timezone', 'UTC');
     config()->set('system-updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));
     config()->set('system-updates.automatic.window_end', now('UTC')->addMinute()->format('H:i'));
@@ -1729,6 +1731,7 @@ it('skips the automatic system update command when recent authenticated session 
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
     config()->set('system-updates.automatic.enabled', true);
+    config()->set('system-updates.automatic.time', now('UTC')->format('H:i'));
     config()->set('system-updates.automatic.inactive_minutes', 15);
     config()->set('system-updates.automatic.timezone', 'UTC');
     config()->set('system-updates.automatic.window_start', now('UTC')->subMinute()->format('H:i'));

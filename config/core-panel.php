@@ -6,6 +6,7 @@ use App\Models\User;
 use CorePanel\Models\UserGroup;
 
 $env = static fn (string $key, string $legacyKey, mixed $default = null): mixed => env($key, env($legacyKey, $default));
+$automaticSystemUpdateWindowStart = $env('SYSTEM_UPDATES_AUTOMATIC_WINDOW_START', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_WINDOW_START', '02:00');
 
 return [
     'user_model' => $env('USER_MODEL', 'CORE_PANEL_USER_MODEL', User::class),
@@ -133,9 +134,15 @@ return [
             'force_update_enabled' => $env('SYSTEM_UPDATES_FORCE_UPDATE_ENABLED', 'CORE_PANEL_SYSTEM_UPDATES_FORCE_UPDATE_ENABLED', false),
             'automatic' => [
                 'enabled' => $env('SYSTEM_UPDATES_AUTOMATIC_ENABLED', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_ENABLED', false),
+                'grace_minutes' => $env('SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES', 15),
+                'interval' => $env('SYSTEM_UPDATES_AUTOMATIC_INTERVAL', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_INTERVAL', 'daily'),
+                'maintenance_window_enabled' => $env('SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED', true),
+                'mode' => $env('SYSTEM_UPDATES_AUTOMATIC_MODE', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_MODE', 'install'),
+                'time' => $env('SYSTEM_UPDATES_AUTOMATIC_TIME', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_TIME', $automaticSystemUpdateWindowStart),
+                'weekday' => $env('SYSTEM_UPDATES_AUTOMATIC_WEEKDAY', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_WEEKDAY', 'monday'),
                 'inactive_minutes' => $env('SYSTEM_UPDATES_AUTOMATIC_INACTIVE_MINUTES', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_INACTIVE_MINUTES', 15),
                 'timezone' => $env('SYSTEM_UPDATES_AUTOMATIC_TIMEZONE', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
-                'window_start' => $env('SYSTEM_UPDATES_AUTOMATIC_WINDOW_START', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_WINDOW_START', '02:00'),
+                'window_start' => $automaticSystemUpdateWindowStart,
                 'window_end' => $env('SYSTEM_UPDATES_AUTOMATIC_WINDOW_END', 'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_WINDOW_END', '04:00'),
             ],
         ],

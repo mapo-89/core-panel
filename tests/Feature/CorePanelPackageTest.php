@@ -321,6 +321,62 @@ it('applies environment overrides from the config file', function (): void {
     Env::enablePutenv();
 });
 
+it('defaults the automatic system update execution time to the legacy window start', function (): void {
+    $setEnvironmentValue = static function (string $key, string $value): void {
+        putenv("{$key}={$value}");
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    };
+    $unsetEnvironmentValue = static function (string $key): void {
+        putenv($key);
+        unset($_ENV[$key], $_SERVER[$key]);
+    };
+    $environmentKeys = [
+        'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_TIME',
+        'CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_WINDOW_START',
+        'SYSTEM_UPDATES_AUTOMATIC_TIME',
+        'SYSTEM_UPDATES_AUTOMATIC_WINDOW_START',
+    ];
+    $originalEnvironment = collect($environmentKeys)
+        ->mapWithKeys(static fn (string $key): array => [$key => getenv($key)])
+        ->all();
+
+    foreach ($environmentKeys as $key) {
+        $unsetEnvironmentValue($key);
+    }
+
+    $setEnvironmentValue('CORE_PANEL_SYSTEM_UPDATES_AUTOMATIC_WINDOW_START', '03:00');
+    Env::enablePutenv();
+
+    try {
+        /** @var array<string, mixed> $config */
+        $config = require __DIR__.'/../../config/core-panel.php';
+
+        expect(data_get($config, 'administration.system_updates.automatic.time'))->toBe('03:00')
+            ->and(data_get($config, 'administration.system_updates.automatic.window_start'))->toBe('03:00');
+
+        $setEnvironmentValue('SYSTEM_UPDATES_AUTOMATIC_TIME', '03:30');
+        Env::enablePutenv();
+
+        /** @var array<string, mixed> $config */
+        $config = require __DIR__.'/../../config/core-panel.php';
+
+        expect(data_get($config, 'administration.system_updates.automatic.time'))->toBe('03:30');
+    } finally {
+        foreach ($originalEnvironment as $key => $value) {
+            if ($value === false) {
+                $unsetEnvironmentValue($key);
+
+                continue;
+            }
+
+            $setEnvironmentValue($key, $value);
+        }
+
+        Env::enablePutenv();
+    }
+});
+
 it('allows configuring the user model', function (): void {
     config()->set('core-panel.user_model', 'Domain\\Auth\\AdminUser');
 
@@ -417,14 +473,20 @@ it('uses timezone-aware timestamps in core migration stubs', function (): void {
 });
 
 it('keeps manual public form helpers inside the routes tree without a separate route-helper layer', function (): void {
+    $systemUpdateRoutes = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/system-updates.ts');
+
     expect(file_exists(__DIR__.'/../../stubs/resources/js/routes/_wayfinder.ts'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../stubs/resources/js/routes/locale.ts'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/resources/js/routes/core-panel/forms/public.ts'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../stubs/resources/js/routes/core-panel/system-updates.ts'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../stubs/resources/js/route-helpers/_wayfinder.ts'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/resources/js/route-helpers/locale.ts'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/resources/js/route-helpers/core-panel/forms/public.ts'))->toBeFalse()
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/forms/public.ts'))
-        ->toContain("import { callableAction } from '../../_wayfinder'");
+        ->toContain("import { callableAction } from '../../_wayfinder'")
+        ->and($systemUpdateRoutes)
+        ->toContain("import { action } from '../_wayfinder'")
+        ->toContain("update: action('put')");
 });
 
 it('renders the publishable logs tabs through the shared table builder surface', function (): void {
@@ -1386,6 +1448,12 @@ it('ships passport-oriented defaults in the scaffold environment template', func
         ->and($contents)->toContain('DATABASE_BACKUPS_ENABLED=true')
         ->and($contents)->toContain('SYSTEM_UPDATES_ENABLED=true')
         ->and($contents)->toContain('SYSTEM_UPDATES_DOCKER_ONLY=true')
+        ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES=15')
+        ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_INTERVAL=daily')
+        ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED=true')
+        ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_MODE=install')
+        ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_TIME=02:00')
+        ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_WEEKDAY=monday')
         ->and($contents)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS=3')
         ->and($contents)->not->toContain('SANCTUM_STATEFUL_DOMAINS=')
         ->and($contents)->not->toContain('CORE_PANEL_API_DRIVER=')
@@ -1528,6 +1596,12 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($portainerCompose)->toContain('container_name: core-panel-nginx')
         ->and($portainerCompose)->toContain('container_name: core-panel-postgres')
         ->and($portainerCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES: ${SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES:-15}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_INTERVAL: ${SYSTEM_UPDATES_AUTOMATIC_INTERVAL:-daily}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED: ${SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED:-true}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_MODE: ${SYSTEM_UPDATES_AUTOMATIC_MODE:-install}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_TIME: ${SYSTEM_UPDATES_AUTOMATIC_TIME:-${SYSTEM_UPDATES_AUTOMATIC_WINDOW_START:-02:00}}')
+        ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_WEEKDAY: ${SYSTEM_UPDATES_AUTOMATIC_WEEKDAY:-monday}')
         ->and($portainerCompose)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS: ${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}')
         ->and($portainerCompose)->toContain('SYSTEM_UPDATES_STATUS_STORE: ${SYSTEM_UPDATES_STATUS_STORE:-file}')
         ->and($portainerCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:?Set SYSTEM_UPDATES_TOKEN}')
@@ -1538,6 +1612,12 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($productionCompose)->toContain('target: nginx-prod')
         ->and($productionCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
         ->and($productionCompose)->toContain('x-php-environment: &php-environment')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES: ${SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES:-15}')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_INTERVAL: ${SYSTEM_UPDATES_AUTOMATIC_INTERVAL:-daily}')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED: ${SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED:-true}')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_MODE: ${SYSTEM_UPDATES_AUTOMATIC_MODE:-install}')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_TIME: ${SYSTEM_UPDATES_AUTOMATIC_TIME:-${SYSTEM_UPDATES_AUTOMATIC_WINDOW_START:-02:00}}')
+        ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_WEEKDAY: ${SYSTEM_UPDATES_AUTOMATIC_WEEKDAY:-monday}')
         ->and($productionCompose)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS: ${SYSTEM_UPDATES_RESTART_DELAY_SECONDS:-3}')
         ->and($productionCompose)->toContain('SYSTEM_UPDATES_STATUS_STORE: ${SYSTEM_UPDATES_STATUS_STORE:-file}')
         ->and($productionCompose)->toContain('system-updater:')
@@ -1847,7 +1927,9 @@ BLADE);
         ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {")
         ->and($consoleRoutes)->toContain("Schedule::command('database-backups:auto')")
         ->and($consoleRoutes)->toContain("if ((bool) config('database-backups.enabled', config('core-panel.administration.database_backups.enabled', true))) {")
-        ->and($consoleRoutes)->toContain("if ((bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false))) {")
+        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.system_updates.enabled', true)) {")
+        ->and($consoleRoutes)->toContain('->withoutOverlapping(20)')
+        ->and($consoleRoutes)->toContain('->onOneServer()')
         ->and($consoleRoutes)->not->toContain("app()->bound('command.database-backups:auto')")
         ->and($consoleRoutes)->not->toContain("app()->bound('command.system-updates:auto')")
         ->and(file_exists($temporaryBasePath.'/resources/views/welcome.blade.php'))->toBeFalse()
@@ -3721,6 +3803,7 @@ it('ships the persistent system update restart and completion experience', funct
     $dialog = file_get_contents(__DIR__.'/../../resources/js/components/Dialogs/SystemUpdateRestartDialog.vue');
     $polling = file_get_contents(__DIR__.'/../../resources/js/composables/useSystemRestartPolling.ts');
     $tab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/SystemUpdatesTab.vue');
+    $searchableTab = $tab."\n".str_replace('"', "'", $tab);
     preg_match(
         '/function observeRestartTransition\(\): void \{(?<body>.*?)\n\}\n\nfunction startRestartStatusPolling/s',
         $tab,
@@ -3760,7 +3843,7 @@ it('ships the persistent system update restart and completion experience', funct
         ->toContain('if (active.value)')
         ->toContain('onUnmounted(stop)')
         ->and(substr_count($polling, 'timeoutTimer = window.setTimeout'))->toBe(1)
-        ->and($tab)
+        ->and($searchableTab)
         ->toContain('response.status !== 202 || body.accepted !== true')
         ->toContain('restartDialogVisible.value = true')
         ->toContain("phase: 'waiting'")
@@ -3839,6 +3922,32 @@ it('ships the persistent system update restart and completion experience', funct
     expect($restartTransition)
         ->toContain('writeRestartMarker({ ...marker, restartObserved: true })')
         ->not->toContain('preRestartDeadline = 0');
+});
+
+it('shows the configured automatic update settings in the system updates card', function (): void {
+    $tab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/SystemUpdatesTab.vue');
+    $searchableTab = $tab."\n".str_replace('"', "'", $tab);
+
+    expect($searchableTab)
+        ->toContain('automaticModeLabel')
+        ->toContain('automaticIntervalLabel')
+        ->toContain("automatic.interval === 'weekly'")
+        ->toContain('automaticWeekdayLabel')
+        ->toContain('{{ automatic.time }}')
+        ->toContain("automatic.mode === 'install'")
+        ->toContain('automaticMaintenanceWindowLabel')
+        ->toContain("trans('system_updates.timezone')")
+        ->toContain('automatic.lastAutomaticRunAt')
+        ->toContain('v-if="forceUpdateEnabled"')
+        ->not->toContain('automatic?.forceUpdateEnabled');
+});
+
+it('keeps the automatic update toggle from shrinking on mobile', function (): void {
+    $dialog = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/SystemUpdateSettingsDialog.vue');
+
+    expect($dialog)
+        ->toContain('class="flex min-w-[4.5rem] shrink-0 justify-end self-start"')
+        ->toMatch('/min-w-\[4\.5rem\].*?<ToggleSwitch\s+v-model="settingsForm\.automatic_enabled"/s');
 });
 
 it('ships updater attempt correlation for terminal statuses between polls', function (): void {

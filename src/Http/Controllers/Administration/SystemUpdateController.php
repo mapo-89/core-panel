@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace CorePanel\Http\Controllers\Administration;
 
+use CorePanel\Domain\SystemUpdate\Actions\UpdateAutomaticSystemUpdateSettingsAction;
+use CorePanel\Domain\SystemUpdate\DTOs\AutomaticSystemUpdateSettingsData;
+use CorePanel\Http\Requests\UpdateAutomaticSystemUpdateSettingsRequest;
 use CorePanel\Jobs\RunSystemUpdate;
 use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Administration\SystemUpdates\ApplicationHealthUrl;
@@ -68,7 +71,7 @@ final class SystemUpdateController extends Controller
             'attempt_id' => ['nullable', 'uuid'],
         ]);
 
-        if ($request->boolean('force') && ! (bool) config('system-updates.force_update_enabled', config('core-panel.administration.system_updates.force_update_enabled', false))) {
+        if ($request->boolean('force') && ! $this->updater->forceUpdateEnabled()) {
             return $request->expectsJson()
                 ? response()->json(['message' => __('system_updates.force_update_disabled')], 422)
                 : back()->with('error', __('system_updates.force_update_disabled'));
@@ -97,9 +100,36 @@ final class SystemUpdateController extends Controller
         ], 202);
     }
 
-    /**
-     * @param  array<string, mixed>  $result
-     */
+    public function updateSettings(
+        UpdateAutomaticSystemUpdateSettingsRequest $request,
+        UpdateAutomaticSystemUpdateSettingsAction $action,
+    ): RedirectResponse {
+        abort_unless($this->updater->enabled(), 404);
+
+        $data = AutomaticSystemUpdateSettingsData::fromArray($request->validated());
+        $action->execute($data);
+
+        $user = $request->user();
+
+        if ($user !== null) {
+            $this->activityLog
+                ->withCauser($user)
+                ->log($user, 'system_updates.settings_updated', [
+                    'automatic_enabled' => $data->enabled,
+                    'interval' => $data->interval->value,
+                    'maintenance_window_enabled' => $data->maintenanceWindowEnabled,
+                    'mode' => $data->mode->value,
+                    'time' => $data->time,
+                    'weekday' => $data->weekday?->value,
+                    'window_end' => $data->windowEnd,
+                    'window_start' => $data->windowStart,
+                ]);
+        }
+
+        return back()->with('success', __('system_updates.settings_saved'));
+    }
+
+    /** @param array<string, mixed> $result */
     private function logActivity(Request $request, string $event, array $result): void
     {
         $user = $request->user();
