@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Process;
+
 function makePublishBasePath(string $suffix): string
 {
     return sys_get_temp_dir().'/core-panel-publish-'.bin2hex(random_bytes(4)).'-'.$suffix;
@@ -58,6 +60,22 @@ function currentCorePanelPackageVersion(): string
         ->and($decoded['release_version'] ?? null)->toBeString();
 
     return $decoded['release_version'];
+}
+
+function fakePublishUpdaterComposeLabels(string $workdir, string $composeFiles): void
+{
+    Process::fake(function ($process) use ($workdir, $composeFiles) {
+        if (($process->command[2] ?? null) === 'ls') {
+            return Process::result(output: "updater-container\n");
+        }
+
+        return Process::result(output: json_encode([
+            'com.docker.compose.project' => 'core-panel',
+            'com.docker.compose.project.config_files' => $composeFiles,
+            'com.docker.compose.project.working_dir' => $workdir,
+            'com.docker.compose.service' => 'system-updater',
+        ], JSON_THROW_ON_ERROR));
+    });
 }
 
 function legacyCriticalBootstrapAppContents(): string
@@ -226,10 +244,6 @@ CORE_PANEL_DARK_MODE=false
 CORE_PANEL_PUBLISH_THEME=true
 CORE_PANEL_FILES_DISK=public
 CORE_PANEL_HORIZON_ENABLED=true
-OCTANE_SERVER=frankenphp
-OCTANE_HTTPS=false
-OCTANE_HOST=0.0.0.0
-OCTANE_PORT=8000
 HORIZON_SLACK_CHANNEL=
 HORIZON_SLACK_WEBHOOK_URL=
 
@@ -332,6 +346,29 @@ volumes:
   postgres-data:
   redis-data:
 YAML;
+}
+
+function previousComposeBeforePackageEnvironmentMerge(string $contents): string
+{
+    $packageManagedKeys = [
+        'SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES',
+        'SYSTEM_UPDATES_AUTOMATIC_INTERVAL',
+        'SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED',
+        'SYSTEM_UPDATES_AUTOMATIC_MODE',
+        'SYSTEM_UPDATES_AUTOMATIC_TIME',
+        'SYSTEM_UPDATES_AUTOMATIC_WEEKDAY',
+    ];
+    $lines = preg_split('/\R/', $contents);
+
+    expect($lines)->toBeArray();
+
+    return implode(PHP_EOL, array_values(array_filter(
+        $lines,
+        static fn (string $line): bool => ! array_any(
+            $packageManagedKeys,
+            static fn (string $key): bool => preg_match('/^\s+'.preg_quote($key, '/').'\s*:/', $line) === 1,
+        ),
+    )));
 }
 
 function legacyCriticalOldRoutesConsoleContents(): string
@@ -537,16 +574,8 @@ function updatePreservedScaffoldPaths(): array
 {
     return [
         '.docker/bin/php-entrypoint.sh',
-        '.docker/nginx/default.conf',
         '.docker/php/banner.sh',
-        '.docker/php/entrypoint.sh',
         '.docker/php/php.ini',
-        'Dockerfile',
-        'docker-compose.dev.yml',
-        'docker-compose.portainer.yml',
-        'docker-compose.prod.yml',
-        'docker-compose.registry.yml',
-        'docker-compose.yml',
     ];
 }
 
@@ -640,9 +669,46 @@ it('backs up and updates a known legacy Vite scaffold without manifest tracking'
     $target = $basePath.'/vite.config.ts';
     $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/vite.config.ts');
     $legacyContents = str_replace(
-        '? [wayfinder()]',
-        '? [wayfinder({ actions: false })]',
+        ['? [wayfinder()]', 'import.meta.dirname'],
+        ['? [wayfinder({ actions: false })]', '__dirname'],
         $expectedContents,
+    );
+    $legacyContents = str_replace(
+        [
+            <<<'TS'
+    path.resolve(
+        __dirname,
+        'vendor/mapo-89/core-panel/resources/lang',
+    ),
+TS,
+            <<<'TS'
+                replacement: path.resolve(
+                    __dirname,
+                    'node_modules/primevue',
+                ),
+TS,
+            <<<'TS'
+                replacement:
+                    path.resolve(__dirname, 'node_modules/primevue') +
+                    '/$1',
+TS,
+            <<<'TS'
+                replacement: path.resolve(
+                    __dirname,
+                    'node_modules/vue',
+                ),
+TS,
+        ],
+        [
+            "    path.resolve(__dirname, 'vendor/mapo-89/core-panel/resources/lang'),",
+            "                replacement: path.resolve(__dirname, 'node_modules/primevue'),",
+            <<<'TS'
+                replacement:
+                    path.resolve(__dirname, 'node_modules/primevue') + '/$1',
+TS,
+            "                replacement: path.resolve(__dirname, 'node_modules/vue'),",
+        ],
+        $legacyContents,
     );
 
     mkdir($basePath, 0777, true);
@@ -1281,6 +1347,7 @@ PHP;
 it('does not merge untracked existing package json during updates', function (): void {
     $basePath = makePublishBasePath('untracked-package-json-update');
     $target = $basePath.'/package.json';
+    $makefileTarget = $basePath.'/Makefile';
     $hostPackage = [
         'name' => 'host-app',
         'private' => true,
@@ -1307,6 +1374,9 @@ it('does not merge untracked existing package json during updates', function ():
     $packageJson = json_decode((string) file_get_contents($target), true, 512, JSON_THROW_ON_ERROR);
 
     expect($packageJson)->toBe($hostPackage)
+        ->and(file_get_contents($makefileTarget))
+        ->toContain('npm exec vue-tsc -- --noEmit --incremental --tsBuildInfoFile node_modules/.vue-tsc.tsbuildinfo -p tsconfig.json')
+        ->not->toContain('npm run typecheck:incremental')
         ->and(glob($basePath.'/.core-panel-backups/*/package.json'))->toBe([]);
 });
 
@@ -1343,6 +1413,7 @@ it('merges manifest-managed existing package json during updates', function (): 
         ->and($packageJson['name'])->toBe('host-app')
         ->and($packageJson['scripts'])->toHaveKey('custom')
         ->and($packageJson['scripts'])->toHaveKey('build')
+        ->and($packageJson['scripts'])->toHaveKey('typecheck:incremental')
         ->and($packageJson['dependencies'])->toHaveKey('axios')
         ->and($packageJson['dependencies'])->toHaveKey('vue')
         ->and($packageJson['devDependencies'])->toHaveKey('vitest')
@@ -1369,6 +1440,717 @@ it('creates missing versioned application scaffolds during updates without a pre
         ->and(file_get_contents($target))->toContain('->onOneServer()')
         ->and(file_get_contents($target))->not->toContain("app()->bound('command.database-backups:auto')")
         ->and(file_get_contents($target))->not->toContain("app()->bound('command.system-updates:auto')");
+});
+
+it('creates missing unified application image scaffolds and records their baselines', function (): void {
+    $basePath = makePublishBasePath('missing-unified-image-scaffolds');
+    $relativePaths = [
+        '.docker/nginx/default.conf',
+        '.docker/php/entrypoint.sh',
+        'Dockerfile',
+        'docker-compose.dev.yml',
+        'docker-compose.portainer.yml',
+        'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
+        'docker-compose.yml',
+    ];
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($relativePaths as $relativePath) {
+        expect(file_get_contents($basePath.'/'.$relativePath))
+            ->toBe(file_get_contents(__DIR__.'/../../stubs/'.$relativePath))
+            ->and($manifest['files'][$relativePath] ?? null)->toBeArray()
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    }
+});
+
+it('updates managed unified application image scaffolds with backups and new manifest entries', function (): void {
+    $basePath = makePublishBasePath('managed-unified-image-scaffolds');
+    $legacyFiles = [
+        'Dockerfile' => "FROM php:8.5-fpm-bookworm AS php-prod\n",
+        'docker-compose.registry.yml' => "services:\n  app:\n    image: \${PHP_IMAGE}\n  nginx:\n    image: \${NGINX_IMAGE}\n",
+    ];
+
+    seedScaffoldManifestFiles($basePath, $legacyFiles);
+    file_put_contents($basePath.'/.env', "APP_IMAGE=registry.example/core-panel/app:latest\n");
+
+    foreach ($legacyFiles as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents);
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($legacyFiles as $relativePath => $legacyContents) {
+        $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+        $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($expectedContents)
+            ->and($backups)->not->toBeEmpty()
+            ->and(file_get_contents($backups[0]))->toBe($legacyContents)
+            ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)
+            ->toBe(hash('sha256', $expectedContents));
+    }
+});
+
+it('preserves operator customizations across all managed runtime migration scaffolds', function (): void {
+    $basePath = makePublishBasePath('customized-managed-runtime-migration-scaffolds');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $managedFiles = [
+        '.docker/nginx/default.conf' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/nginx/default.conf'),
+        '.docker/php/entrypoint.sh' => (string) file_get_contents($releaseFixturePath.'/.docker/php/entrypoint.sh'),
+        'Dockerfile' => (string) file_get_contents($releaseFixturePath.'/Dockerfile'),
+        'docker-compose.dev.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.dev.yml'),
+        'docker-compose.portainer.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.portainer.yml'),
+        'docker-compose.prod.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.prod.yml'),
+        'docker-compose.registry.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml'),
+        'docker-compose.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.yml'),
+    ];
+
+    seedScaffoldManifestFiles($basePath, $managedFiles);
+
+    foreach ($managedFiles as $relativePath => $managedContents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        $customizedContents = $managedContents."\n# operator customization\n";
+        file_put_contents($target, $customizedContents);
+        $managedFiles[$relativePath] = $customizedContents;
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($managedFiles as $relativePath => $customizedContents) {
+        $installedContents = (string) file_get_contents($basePath.'/'.$relativePath);
+
+        expect($installedContents)->toContain('# operator customization')
+            ->and($installedContents)->not->toBe((string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath));
+
+        if (! in_array($relativePath, ['docker-compose.prod.yml', 'docker-compose.portainer.yml'], true)) {
+            expect($installedContents)->toBe($customizedContents)
+                ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([])
+                ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)
+                ->not->toBe(hash('sha256', $customizedContents));
+        }
+    }
+});
+
+it('preserves the complete runtime topology when only one managed scaffold is customized', function (): void {
+    $basePath = makePublishBasePath('partially-customized-managed-runtime-migration-scaffolds');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $managedFiles = [
+        '.docker/nginx/default.conf' => (string) file_get_contents(__DIR__.'/../../stubs/.docker/nginx/default.conf'),
+        '.docker/php/entrypoint.sh' => (string) file_get_contents($releaseFixturePath.'/.docker/php/entrypoint.sh'),
+        'Dockerfile' => (string) file_get_contents($releaseFixturePath.'/Dockerfile'),
+        'docker-compose.dev.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.dev.yml'),
+        'docker-compose.portainer.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.portainer.yml'),
+        'docker-compose.prod.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.prod.yml'),
+        'docker-compose.registry.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml'),
+        'docker-compose.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.yml'),
+    ];
+
+    seedScaffoldManifestFiles($basePath, $managedFiles);
+    file_put_contents($basePath.'/.env', "SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx\n");
+
+    foreach ($managedFiles as $relativePath => $managedContents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents(
+            $target,
+            $relativePath === 'docker-compose.prod.yml'
+                ? $managedContents."\n# operator customization\n"
+                : $managedContents,
+        );
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    foreach (array_diff(array_keys($managedFiles), ['docker-compose.prod.yml', 'docker-compose.portainer.yml']) as $relativePath) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($managedFiles[$relativePath]);
+    }
+
+    expect(file_get_contents($basePath.'/Dockerfile'))
+        ->toContain('AS php-prod')
+        ->not->toContain('AS app-prod')
+        ->and(file_get_contents($basePath.'/docker-compose.registry.yml'))
+        ->toContain('NGINX_IMAGE')
+        ->and(file_get_contents($basePath.'/docker-compose.prod.yml'))
+        ->toContain('# operator customization')
+        ->toContain('target: nginx-prod')
+        ->not->toBe((string) file_get_contents(__DIR__.'/../../stubs/docker-compose.prod.yml'))
+        ->and(file_get_contents($basePath.'/docker-compose.portainer.yml'))
+        ->toContain('NGINX_IMAGE')
+        ->not->toBe((string) file_get_contents(__DIR__.'/../../stubs/docker-compose.portainer.yml'))
+        ->and(file_get_contents($basePath.'/.env'))
+        ->toContain("SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx\n")
+        ->not->toContain("SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler\n");
+});
+
+it('uses the unified updater service list when customized retained scaffolds have no nginx service', function (): void {
+    $relativePaths = [
+        '.docker/nginx/default.conf',
+        '.docker/php/entrypoint.sh',
+        'Dockerfile',
+        'docker-compose.dev.yml',
+        'docker-compose.portainer.yml',
+        'docker-compose.prod.yml',
+        'docker-compose.registry.yml',
+        'docker-compose.yml',
+    ];
+    $managedFiles = [];
+
+    foreach ($relativePaths as $relativePath) {
+        $managedFiles[$relativePath] = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+    }
+
+    foreach ([
+        'legacy-value' => "SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx\n",
+        'missing-value' => "APP_NAME=CorePanel\n",
+    ] as $scenario => $environmentContents) {
+        $basePath = makePublishBasePath('customized-unified-runtime-'.$scenario);
+
+        seedScaffoldManifestFiles($basePath, $managedFiles);
+        file_put_contents($basePath.'/.env', $environmentContents);
+
+        foreach ($managedFiles as $relativePath => $managedContents) {
+            $target = $basePath.'/'.$relativePath;
+
+            if (! is_dir(dirname($target))) {
+                mkdir(dirname($target), 0777, true);
+            }
+
+            file_put_contents(
+                $target,
+                $relativePath === 'Dockerfile'
+                    ? $managedContents."\n# operator customization\n"
+                    : $managedContents,
+            );
+        }
+
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+
+        expect(file_get_contents($basePath.'/Dockerfile'))
+            ->toContain('# operator customization')
+            ->and(file_get_contents($basePath.'/.env'))
+            ->toContain("SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler\n")
+            ->not->toContain('SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx');
+    }
+});
+
+it('stops a legacy registry scaffold migration until APP_IMAGE is configured', function (): void {
+    $basePath = makePublishBasePath('legacy-registry-without-app-image');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $legacyFiles = [
+        'Dockerfile' => (string) file_get_contents($releaseFixturePath.'/Dockerfile'),
+        'docker-compose.registry.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml'),
+    ];
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/.env', implode(PHP_EOL, [
+        'PHP_IMAGE=registry.example/core-panel/php:1.5.0',
+        'NGINX_IMAGE=registry.example/core-panel/nginx:1.5.0',
+        'SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml,docker-compose.registry.yml',
+        '',
+    ]));
+
+    foreach ($legacyFiles as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents);
+    }
+
+    $previousAppImage = getenv('APP_IMAGE');
+    putenv('APP_IMAGE=registry.example/invoking-application/app:latest');
+
+    try {
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])
+            ->expectsOutputToContain('Cannot migrate the Docker runtime scaffolds because APP_IMAGE is not configured')
+            ->assertExitCode(1);
+    } finally {
+        putenv($previousAppImage === false ? 'APP_IMAGE' : 'APP_IMAGE='.$previousAppImage);
+    }
+
+    foreach ($legacyFiles as $relativePath => $contents) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    }
+
+    expect(file_get_contents($basePath.'/.env'))
+        ->toContain('PHP_IMAGE=registry.example/core-panel/php:1.5.0')
+        ->toContain('NGINX_IMAGE=registry.example/core-panel/nginx:1.5.0')
+        ->not->toContain('APP_IMAGE=')
+        ->and(file_exists($basePath.'/storage/app/core-panel/scaffolds.json'))->toBeFalse();
+});
+
+it('stops a legacy registry migration when the active overlay was renamed', function (): void {
+    $basePath = makePublishBasePath('renamed-active-legacy-registry-overlay');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $legacyRegistryCompose = (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml');
+    $renamedOverlayPath = $basePath.'/deploy/registry.yml';
+
+    mkdir(dirname($renamedOverlayPath), 0777, true);
+    file_put_contents($basePath.'/.env', implode(PHP_EOL, [
+        'SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml,deploy/registry.yml',
+        'SYSTEM_UPDATER_COMPOSE_WORKDIR=/workspace',
+        'SYSTEM_UPDATER_PROJECT_PATH='.$basePath,
+        '',
+    ]));
+    file_put_contents($basePath.'/docker-compose.registry.yml', $legacyRegistryCompose);
+    file_put_contents($renamedOverlayPath, <<<'YAML'
+services:
+  app:
+    image: ${PHP_IMAGE}
+  nginx:
+    image: ${NGINX_IMAGE}
+YAML);
+    Process::fake(['*' => Process::result(output: '')]);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])
+        ->expectsOutputToContain('Cannot migrate the Docker runtime scaffolds because APP_IMAGE is not configured')
+        ->assertExitCode(1);
+
+    expect(file_get_contents($basePath.'/docker-compose.registry.yml'))
+        ->toBe($legacyRegistryCompose)
+        ->and(file_get_contents($renamedOverlayPath))
+        ->toContain('${PHP_IMAGE}')
+        ->toContain('${NGINX_IMAGE}')
+        ->and(file_exists($basePath.'/storage/app/core-panel/scaffolds.json'))->toBeFalse();
+});
+
+it('stops a legacy registry migration when a renamed active overlay is not readable from the application', function (): void {
+    $basePath = makePublishBasePath('unreadable-renamed-active-registry-overlay');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $legacyRegistryCompose = (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml');
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/.env', implode(PHP_EOL, [
+        'SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml',
+        'SYSTEM_UPDATER_COMPOSE_PROJECT_NAME=core-panel',
+        '',
+    ]));
+    file_put_contents($basePath.'/docker-compose.registry.yml', $legacyRegistryCompose);
+    fakePublishUpdaterComposeLabels('/unmounted/registry-stack', 'docker-compose.prod.yml,deploy/registry.yml');
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])
+        ->expectsOutputToContain('Cannot migrate the Docker runtime scaffolds because APP_IMAGE is not configured')
+        ->assertExitCode(1);
+
+    expect(file_get_contents($basePath.'/docker-compose.registry.yml'))
+        ->toBe($legacyRegistryCompose)
+        ->and(file_exists($basePath.'/storage/app/core-panel/scaffolds.json'))->toBeFalse();
+});
+
+it('stops a legacy Portainer scaffold migration when image variables are configured outside the application environment', function (): void {
+    $basePath = makePublishBasePath('legacy-portainer-with-external-image-variables');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $legacyFiles = [
+        'Dockerfile' => (string) file_get_contents($releaseFixturePath.'/Dockerfile'),
+        'docker-compose.portainer.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.portainer.yml'),
+    ];
+
+    $previousAppImage = getenv('APP_IMAGE');
+    $previousPhpImage = getenv('PHP_IMAGE');
+    $previousNginxImage = getenv('NGINX_IMAGE');
+
+    putenv('APP_IMAGE');
+    putenv('PHP_IMAGE=registry.example/core-panel/php:1.5.0');
+    putenv('NGINX_IMAGE=registry.example/core-panel/nginx:1.5.0');
+
+    mkdir($basePath, 0777, true);
+    $environmentContents = implode(PHP_EOL, [
+        'APP_NAME=CorePanel',
+        'SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml',
+        'SYSTEM_UPDATER_COMPOSE_PROJECT_NAME=core-panel',
+        '',
+    ]);
+    file_put_contents($basePath.'/.env', $environmentContents);
+    fakePublishUpdaterComposeLabels('/unmounted/portainer-stack', 'docker-compose.portainer.yml');
+
+    foreach ($legacyFiles as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents);
+    }
+
+    try {
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])
+            ->expectsOutputToContain('Cannot migrate the Docker runtime scaffolds because APP_IMAGE is not configured')
+            ->assertExitCode(1);
+    } finally {
+        putenv($previousAppImage === false ? 'APP_IMAGE' : 'APP_IMAGE='.$previousAppImage);
+        putenv($previousPhpImage === false ? 'PHP_IMAGE' : 'PHP_IMAGE='.$previousPhpImage);
+        putenv($previousNginxImage === false ? 'NGINX_IMAGE' : 'NGINX_IMAGE='.$previousNginxImage);
+    }
+
+    foreach ($legacyFiles as $relativePath => $contents) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    }
+
+    expect(file_get_contents($basePath.'/.env'))
+        ->toBe($environmentContents)
+        ->and(file_exists($basePath.'/storage/app/core-panel/scaffolds.json'))->toBeFalse();
+});
+
+it('migrates dormant registry scaffolds without requiring APP_IMAGE for a build-based deployment', function (): void {
+    $basePath = makePublishBasePath('dormant-legacy-registry-without-app-image');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $legacyRegistryCompose = (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml');
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/.env', "SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml\n");
+    file_put_contents($basePath.'/docker-compose.registry.yml', $legacyRegistryCompose);
+
+    $previousComposeFiles = getenv('SYSTEM_UPDATER_COMPOSE_FILES');
+    putenv('SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml,docker-compose.registry.yml');
+
+    try {
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+    } finally {
+        putenv($previousComposeFiles === false
+            ? 'SYSTEM_UPDATER_COMPOSE_FILES'
+            : 'SYSTEM_UPDATER_COMPOSE_FILES='.$previousComposeFiles);
+    }
+
+    expect(file_get_contents($basePath.'/docker-compose.registry.yml'))
+        ->toBe(file_get_contents(__DIR__.'/../../stubs/docker-compose.registry.yml'))
+        ->and(file_get_contents($basePath.'/.env'))
+        ->toContain("SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml\n")
+        ->not->toContain('APP_IMAGE=registry.')
+        ->and(glob($basePath.'/.core-panel-backups/*/docker-compose.registry.yml'))->not->toBeEmpty();
+});
+
+it('upgrades every exact 1.5.0 runtime scaffold without a manifest', function (): void {
+    $basePath = makePublishBasePath('release-1-5-0-runtime-without-manifest');
+    $releaseFixturePath = __DIR__.'/../Fixtures/scaffolds/release-1.5.0';
+    $releasedFiles = [
+        '.docker/php/entrypoint.sh' => (string) file_get_contents($releaseFixturePath.'/.docker/php/entrypoint.sh'),
+        'Dockerfile' => (string) file_get_contents($releaseFixturePath.'/Dockerfile'),
+        'docker-compose.dev.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.dev.yml'),
+        'docker-compose.portainer.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.portainer.yml'),
+        'docker-compose.prod.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.prod.yml'),
+        'docker-compose.registry.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.registry.yml'),
+        'docker-compose.yml' => (string) file_get_contents($releaseFixturePath.'/docker-compose.yml'),
+    ];
+    $releasedHashes = [
+        '.docker/php/entrypoint.sh' => '0d925b3792945a4a368eb1792984b72a81179baaa159430846e559584f08e28f',
+        'Dockerfile' => '651df5baf782cb9af41a2bdcb56e1bf440972c673c47c0554c9c4bb8fc3d3d7c',
+        'docker-compose.dev.yml' => '18b871d6e4d52e607cabff4329c3bbb32a89f6b3a3a3a6c4f86474b779e7e915',
+        'docker-compose.portainer.yml' => 'fc634d74167a50dc0e71f8f6e0f16955fadb25eb68518659de035fe83f3a3aff',
+        'docker-compose.prod.yml' => 'afbb4e05ebb897fb5a0c9196d918b70b57de08d15ceb43796d085ae01b5051d8',
+        'docker-compose.registry.yml' => 'd3b1222af0dd05b455c4823d598254cfa3ca978040e07c0f242c60d647ebd764',
+        'docker-compose.yml' => '698df829ef20ada661bc48d30e0f59ce48b162e818bc5b8b3f6670e7cfebaa65',
+    ];
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/.env', implode(PHP_EOL, [
+        'APP_IMAGE=registry.example/core-panel/app:1.5.0',
+        'SYSTEM_UPDATER_COMPOSE_FILES=auto',
+        'SYSTEM_UPDATER_COMPOSE_WORKDIR=/workspace',
+        'SYSTEM_UPDATER_PROJECT_PATH='.$basePath.'/unmounted-host-project',
+        'SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx',
+        '',
+    ]));
+
+    foreach ($releasedFiles as $relativePath => $contents) {
+        expect(hash('sha256', $contents))->toBe($releasedHashes[$relativePath]);
+
+        $target = $basePath.'/'.$relativePath;
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+        file_put_contents($target, $contents);
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($releasedFiles as $relativePath => $releasedContents) {
+        $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+        $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($expectedContents)
+            ->and($backups)->not->toBeEmpty()
+            ->and(file_get_contents($backups[0]))->toBe($releasedContents)
+            ->and($manifest['files'][$relativePath]['source_hash'] ?? null)->toBe(hash('sha256', $expectedContents))
+            ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)->toBe(hash('sha256', $expectedContents));
+    }
+
+    expect(file_get_contents($basePath.'/Dockerfile'))
+        ->toContain('FROM serversideup/php:8.5-fpm-nginx AS php-extension-base')
+        ->toContain('FROM app-runtime-base AS app-prod')
+        ->toContain('FROM app-runtime-base AS app-dev')
+        ->not->toContain(' AS php-prod')
+        ->not->toContain(' AS php-dev')
+        ->not->toContain(' AS nginx-prod')
+        ->and(file_get_contents($basePath.'/.docker/php/entrypoint.sh'))
+        ->toContain('PHP_FPM_CHILD_PROCESS_USER')
+        ->toContain('Prepared writable runtime directories')
+        ->and(file_get_contents($basePath.'/docker-compose.yml'))
+        ->toContain('target: app-prod')
+        ->toContain('target: app-dev')
+        ->not->toContain('target: php-prod')
+        ->and(file_get_contents($basePath.'/docker-compose.registry.yml'))
+        ->toContain('${APP_IMAGE:?Set APP_IMAGE}')
+        ->not->toContain('PHP_IMAGE')
+        ->not->toContain('NGINX_IMAGE')
+        ->and(file_get_contents($basePath.'/docker-compose.prod.yml'))
+        ->not->toContain('target: nginx-prod')
+        ->not->toContain("\n  nginx:\n")
+        ->and(file_get_contents($basePath.'/docker-compose.portainer.yml'))
+        ->toContain('${APP_IMAGE:?Set APP_IMAGE}')
+        ->not->toContain('PHP_IMAGE')
+        ->not->toContain('NGINX_IMAGE')
+        ->not->toContain("\n  nginx:\n")
+        ->and(file_get_contents($basePath.'/.env'))
+        ->toContain("SYSTEM_UPDATER_COMPOSE_FILES=auto\n")
+        ->toContain("SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler\n")
+        ->not->toContain('SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx');
+});
+
+it('upgrades unified development scaffolds that predate host user mapping', function (): void {
+    $basePath = makePublishBasePath('unified-development-before-user-mapping');
+    $currentFiles = [
+        'Dockerfile' => (string) file_get_contents(__DIR__.'/../../stubs/Dockerfile'),
+        'docker-compose.dev.yml' => (string) file_get_contents(__DIR__.'/../../stubs/docker-compose.dev.yml'),
+    ];
+    $previousFiles = [
+        'Dockerfile' => str_replace(<<<'DOCKERFILE'
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+RUN docker-php-serversideup-set-id www-data "${USER_ID}:${GROUP_ID}"
+DOCKERFILE.PHP_EOL.PHP_EOL, '', $currentFiles['Dockerfile']),
+        'docker-compose.dev.yml' => str_replace(
+            [
+                '    user: root'.PHP_EOL,
+                '    pull_policy: never'.PHP_EOL,
+                'UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}',
+                '- ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro',
+            ],
+            [
+                '',
+                '',
+                'UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-auto}',
+                '- ./:/workspace:ro',
+            ],
+            str_replace([
+                <<<'COMPOSE'
+x-development-build-args: &development-build-args
+  USER_ID: ${DEV_USER_ID:-1000}
+  GROUP_ID: ${DEV_GROUP_ID:-1000}
+COMPOSE.PHP_EOL.PHP_EOL,
+                <<<'COMPOSE'
+      args:
+        <<: *development-build-args
+        APP_ENV: testing
+COMPOSE.PHP_EOL,
+                '        <<: *development-build-args'.PHP_EOL,
+            ], '', $currentFiles['docker-compose.dev.yml']),
+        ),
+    ];
+
+    expect(hash('sha256', $previousFiles['Dockerfile']))
+        ->toBe('92b9b0142fc76cb9341ef68efc99477e59d6afd02c93d01011aaa626bcc4d90a')
+        ->and(hash('sha256', $previousFiles['docker-compose.dev.yml']))
+        ->toBe('dce23fe0b0ed4e04bbc4dcfcf35e3cae324572a1a957793884b12d6339179837');
+
+    mkdir($basePath, 0777, true);
+
+    foreach ($previousFiles as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents);
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($currentFiles as $relativePath => $currentContents) {
+        $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($currentContents)
+            ->and($backups)->not->toBeEmpty()
+            ->and(file_get_contents($backups[0]))->toBe($previousFiles[$relativePath])
+            ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)->toBe(hash('sha256', $currentContents));
+    }
+});
+
+it('upgrades the exact previous production compose scaffolds with and without package environment merge manifests', function (): void {
+    $previousFiles = [
+        'docker-compose.prod.yml' => (string) file_get_contents(__DIR__.'/../Fixtures/scaffolds/release-1.5.0/docker-compose.prod.yml'),
+        'docker-compose.portainer.yml' => (string) file_get_contents(__DIR__.'/../Fixtures/scaffolds/release-1.5.0/docker-compose.portainer.yml'),
+    ];
+    $beforeEnvironmentMergeFiles = array_map(
+        previousComposeBeforePackageEnvironmentMerge(...),
+        $previousFiles,
+    );
+
+    expect(hash('sha256', $previousFiles['docker-compose.prod.yml']))
+        ->toBe('afbb4e05ebb897fb5a0c9196d918b70b57de08d15ceb43796d085ae01b5051d8')
+        ->and(hash('sha256', $previousFiles['docker-compose.portainer.yml']))
+        ->toBe('fc634d74167a50dc0e71f8f6e0f16955fadb25eb68518659de035fe83f3a3aff')
+        ->and(hash('sha256', $beforeEnvironmentMergeFiles['docker-compose.prod.yml']))
+        ->toBe('a26ba0f8d1ba9cb20a70c75ad6116024d211b2dcc2b591f6894c9cf58324c17e')
+        ->and(hash('sha256', $beforeEnvironmentMergeFiles['docker-compose.portainer.yml']))
+        ->toBe('24a09c2b7a0947ccee51df077718e6e825598cc91e172ccf594f34350b4afbdd');
+
+    foreach ([false, true] as $withEnvironmentMergeManifest) {
+        $basePath = makePublishBasePath($withEnvironmentMergeManifest
+            ? 'previous-compose-package-environment-merge'
+            : 'previous-compose-without-manifest');
+
+        mkdir($basePath, 0777, true);
+
+        if ($withEnvironmentMergeManifest) {
+            seedScaffoldManifestFiles($basePath, $beforeEnvironmentMergeFiles, '1.4.1');
+        }
+
+        file_put_contents($basePath.'/.env', "APP_IMAGE=registry.example/core-panel/app:latest\n");
+
+        foreach ($previousFiles as $relativePath => $contents) {
+            file_put_contents($basePath.'/'.$relativePath, $contents);
+        }
+
+        $this->artisan('core-panel:update', [
+            '--base-path' => $basePath,
+        ])->assertExitCode(0);
+
+        $manifest = json_decode(
+            (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+
+        foreach ($previousFiles as $relativePath => $previousContents) {
+            $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+            $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+            expect(file_get_contents($basePath.'/'.$relativePath))->toBe($expectedContents)
+                ->and($backups)->not->toBeEmpty()
+                ->and(file_get_contents($backups[0]))->toBe($previousContents)
+                ->and($manifest['files'][$relativePath]['source_hash'] ?? null)->toBe(hash('sha256', $expectedContents))
+                ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)->toBe(hash('sha256', $expectedContents));
+        }
+
+        expect(file_get_contents($basePath.'/docker-compose.prod.yml'))
+            ->not->toContain('target: nginx-prod')
+            ->not->toContain("\n  nginx:\n")
+            ->toContain('    user: root')
+            ->toContain("      app:\n        condition: service_healthy")
+            ->toContain('"${APP_PORT:-8000}:8080"')
+            ->and(file_get_contents($basePath.'/docker-compose.portainer.yml'))
+            ->toContain('${APP_IMAGE:?Set APP_IMAGE}')
+            ->toContain('    user: root')
+            ->toContain("      app:\n        condition: service_healthy")
+            ->not->toContain('PHP_IMAGE')
+            ->not->toContain('NGINX_IMAGE')
+            ->not->toContain("\n  nginx:\n");
+    }
+});
+
+it('upgrades the runtime entrypoint that predates mounted storage ownership initialization', function (): void {
+    $basePath = makePublishBasePath('previous-runtime-entrypoint-storage-ownership');
+    $relativePath = '.docker/php/entrypoint.sh';
+    $currentContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+    $previousContents = str_replace([
+        <<<'SH'
+if [ "$(id -u)" -eq 0 ]; then
+    runtime_user="${PHP_FPM_CHILD_PROCESS_USER:-www-data}"
+    runtime_group="${PHP_FPM_CHILD_PROCESS_GROUP:-www-data}"
+fi
+SH."\n\n",
+        <<<'SH'
+if [ "$(id -u)" -eq 0 ]; then
+    chown -R "${runtime_user}:${runtime_group}" storage bootstrap/cache
+    log "✅ success " "Prepared writable runtime directories for ${runtime_user}:${runtime_group}"
+fi
+SH."\n\n",
+    ], '', $currentContents);
+
+    expect(hash('sha256', $previousContents))
+        ->toBe('ace55903a4c43bb51305ee968b4ddcd50dd8df21180c346a4d486f10387b25ba');
+
+    mkdir(dirname($basePath.'/'.$relativePath), 0777, true);
+    file_put_contents($basePath.'/'.$relativePath, $previousContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+    expect(file_get_contents($basePath.'/'.$relativePath))->toBe($currentContents)
+        ->and($backups)->not->toBeEmpty()
+        ->and(file_get_contents($backups[0]))->toBe($previousContents)
+        ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)->toBe(hash('sha256', $currentContents));
 });
 
 it('creates the missing system update route scaffold during upgrades', function (): void {
@@ -2172,7 +2954,7 @@ it('updates additional pre-manifest critical scaffolds without a previous baseli
     }
 });
 
-it('keeps update-preserved docker scaffolds untouched during updates', function (): void {
+it('keeps unmanaged customized docker scaffolds untouched during updates', function (): void {
     $basePath = makePublishBasePath('update-preserved-docker-scaffolds');
     $preservedFiles = [
         '.docker/bin/php-entrypoint.sh' => "#!/usr/bin/env sh\n\necho preserved-php-entrypoint\n",
@@ -2568,6 +3350,11 @@ it('synchronizes missing environment defaults during update', function (): void 
     mkdir($basePath, 0777, true);
     file_put_contents($basePath.'/.env', implode(PHP_EOL, [
         'APP_NAME=CorePanel',
+        'OCTANE_HOST=0.0.0.0',
+        'OCTANE_HTTPS=false',
+        'OCTANE_PORT=8000',
+        'OCTANE_SERVER=frankenphp',
+        'SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx',
         'SYSTEM_UPDATES_AUTOMATIC_WINDOW_START=03:00',
         '',
     ]));
@@ -2581,7 +3368,12 @@ it('synchronizes missing environment defaults during update', function (): void 
     expect($contents)->toContain("APP_NAME=CorePanel\n")
         ->and($contents)->toContain("LOG_CHANNEL=daily\n")
         ->and($contents)->toContain("SYSTEM_UPDATES_AUTOMATIC_TIME=03:00\n")
-        ->and($contents)->toContain("SYSTEM_UPDATES_AUTOMATIC_WINDOW_START=03:00\n");
+        ->and($contents)->toContain("SYSTEM_UPDATES_AUTOMATIC_WINDOW_START=03:00\n")
+        ->and($contents)->toContain("SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler\n")
+        ->and($contents)->not->toContain('SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx')
+        ->and($contents)->not->toContain('OCTANE_')
+        ->and(file_get_contents($basePath.'/.env.backup'))->toContain('OCTANE_SERVER=frankenphp')
+        ->and(file_get_contents($basePath.'/.env.backup'))->toContain('SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler,nginx');
 });
 
 it('preserves a customized published app version metadata file during update', function (): void {

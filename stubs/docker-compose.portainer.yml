@@ -99,44 +99,33 @@ x-php-environment: &php-environment
 
 services:
   app:
-    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    image: ${APP_IMAGE:?Set APP_IMAGE}
     container_name: core-panel-app
     restart: unless-stopped
+    user: root
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
     networks:
+      - proxy-network
       - core-panel
     depends_on:
       - postgres
       - redis
-    cpus: "0.9"
-    mem_limit: 600m
-    mem_reservation: 256m
-
-  nginx:
-    image: ${NGINX_IMAGE:?Set NGINX_IMAGE}
-    container_name: core-panel-nginx
-    restart: unless-stopped
-    environment:
-      PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}
-    volumes:
-      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage:ro
-    depends_on:
-      - app
-    networks:
-      - proxy-network
-      - core-panel
-    cpus: "0.2"
-    mem_limit: 128m
-    mem_reservation: 32m
+    expose:
+      - "8080"
+    cpus: "1.1"
+    mem_limit: 768m
+    mem_reservation: 288m
 
   horizon:
-    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    image: ${APP_IMAGE:?Set APP_IMAGE}
     restart: unless-stopped
     command: php artisan horizon
+    healthcheck:
+      test: ["CMD", "healthcheck-horizon"]
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: "false"
@@ -145,16 +134,22 @@ services:
     networks:
       - core-panel
     depends_on:
-      - postgres
-      - redis
+      app:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     cpus: "0.5"
     mem_limit: 512m
     mem_reservation: 128m
 
   scheduler:
-    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    image: ${APP_IMAGE:?Set APP_IMAGE}
     restart: unless-stopped
-    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    command: php artisan schedule:work
+    healthcheck:
+      test: ["CMD", "healthcheck-schedule"]
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: "false"
@@ -163,8 +158,12 @@ services:
     networks:
       - core-panel
     depends_on:
-      - postgres
-      - redis
+      app:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     cpus: "0.2"
     mem_limit: 256m
     mem_reservation: 64m
@@ -225,7 +224,7 @@ services:
       UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-auto}
       UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-auto}
       UPDATER_FORCE_SELF_UPDATE_AVAILABLE: ${SYSTEM_UPDATER_FORCE_SELF_UPDATE_AVAILABLE:-false}
-      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler,nginx}
+      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler}
       UPDATER_SELF_SERVICE: ${SYSTEM_UPDATER_SELF_SERVICE:-system-updater}
       UPDATER_SELF_UPDATE_ENABLED: ${SYSTEM_UPDATER_SELF_UPDATE_ENABLED:-false}
       UPDATER_STATE_PATH: /updater-data/state.json

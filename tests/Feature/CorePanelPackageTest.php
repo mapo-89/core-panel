@@ -10,6 +10,7 @@ use CorePanel\Console\SyncEnvironmentCommand;
 use CorePanel\Console\UpdateCommand;
 use CorePanel\Console\VendorFirstCleanupCommand;
 use CorePanel\CorePanelServiceProvider;
+use CorePanel\Domain\Dashboard\DTOs\SystemHealthData;
 use CorePanel\Http\Responses\ResetPasswordResponse;
 use CorePanel\Support\Config\CorePanelConfig;
 use CorePanel\Support\Permissions\PermissionService;
@@ -1099,8 +1100,12 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($workflow)->toContain('bash .github/scripts/frontend-quality.sh tenancy-addon')
         ->and($workflow)->toContain('name: Install Smoke (core-package)')
         ->and($workflow)->toContain('name: Install Smoke (tenancy-addon)')
+        ->and(substr_count($workflow, 'sudo apt-get install --yes unzip'))->toBe(2)
         ->and($frontendQualityScript)->toContain('case "${variant}" in')
-        ->and($frontendQualityScript)->toContain('workspace="$(mktemp -d /tmp/core-panel-frontend-${variant}-XXXXXX)"')
+        ->and($frontendQualityScript)
+        ->toContain('workspace_root="${FRONTEND_QUALITY_TMPDIR:-${repo_root}/storage/framework/testing}"')
+        ->toContain('workspace="$(mktemp -d "${workspace_root}/core-panel-frontend-${variant}-XXXXXX")"')
+        ->toContain('"${workspace}" == "${workspace_root}"/core-panel-frontend-*')
         ->and($frontendQualityScript)->toContain('copy_vendor_first_core_panel_runtime()')
         ->and($frontendQualityScript)->toContain('mkdir -p "${workspace}/vendor/mapo-89/core-panel/resources"')
         ->and($frontendQualityScript)->toContain('"${workspace}/vendor/mapo-89/core-panel/config"')
@@ -1179,6 +1184,8 @@ it('synchronizes the environment file with the core panel defaults', function ()
         'APP_NAME=Laravel',
         'DB_CONNECTION=sqlite',
         'CACHE_STORE=database',
+        'OCTANE_SERVER=frankenphp',
+        'OCTANE_PORT=8000',
         'LEGACY_ONLY=value',
         '',
     ]));
@@ -1192,7 +1199,10 @@ it('synchronizes the environment file with the core panel defaults', function ()
         ->and($contents)->toContain('CACHE_STORE=database')
         ->and($contents)->toContain('QUEUE_CONNECTION=redis')
         ->and($contents)->toContain('REDIS_HOST=127.0.0.1')
-        ->and($contents)->toContain('LEGACY_ONLY=value');
+        ->and($contents)->toContain('LEGACY_ONLY=value')
+        ->and($contents)->not->toContain('OCTANE_SERVER')
+        ->and($contents)->not->toContain('OCTANE_PORT')
+        ->and(file_get_contents($temporaryBasePath.'/.env.backup'))->toContain('OCTANE_SERVER=frankenphp');
 });
 
 it('reads the packaged app version metadata from app-version json', function (): void {
@@ -1343,7 +1353,7 @@ it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 br
         ->and($contents)->toContain("if (importee.startsWith('@core-panel/pages/')) {")
         ->and($contents)->toContain("if (!importee.startsWith('@core-panel/')) {")
         ->and($contents)->toContain("find: '@'")
-        ->and($contents)->toContain("replacement: path.resolve(__dirname, 'resources/js')")
+        ->and($contents)->toContain("replacement: path.resolve(import.meta.dirname, 'resources/js')")
         ->and($contents)->toContain('vendor/mapo-89/core-panel/resources/js')
         ->and($contents)->toContain('vendor/mapo-89/core-panel/resources/js/pages')
         ->and($contents)->toContain("name: 'core-panel-vendor-first'")
@@ -1370,8 +1380,14 @@ it('ships a vite config that exposes localhost instead of the invalid 0.0.0.0 br
         ->and($contents)->toContain("origin: ['http://localhost:8000', 'http://127.0.0.1:8000']")
         ->and($contents)->toContain("import i18n from 'laravel-vue-i18n/vite'")
         ->and($contents)->toContain('const additionalLangPaths = [')
-        ->and($contents)->toContain("path.resolve(__dirname, 'lang/vendor/core-panel')")
-        ->and($contents)->toContain("path.resolve(__dirname, 'vendor/mapo-89/core-panel/resources/lang')")
+        ->and($contents)->toContain("path.resolve(import.meta.dirname, 'lang/vendor/core-panel')")
+        ->and($contents)->toContain(<<<'TS'
+    path.resolve(
+        import.meta.dirname,
+        'vendor/mapo-89/core-panel/resources/lang',
+    ),
+TS)
+        ->and($contents)->not->toContain('__dirname')
         ->and($contents)->toContain('additionalLangPaths,')
         ->and($contents)->toContain("input: ['resources/css/app.css', 'resources/js/app.ts']")
         ->and($contents)->toContain("host: 'localhost'");
@@ -1455,6 +1471,9 @@ it('ships passport-oriented defaults in the scaffold environment template', func
         ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_TIME=02:00')
         ->and($contents)->toContain('SYSTEM_UPDATES_AUTOMATIC_WEEKDAY=monday')
         ->and($contents)->toContain('SYSTEM_UPDATES_RESTART_DELAY_SECONDS=3')
+        ->and($contents)->toContain("APP_IMAGE=\n")
+        ->and($contents)->toContain("UPDATER_IMAGE=\n")
+        ->and($contents)->not->toContain('OCTANE_')
         ->and($contents)->not->toContain('SANCTUM_STATEFUL_DOMAINS=')
         ->and($contents)->not->toContain('CORE_PANEL_API_DRIVER=')
         ->and($contents)->not->toContain('CORE_PANEL_DARK_MODE=')
@@ -1488,6 +1507,7 @@ it('keeps the core scaffold free of tenancy-specific app service provider overri
 });
 
 it('ships docker scaffolding for package development and skeleton app runtime', function (): void {
+    $readme = file_get_contents(__DIR__.'/../../README.md');
     $dockerfile = file_get_contents(__DIR__.'/../../stubs/Dockerfile');
     $baseCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.yml');
     $developmentCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.dev.yml');
@@ -1507,16 +1527,20 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     $updaterDockerfile = file_get_contents(__DIR__.'/../../stubs/updater/Dockerfile');
     $updaterGoModule = file_get_contents(__DIR__.'/../../stubs/updater/go.mod');
     $updaterMain = file_get_contents(__DIR__.'/../../stubs/updater/main.go');
-    $phpDevDockerfile = explode('FROM php-runtime-base AS php-dev', $dockerfile, 2)[1] ?? '';
+    $appDevDockerfile = explode('FROM app-runtime-base AS app-dev', $dockerfile, 2)[1] ?? '';
 
-    expect($dockerfile)->toContain('FROM node:24-bookworm AS node')
-        ->and($dockerfile)->toContain('FROM php:8.5-fpm-bookworm AS php-extension-base')
+    expect($readme)->toContain('## Upgrade To The Unified Docker Application Image')
+        ->and($readme)->toContain('APP_IMAGE=registry.example.com/core-panel/app:1.5.0')
+        ->and($readme)->toContain('SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler')
+        ->and($readme)->toContain('up -d --remove-orphans')
+        ->and($dockerfile)->toContain('FROM node:24-bookworm AS node')
+        ->and($dockerfile)->toContain('FROM serversideup/php:8.5-fpm-nginx AS php-extension-base')
         ->and($dockerfile)->toContain('FROM composer-base AS vendor-prod')
         ->and($dockerfile)->toContain('FROM composer-base AS vendor-dev')
         ->and($dockerfile)->toContain('FROM php-build-base AS frontend-build')
-        ->and($dockerfile)->toContain('FROM php-runtime-base AS php-prod')
-        ->and($dockerfile)->toContain('FROM php-runtime-base AS php-dev')
-        ->and($dockerfile)->toContain('FROM nginx:1.31-alpine AS nginx-prod')
+        ->and($dockerfile)->toContain('FROM app-runtime-base AS app-prod')
+        ->and($dockerfile)->toContain('FROM app-runtime-base AS app-dev')
+        ->and($dockerfile)->not->toContain(' AS nginx-prod')
         ->and($dockerfile)->not->toContain('FROM composer:2 AS vendor')
         ->and($dockerfile)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH=/opt/core-panel-package')
         ->and($dockerfile)->not->toContain('core-panel-prepare-composer')
@@ -1533,26 +1557,29 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($dockerfile)->toContain('&& php artisan wayfinder:generate --no-interaction')
         ->and($dockerfile)->toContain('&& npm run build')
         ->and($dockerfile)->toContain('COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build')
-        ->and($dockerfile)->toContain('COPY .docker/bin/php-entrypoint.sh /usr/local/bin/core-panel-php-entrypoint')
-        ->and($dockerfile)->toContain('COPY .docker/php-fpm/zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf')
-        ->and($dockerfile)->toContain('ENV PHP_UPSTREAM=app:9000')
-        ->and($dockerfile)->toContain('COPY .docker/nginx/default.conf /etc/nginx/templates/default.conf.template')
+        ->and($dockerfile)->toContain('COPY .docker/php/entrypoint.sh /etc/entrypoint.d/60-core-panel.sh')
+        ->and($dockerfile)->toContain('COPY .docker/php/banner.sh /usr/local/bin/core-panel-banner.sh')
+        ->and($dockerfile)->toContain('chmod 755 /etc/entrypoint.d/60-core-panel.sh /usr/local/bin/core-panel-banner.sh')
+        ->and($dockerfile)->toContain('/var/www/html/.docker/cache/views')
+        ->and($dockerfile)->not->toContain('COPY .docker/php-fpm/zz-docker.conf')
+        ->and($dockerfile)->not->toContain('PHP_UPSTREAM')
+        ->and($dockerfile)->toContain('COPY .docker/nginx/default.conf /etc/nginx/site-opts.d/http.conf.template')
         ->and($dockerfile)->toContain('COPY package.json package-lock.json ./')
         ->and($dockerfile)->toContain('COPY .env.example .env')
-        ->and($dockerfile)->toContain('COPY .env.example /var/www/html/.env')
+        ->and($dockerfile)->not->toContain('COPY .env.example /var/www/html/.env')
         ->and($dockerfile)->toContain('default-mysql-client')
         ->and($dockerfile)->toContain('postgresql-client-${POSTGRES_CLIENT_MAJOR}')
         ->and($dockerfile)->toContain('sqlite3')
         ->and($dockerfile)->toContain('RUN npm install --package-lock-only --ignore-scripts')
         ->and($dockerfile)->toContain('RUN npm ci')
         ->and($dockerfile)->toContain('install-php-extensions')
-        ->and($phpDevDockerfile)->toContain('postgresql-client')
+        ->and($appDevDockerfile)->toContain('COPY --from=vendor-dev')
+        ->and($appDevDockerfile)->toContain('ARG USER_ID=1000')
+        ->and($appDevDockerfile)->toContain('ARG GROUP_ID=1000')
+        ->and($appDevDockerfile)->toContain('docker-php-serversideup-set-id www-data "${USER_ID}:${GROUP_ID}"')
         ->and($dockerfile)->toContain('exif')
-        ->and($dockerfile)->toContain('pcntl')
-        ->and($dockerfile)->toContain('pdo_pgsql')
-        ->and($dockerfile)->toContain('redis')
         ->and($dockerfile)->toContain('gd')
-        ->and($dockerfile)->toContain('HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1')
+        ->and($dockerfile)->toContain('EXPOSE 8080')
         ->and($baseCompose)->toContain('app-test:')
         ->and($baseCompose)->toContain('horizon:')
         ->and($baseCompose)->toContain('scheduler:')
@@ -1561,8 +1588,10 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($baseCompose)->toContain('mailpit:')
         ->and($baseCompose)->not->toContain('additional_contexts:')
         ->and($baseCompose)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH')
-        ->and($baseCompose)->toContain('target: php-prod')
-        ->and($baseCompose)->toContain('target: php-dev')
+        ->and($baseCompose)->toContain('target: app-prod')
+        ->and($baseCompose)->toContain('target: app-dev')
+        ->and($baseCompose)->toContain('healthcheck-horizon')
+        ->and($baseCompose)->toContain('healthcheck-schedule')
         ->and($baseCompose)->toContain('DB_HOST: postgres')
         ->and($baseCompose)->toContain('REDIS_HOST: redis')
         ->and($baseCompose)->toContain('QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}')
@@ -1577,25 +1606,35 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($developmentCompose)->not->toContain('core-panel-prepare-composer')
         ->and($developmentCompose)->not->toContain('core-panel-restore-composer')
         ->and($developmentCompose)->not->toContain('CORE_PANEL_PACKAGE_CONTAINER_PATH')
-        ->and($developmentCompose)->toContain('target: php-dev')
+        ->and($developmentCompose)->toContain('target: app-dev')
+        ->and($developmentCompose)->toContain('USER_ID: ${DEV_USER_ID:-1000}')
+        ->and($developmentCompose)->toContain('GROUP_ID: ${DEV_GROUP_ID:-1000}')
+        ->and(substr_count($developmentCompose, '<<: *development-build-args'))->toBe(4)
+        ->and(substr_count($developmentCompose, '    user: root'))->toBe(1)
+        ->and(substr_count($developmentCompose, '    pull_policy: never'))->toBe(4)
         ->and($developmentCompose)->toContain('- ./:/var/www/html')
-        ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-app.sh')
+        ->and($developmentCompose)->toContain('- ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro')
+        ->and($developmentCompose)->toContain('UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}')
         ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-artisan.sh')
-        ->and($developmentCompose)->toContain('nginx:')
+        ->and($developmentCompose)->not->toContain("\n  nginx:")
         ->and($developmentCompose)->toContain('system-updater:')
-        ->and($developmentCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
-        ->and($developmentCompose)->toContain('./.docker/nginx/default.conf:/etc/nginx/templates/default.conf.template:ro')
+        ->and($developmentCompose)->not->toContain('PHP_UPSTREAM')
+        ->and($developmentCompose)->toContain('PREPARE_LOCAL_ENVIRONMENT: "true"')
         ->and($developmentCompose)->toContain('UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:-local-dev-token}')
-        ->and($developmentCompose)->toContain('${APP_PORT:-8000}:80')
+        ->and($developmentCompose)->toContain('${APP_PORT:-8000}:8080')
         ->and($developmentCompose)->not->toContain('php artisan migrate --force')
         ->and($developmentCompose)->toContain('volumes:')
         ->and($developmentCompose)->toContain('postgres-data:')
         ->and($developmentCompose)->toContain('redis-data:')
         ->and($developmentCompose)->toContain('system-updater-data:')
         ->and($portainerCompose)->toContain('container_name: core-panel-app')
-        ->and($portainerCompose)->toContain('container_name: core-panel-nginx')
+        ->and(substr_count($portainerCompose, '    user: root'))->toBe(1)
+        ->and(substr_count($portainerCompose, "      app:\n        condition: service_healthy"))->toBe(2)
+        ->and($portainerCompose)->not->toContain('container_name: core-panel-nginx')
         ->and($portainerCompose)->toContain('container_name: core-panel-postgres')
-        ->and($portainerCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($portainerCompose)->toContain('image: ${APP_IMAGE:?Set APP_IMAGE}')
+        ->and($portainerCompose)->not->toContain('PHP_IMAGE')
+        ->and($portainerCompose)->not->toContain('NGINX_IMAGE')
         ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES: ${SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES:-15}')
         ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_INTERVAL: ${SYSTEM_UPDATES_AUTOMATIC_INTERVAL:-daily}')
         ->and($portainerCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED: ${SYSTEM_UPDATES_AUTOMATIC_MAINTENANCE_WINDOW_ENABLED:-true}')
@@ -1608,9 +1647,12 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($portainerCompose)->toContain('${PORTAINER_DATA_PATH:-/srv/docker/portainer/data}:/data:ro')
         ->and($portainerCompose)->toContain('proxy-network:')
         ->and($portainerCompose)->toContain('core-panel:')
-        ->and($productionCompose)->toContain('nginx:')
-        ->and($productionCompose)->toContain('target: nginx-prod')
-        ->and($productionCompose)->toContain('PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}')
+        ->and($productionCompose)->not->toContain("\n  nginx:")
+        ->and(substr_count($productionCompose, '    user: root'))->toBe(1)
+        ->and(substr_count($productionCompose, "      app:\n        condition: service_healthy"))->toBe(2)
+        ->and($productionCompose)->not->toContain('target: nginx-prod')
+        ->and($productionCompose)->not->toContain('PHP_UPSTREAM')
+        ->and($productionCompose)->toContain('${APP_PORT:-8000}:8080')
         ->and($productionCompose)->toContain('x-php-environment: &php-environment')
         ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES: ${SYSTEM_UPDATES_AUTOMATIC_GRACE_MINUTES:-15}')
         ->and($productionCompose)->toContain('SYSTEM_UPDATES_AUTOMATIC_INTERVAL: ${SYSTEM_UPDATES_AUTOMATIC_INTERVAL:-daily}')
@@ -1627,25 +1669,38 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($productionCompose)->toContain('/srv/docker/core-panel/postgres')
         ->and($productionCompose)->toContain('/srv/docker/core-panel/redis/data')
         ->and($productionCompose)->toContain('/srv/docker/core-panel/updater/data')
-        ->and($registryCompose)->toContain('image: ${PHP_IMAGE:?Set PHP_IMAGE}')
-        ->and($registryCompose)->toContain('image: ${NGINX_IMAGE:?Set NGINX_IMAGE}')
+        ->and(substr_count($registryCompose, 'image: ${APP_IMAGE:?Set APP_IMAGE}'))->toBe(3)
+        ->and($registryCompose)->not->toContain('PHP_IMAGE')
+        ->and($registryCompose)->not->toContain('NGINX_IMAGE')
         ->and($registryCompose)->toContain('image: ${UPDATER_IMAGE:?Set UPDATER_IMAGE}')
         ->and($dockerignore)->toContain('.env')
+        ->and($dockerignore)->toContain('.docker/cache/*.php')
+        ->and($dockerignore)->toContain('.docker/cache/views/*')
         ->and($dockerignore)->toContain('vendor')
         ->and($phpEntrypoint)->toContain('docker-php-entrypoint "$@"')
         ->and($developmentAppEntrypoint)->toContain('exec php-fpm -F')
         ->and($developmentArtisanEntrypoint)->toContain('exec php artisan "$@"')
-        ->and($nginx)->toContain('fastcgi_pass ${PHP_UPSTREAM};')
-        ->and($nginx)->toContain('location = /nginx-health')
+        ->and($nginx)->toContain('fastcgi_pass 127.0.0.1:9000;')
+        ->and($nginx)->toContain('location = /healthcheck')
         ->and($phpFpm)->toContain('listen = 9000')
-        ->and($runtimeEntrypoint)->toContain('WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"')
-        ->and($runtimeEntrypoint)->toContain('elif [ "$WAIT_FOR_NGINX" = "auto" ] && [ "$command_name" = "php-fpm" ]; then')
+        ->and($runtimeEntrypoint)->toContain('command_name="${DOCKER_CMD%% *}"')
+        ->and($runtimeEntrypoint)->toContain('show_application_information')
+        ->and($runtimeEntrypoint)->toContain('🏷️  Version:')
+        ->and($runtimeEntrypoint)->toContain('👤 User:')
+        ->and($runtimeEntrypoint)->toContain('👥 Group:')
+        ->and($runtimeEntrypoint)->toContain('🐘 PHP:')
+        ->and($runtimeEntrypoint)->toContain('.env detected at ${APP_ROOT}/.env')
+        ->and($runtimeEntrypoint)->toContain('chmod u+rwX,g+rwX')
+        ->and($runtimeEntrypoint)->not->toContain('chmod -R')
+        ->and($runtimeEntrypoint)->toContain('runtime_user="${PHP_FPM_CHILD_PROCESS_USER:-www-data}"')
+        ->and($runtimeEntrypoint)->toContain('runtime_group="${PHP_FPM_CHILD_PROCESS_GROUP:-www-data}"')
+        ->and(substr_count($runtimeEntrypoint, 'chown -R "${runtime_user}:${runtime_group}" storage bootstrap/cache'))->toBe(1)
+        ->and($runtimeEntrypoint)->toContain('public/storage symlink is already configured')
         ->and($runtimeEntrypoint)->toContain('php artisan list --raw 2>/dev/null | grep -Fxq "$command"')
-        ->and($runtimeEntrypoint)->toContain('RUN_MIGRATIONS enabled; running php artisan migrate --force')
-        ->and($runtimeEntrypoint)->toContain('Central migrations completed')
-        ->and($runtimeEntrypoint)->toContain('Checking nginx connection')
-        ->and($runtimeEntrypoint)->toContain('Skipping nginx wait for command:')
-        ->and($runtimeEntrypoint)->toContain('skipping tenant migrations because the tenancy addon is not installed')
+        ->and($runtimeEntrypoint)->toContain('[ "$command_name" = "/init" ]')
+        ->and($runtimeEntrypoint)->toContain('Running php artisan migrate --force')
+        ->and($runtimeEntrypoint)->not->toContain('Checking nginx connection')
+        ->and($runtimeEntrypoint)->toContain('Skipping migrations for worker command:')
         ->and($runtimeEntrypoint)->not->toContain('re-sulting')
         ->and($phpIni)->toContain('upload_max_filesize=256M')
         ->and($opcacheIni)->toContain('opcache.enable=1')
@@ -1655,6 +1710,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and($updaterMain)->toContain('defaultComposeProjectName = "core-panel"')
         ->and($updaterMain)->toContain('defaultComposeFiles       = "docker-compose.prod.yml"')
         ->and($updaterMain)->toContain('UPDATER_RUNTIME_SERVICES')
+        ->and($updaterMain)->toContain('servicesByImageGroup')
         ->and($updaterMain)->toContain('if image.UpdateAvailable && !image.ManualUpdateRequired {')
         ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/octane.conf'))->toBeFalse()
         ->and(file_exists(__DIR__.'/../../stubs/.docker/supervisor/horizon.conf'))->toBeFalse()
@@ -1663,52 +1719,42 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     expect(file_exists(__DIR__.'/../../stubs/package-lock.json'))->toBeTrue();
 });
 
-it('skips nginx probing for one-off cli entrypoint commands', function (): void {
+it('initializes one-off cli commands without starting a second process manager', function (): void {
+    $appRoot = sys_get_temp_dir().'/core-panel-entrypoint-information-'.bin2hex(random_bytes(5));
+    $filesystem = new Filesystem;
+
+    $filesystem->makeDirectory($appRoot.'/.docker/php', 0777, true);
+    $filesystem->makeDirectory($appRoot.'/config', 0777, true);
+    $filesystem->copy(__DIR__.'/../../stubs/.docker/php/banner.sh', $appRoot.'/.docker/php/banner.sh');
+    $filesystem->put($appRoot.'/.env', "APP_ENV=testing\n");
+    $filesystem->put($appRoot.'/config/app-version.json', "{\n    \"display_version\": \"9.8.7-test\"\n}\n");
+
     $process = new Process([
         'sh',
         __DIR__.'/../../stubs/.docker/php/entrypoint.sh',
-        '/bin/echo',
-        'cli-ok',
     ]);
     $process->setEnv([
-        'APP_ROOT' => sys_get_temp_dir(),
+        'APP_ROOT' => $appRoot,
         'DB_CONNECTION' => 'sqlite',
-        'WAIT_FOR_NGINX' => 'auto',
+        'DOCKER_CMD' => 'php artisan horizon',
     ]);
 
     $process->run();
 
     expect($process->isSuccessful())->toBeTrue()
-        ->and($process->getOutput())->toContain('Skipping nginx wait for command: /bin/echo')
-        ->and($process->getOutput())->toContain('cli-ok');
+        ->and($process->getOutput())->toContain('█████████')
+        ->and($process->getOutput())->toContain('🏷️  Version:   9.8.7-test')
+        ->and($process->getOutput())->toContain('👤 User:')
+        ->and($process->getOutput())->toContain('👥 Group:')
+        ->and($process->getOutput())->toContain('🐘 PHP:')
+        ->and($process->getOutput())->toContain(".env detected at {$appRoot}/.env")
+        ->and($process->getOutput())->toContain('CorePanel initialization completed for: php artisan horizon')
+        ->and($process->getOutput())->not->toContain('Starting:');
+
+    $filesystem->deleteDirectory($appRoot);
 });
 
-it('probes nginx automatically for the php-fpm entrypoint command', function (): void {
-    $process = new Process([
-        'sh',
-        __DIR__.'/../../stubs/.docker/php/entrypoint.sh',
-        'docker-php-entrypoint',
-        'php-fpm',
-        '-F',
-    ]);
-    $process->setEnv([
-        'APP_ROOT' => sys_get_temp_dir(),
-        'DB_CONNECTION' => 'sqlite',
-        'MAX_RETRIES' => '1',
-        'NGINX_HEALTH_URL' => 'http://127.0.0.1:9/nginx-health',
-        'SLEEP_SECONDS' => '0',
-        'WAIT_FOR_NGINX' => 'auto',
-    ]);
-    $process->setTimeout(5);
-
-    $process->run();
-
-    expect($process->isSuccessful())->toBeFalse()
-        ->and($process->getOutput())->toContain('Checking nginx connection at http://127.0.0.1:9/nginx-health')
-        ->and($process->getOutput())->toContain('nginx unreachable after 1 attempts');
-});
-
-it('falls back to standard laravel migrations and skips tenant migrations when addon commands are unavailable', function (): void {
+it('runs standard laravel migrations from the web container hook when addon commands are unavailable', function (): void {
     $appRoot = sys_get_temp_dir().'/core-panel-entrypoint-without-tenancy-addon-'.bin2hex(random_bytes(5));
     $binDir = $appRoot.'/bin';
     $phpStub = $binDir.'/php';
@@ -1746,24 +1792,22 @@ SH);
     $process = new Process([
         'sh',
         __DIR__.'/../../stubs/.docker/php/entrypoint.sh',
-        'php-fpm',
     ]);
     $process->setEnv([
         'APP_ROOT' => $appRoot,
         'DB_CONNECTION' => 'sqlite',
+        'DOCKER_CMD' => '/init',
         'MIGRATE_LOG' => $migrateLog,
         'PATH' => $binDir.':'.getenv('PATH'),
         'RUN_MIGRATIONS' => 'true',
-        'WAIT_FOR_NGINX' => 'false',
     ]);
     $process->setTimeout(5);
 
     $process->run();
 
-    expect($process->isSuccessful())->toBeFalse()
-        ->and($process->getOutput())->toContain('RUN_MIGRATIONS enabled; running php artisan migrate --force')
-        ->and($process->getOutput())->toContain('Central migrations completed')
-        ->and($process->getOutput())->toContain('skipping tenant migrations because the tenancy addon is not installed')
+    expect($process->isSuccessful())->toBeTrue()
+        ->and($process->getOutput())->toContain('Running php artisan migrate --force')
+        ->and($process->getOutput())->toContain('CorePanel initialization completed for: /init')
         ->and(file_get_contents($migrateLog))->toBe("migrate\n");
 });
 
@@ -2089,6 +2133,8 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($dashboardPage)->toContain("key: 'failedJobs'")
         ->and($dashboardPage)->toContain("trans('dashboard.guidance_title')")
         ->and($dashboardPage)->toContain('const guidanceCards = computed(() => [')
+        ->and($dashboardPage)->not->toContain('octaneStatus')
+        ->and($dashboardPage)->not->toContain('dashboard.health_octane')
         ->and($dashboardPage)->not->toContain("import users from '@/routes/core-panel/users'")
         ->and($dashboardPage)->not->toContain("import settings from '@/routes/core-panel/settings'")
         ->and($dashboardPage)->not->toContain("from '../../../../actions")
@@ -2113,6 +2159,22 @@ it('uses host-aware theme import paths in published javascript assets', function
         ->and($profileSecurityTab)->toContain("from '@/routes/password/confirm'")
         ->and($profileConnectionsTab)->not->toContain('LinkSocialAccountController')
         ->and($profileConnectionsTab)->not->toContain('UnlinkSocialAccountController');
+});
+
+it('exposes system health data without an Octane runtime status', function (): void {
+    $health = new SystemHealthData(
+        appVersion: '1.2.3',
+        phpVersion: '8.5.0',
+        laravelVersion: '13.0.0',
+        queueStatus: 'ok',
+        redisStatus: 'ok',
+        databaseStatus: 'ok',
+        storageStatus: 'ok',
+    );
+
+    expect($health->toArray())
+        ->toHaveCount(7)
+        ->not->toHaveKey('octaneStatus');
 });
 
 it('ships scaffold installation tests that expect vendor-first frontend assets', function (): void {
@@ -2681,6 +2743,8 @@ it('renders profile workspace tabs without forcing a shared panel surface', func
         ->and($appLayoutContents)->toContain("'password-updated': trans('page-settings.password_updated_status')")
         ->and($appLayoutContents)->toContain("'verification-link-sent': trans(")
         ->and($appLayoutContents)->toContain('detail: resolveFlashStatus(flash.status)')
+        ->and($appLayoutContents)->toContain("'system-update-check-completed': trans(")
+        ->and($appLayoutContents)->toContain('summary: resolveFlashStatusSummary(flash.status)')
         ->and($authLayoutContents)->toContain('<AppToast />')
         ->and($appToastContents)->toContain("icon: 'triangle-alert'")
         ->and($germanPageSettingsTranslations)->toContain("'avatar_remove_failed' => 'Das Profilfoto konnte nicht entfernt werden.'")
@@ -3913,7 +3977,19 @@ it('ships the persistent system update restart and completion experience', funct
         ->toContain("restartDialogState.value = 'failed'")
         ->toContain('useSystemRestartPolling(props.routes.health, {')
         ->toContain('const checkStarting = ref(false)')
+        ->toContain("import { progress, router, usePage } from '@inertiajs/vue3'")
+        ->toContain('progress.start()')
+        ->toContain('progress.finish()')
         ->toContain("detail: trans('system_updates.check_started')")
+        ->toContain('const response = await fetch(props.routes.check, {')
+        ->toContain('statusPayload.value = body.status')
+        ->toContain('await refreshCheckLogs()')
+        ->toContain("severity: 'success'")
+        ->toContain("summary: trans('system_updates.status_title')")
+        ->toContain("statusUrl.searchParams.set('logs_only', '1')")
+        ->toContain('void pollCheckLogs()')
+        ->toContain('logsPayload.value = payload.logs')
+        ->toContain('stopCheckLogsPolling()')
         ->toContain(':loading="checkStarting"')
         ->toContain(":class=\"{ 'animate-spin': checkStarting }\"")
         ->toContain('checkStarting.value = false')
@@ -3940,6 +4016,16 @@ it('shows the configured automatic update settings in the system updates card', 
         ->toContain('automatic.lastAutomaticRunAt')
         ->toContain('v-if="forceUpdateEnabled"')
         ->not->toContain('automatic?.forceUpdateEnabled');
+});
+
+it('renders every service from deduplicated manual update image groups', function (): void {
+    $tab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Administration/components/SystemUpdatesTab.vue');
+
+    expect($tab)
+        ->toContain('services?: string[]')
+        ->toContain('image.services?.length ? image.services : [image.service]')
+        ->toContain('manuallyUpdatedImages.value.flatMap((image) =>')
+        ->toContain("servicesForImage(image).join(', ')");
 });
 
 it('keeps the automatic update toggle from shrinking on mobile', function (): void {
@@ -3972,12 +4058,17 @@ it('ships updater attempt correlation for terminal statuses between polls', func
         ->toContain('server.selfUpdateHelperIsLive()')
         ->toContain('system update completed after verified updater service restart')
         ->toContain('updater service restart was not confirmed')
+        ->toContain('server.checkRunning = true')
+        ->toContain('server.saveState()')
         ->and($updaterTest)
+        ->toContain('TestCheckPublishesStartLogBeforePullCompletes')
         ->toContain('TestUpdateAttemptIDReadsAndTrimsHeader')
         ->toContain('TestAttemptStatusUsesStoredStateWithoutInspectingImages')
         ->toContain('TestNewUpdateAttemptIDReturnsUUID')
         ->toContain('TestStateForAttemptRetainsTerminalResultAfterNextAttemptStarts')
         ->toContain('TestRuntimeUpdateArgsForceRecreatesAllRuntimeServices')
+        ->toContain('TestCollectImagesDetectsAStaleServiceUsingADeduplicatedImage')
+        ->toContain('TestCollectImagesSeparatesSharedImageServicesByUpdateEligibility')
         ->toContain('TestSelfUpdateUsesIndependentComposeHelper')
         ->toContain('expected self-update to remain nonterminal while Compose is running')
         ->toContain('TestLoadStateCompletesPendingSelfUpdateAfterServiceRestart')
@@ -4006,12 +4097,54 @@ it('keeps Wayfinder action generation enabled for generated CRUD pages', functio
         ->and($scaffolder)->toContain("'vite.config.ts'");
 });
 
-it('runs Composer binary proxies through PHP in the Makefile stub', function (): void {
+it('runs backend and frontend quality checks from the Makefiles', function (): void {
+    $rootMakefile = file_get_contents(__DIR__.'/../../../../Makefile');
     $makefile = file_get_contents(__DIR__.'/../../stubs/Makefile');
 
-    expect($makefile)
+    expect($rootMakefile)
+        ->toContain('test-dirty:')
+        ->toContain('analyze-dirty-core:')
+        ->toContain('analyze-dirty-tenancy:')
+        ->toContain('frontend-incremental: frontend-core-incremental frontend-tenancy-incremental')
+        ->toContain('qa: format-dirty frontend-incremental analyze-dirty test-dirty')
+        ->toContain('qa-backend: format-dirty analyze-dirty test-dirty')
+        ->toContain('qa-frontend: frontend')
+        ->toContain('PHP_PEST := bash .github/scripts/php-tests.sh')
+        ->and($makefile)
         ->toContain('PHP_PINT := php ./vendor/bin/pint')
-        ->toContain('PHP_STAN := php ./vendor/bin/phpstan');
+        ->toContain('PHP_PEST := php ./vendor/bin/pest')
+        ->toContain('PHP_STAN := php ./vendor/bin/phpstan')
+        ->toContain('frontend-eslint:')
+        ->toContain('frontend-prettier:')
+        ->toContain('frontend-typecheck:')
+        ->toContain('frontend-typecheck-incremental:')
+        ->toContain('npm exec vue-tsc -- --noEmit --incremental --tsBuildInfoFile node_modules/.vue-tsc.tsbuildinfo -p tsconfig.json')
+        ->not->toContain('npm run typecheck:incremental')
+        ->toContain('frontend-lint-incremental: frontend-eslint frontend-prettier frontend-typecheck-incremental')
+        ->toContain('test-dirty:')
+        ->toContain('analyze-dirty:')
+        ->toContain('qa: format-dirty frontend-lint-incremental analyze-dirty test-dirty')
+        ->toContain('qa-backend: format-dirty analyze-dirty test-dirty')
+        ->toContain('qa-frontend: frontend-lint build')
+        ->toContain('qa-ci: lint frontend-lint analyze build test-compact smoke');
+
+    $package = json_decode((string) file_get_contents(__DIR__.'/../../stubs/package.json'), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($package['scripts']['typecheck:incremental'] ?? null)
+        ->toBe('vue-tsc --noEmit --incremental --tsBuildInfoFile node_modules/.vue-tsc.tsbuildinfo -p tsconfig.json');
+
+    $frontendQuality = file_get_contents(__DIR__.'/../../../../.github/scripts/frontend-quality.sh');
+    $phpTests = file_get_contents(__DIR__.'/../../../../.github/scripts/php-tests.sh');
+
+    expect($frontendQuality)
+        ->toContain('mode="${2:-full}"')
+        ->toContain('npm exec vue-tsc -- --noEmit --incremental')
+        ->toContain('node_modules/.cache/core-panel-frontend-${variant}.tsbuildinfo')
+        ->and($phpTests)
+        ->toContain('storage/framework/testing')
+        ->toContain('mktemp -d')
+        ->toContain('trap cleanup EXIT')
+        ->toContain('export TMPDIR="${test_tmp_dir}"');
 });
 
 it('provisions playground packages in one dependency-wide Composer transaction', function (): void {
@@ -4032,8 +4165,12 @@ it('synchronizes merged frontend lockfiles before clean npm installs', function 
     $dockerfile = file_get_contents(__DIR__.'/../../stubs/Dockerfile');
 
     expect($installSmokeScript)
+        ->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0" --no-interaction --prefer-dist --no-scripts')
         ->toMatch('/"\$\{install_args\[@\]\}"\s*\n\s*npm install --package-lock-only/')
         ->not->toContain('"${install_args[@]}" &&')
+        ->toContain('make --no-print-directory -C "${repo_root}" \\')
+        ->toContain('PHP_PINT="php ${app_dir}/vendor/bin/pint"')
+        ->toContain('PINT_PATHS="${app_dir}"')
         ->and($provisionPlaygroundsScript)
         ->toContain('npm install --package-lock-only')
         ->toContain('npm ci')
@@ -4041,6 +4178,24 @@ it('synchronizes merged frontend lockfiles before clean npm installs', function 
         ->toContain('RUN npm install --package-lock-only --ignore-scripts')
         ->toContain('RUN npm ci')
         ->not->toContain('RUN npm ci --ignore-scripts');
+});
+
+it('resolves working PostgreSQL credentials before install smoke tests', function (): void {
+    $script = file_get_contents(__DIR__.'/../../../../.github/scripts/install-smoke.sh');
+
+    expect($script)
+        ->toContain('db_username="${INSTALL_SMOKE_DB_USERNAME:-core_panel}"')
+        ->toContain('local_db_username="${INSTALL_SMOKE_LOCAL_DB_USERNAME:-valet}"')
+        ->toContain('db_admin_username="${INSTALL_SMOKE_DB_ADMIN_USERNAME:-}"')
+        ->toContain('postgres_role_can_create_databases()')
+        ->toContain('SELECT rolcreatedb OR rolsuper FROM pg_roles WHERE rolname = current_user')
+        ->toContain('prepare_postgres_credentials')
+        ->toContain('if postgres_role_can_create_databases "${db_username}" "${db_password}"; then')
+        ->toContain('if ! postgres_role_can_create_databases "${db_username}" "${db_password}"; then')
+        ->toContain('db_username="${local_db_username}"')
+        ->toContain("'CREATE ROLE %I WITH LOGIN PASSWORD %L CREATEDB'")
+        ->toContain('"--db-username=${db_username}"')
+        ->toContain('"--db-password=${db_password}"');
 });
 
 it('allows playground provisioning to reuse standard database environment variables', function (): void {

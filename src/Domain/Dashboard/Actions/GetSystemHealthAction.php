@@ -30,7 +30,6 @@ final readonly class GetSystemHealthAction
             redisStatus: $this->resolveRedisStatus(),
             databaseStatus: $this->resolveDatabaseStatus(),
             storageStatus: $this->resolveStorageStatus(),
-            octaneStatus: $this->resolveOctaneStatus(),
         );
     }
 
@@ -43,17 +42,6 @@ final readonly class GetSystemHealthAction
         } catch (Throwable) {
             return 'offline';
         }
-    }
-
-    private function resolveOctaneStatus(): string
-    {
-        $server = (string) $this->config->get('octane.server', '');
-
-        if ($server === '') {
-            return 'disabled';
-        }
-
-        return 'enabled';
     }
 
     private function resolveQueueStatus(): string

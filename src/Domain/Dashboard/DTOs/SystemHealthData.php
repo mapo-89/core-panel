@@ -14,7 +14,6 @@ final readonly class SystemHealthData
         public string $redisStatus,
         public string $databaseStatus,
         public string $storageStatus,
-        public string $octaneStatus,
     ) {}
 
     /**
@@ -25,8 +24,7 @@ final readonly class SystemHealthData
      *     queueStatus:string,
      *     redisStatus:string,
      *     databaseStatus:string,
-     *     storageStatus:string,
-     *     octaneStatus:string
+     *     storageStatus:string
      * }
      */
     public function toArray(): array
@@ -39,7 +37,6 @@ final readonly class SystemHealthData
             'redisStatus' => $this->redisStatus,
             'databaseStatus' => $this->databaseStatus,
             'storageStatus' => $this->storageStatus,
-            'octaneStatus' => $this->octaneStatus,
         ];
     }
 }

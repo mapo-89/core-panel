@@ -59,6 +59,16 @@ final class UpdateCommand extends Command
         $vendorFirstResult = $this->emptyPublishResult($basePath);
         $publishedTagsResult = $this->emptyPublishResult($basePath);
 
+        if ($this->unifiedRegistryMigrationNeedsAppImage($basePath)) {
+            $environmentPath = ($basePath ?? base_path()).'/.env';
+            $this->components->error(
+                'Cannot migrate the Docker runtime scaffolds because APP_IMAGE is not configured in '.$environmentPath.'. '
+                .'Set APP_IMAGE to the shared application image that replaces PHP_IMAGE and NGINX_IMAGE, then rerun core-panel:update.',
+            );
+
+            return self::FAILURE;
+        }
+
         if ($withBreakingChanges) {
             $tags[] = PublishTag::Config->value;
         }
@@ -138,6 +148,22 @@ final class UpdateCommand extends Command
         $this->generateSwaggerDocs();
 
         return $shouldFailForConflicts ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function unifiedRegistryMigrationNeedsAppImage(?string $basePath): bool
+    {
+        if (! $this->stubs->hasPendingUnifiedRegistryMigration($basePath)
+            || ! $this->environment->usesManagedRegistryComposeTopology($basePath)) {
+            return false;
+        }
+
+        $appImage = $this->environment->configuredValue('APP_IMAGE', $basePath);
+
+        if (is_string($appImage) && $appImage !== '') {
+            return false;
+        }
+
+        return true;
     }
 
     private function shouldFullySynchronizeScaffolds(?string $basePath): bool

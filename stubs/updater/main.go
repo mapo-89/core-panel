@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -32,12 +33,13 @@ type Config struct {
 }
 
 type ImageState struct {
-	AvailableDigest      string `json:"available_digest,omitempty"`
-	CurrentDigest        string `json:"current_digest,omitempty"`
-	Image                string `json:"image"`
-	ManualUpdateRequired bool   `json:"manual_update_required"`
-	Service              string `json:"service"`
-	UpdateAvailable      bool   `json:"update_available"`
+	AvailableDigest      string   `json:"available_digest,omitempty"`
+	CurrentDigest        string   `json:"current_digest,omitempty"`
+	Image                string   `json:"image"`
+	ManualUpdateRequired bool     `json:"manual_update_required"`
+	Service              string   `json:"service"`
+	Services             []string `json:"services,omitempty"`
+	UpdateAvailable      bool     `json:"update_available"`
 }
 
 type LogEntry struct {
@@ -67,9 +69,10 @@ type State struct {
 }
 
 type Server struct {
-	config Config
-	mu     sync.Mutex
-	state  State
+	checkRunning bool
+	config       Config
+	mu           sync.Mutex
+	state        State
 }
 
 type composeConfig struct {
@@ -180,7 +183,7 @@ func loadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	runtimeServices := splitList(env("UPDATER_RUNTIME_SERVICES", "app,horizon,scheduler,nginx"))
+	runtimeServices := splitList(env("UPDATER_RUNTIME_SERVICES", "app,horizon,scheduler"))
 	if len(runtimeServices) == 0 {
 		return Config{}, errors.New("UPDATER_RUNTIME_SERVICES must contain at least one service")
 	}
@@ -410,18 +413,26 @@ func (server *Server) status(response http.ResponseWriter, request *http.Request
 
 func (server *Server) check(response http.ResponseWriter, request *http.Request) {
 	server.mu.Lock()
-	defer server.mu.Unlock()
 
-	if server.state.UpdateRunning {
+	if server.state.UpdateRunning || server.checkRunning {
+		server.mu.Unlock()
 		writeJSON(response, http.StatusConflict, map[string]string{"message": "update already running"})
 		return
 	}
 
+	server.checkRunning = true
 	server.addLog("info", "checking for image updates")
+	server.saveState()
+	server.mu.Unlock()
+
 	if err := server.compose("pull"); err != nil {
 		errorMessage := err.Error()
 
+		server.mu.Lock()
+		server.checkRunning = false
 		server.addLog("error", fmt.Sprintf("check failed: %s", errorMessage))
+		server.saveState()
+		server.mu.Unlock()
 		writeJSON(response, http.StatusInternalServerError, map[string]string{
 			"error":   errorMessage,
 			"message": "check failed",
@@ -434,7 +445,11 @@ func (server *Server) check(response http.ResponseWriter, request *http.Request)
 	if err != nil {
 		errorMessage := err.Error()
 
+		server.mu.Lock()
+		server.checkRunning = false
 		server.addLog("error", fmt.Sprintf("status after check failed: %s", errorMessage))
+		server.saveState()
+		server.mu.Unlock()
 		writeJSON(response, http.StatusInternalServerError, map[string]string{
 			"error":   errorMessage,
 			"message": "status failed",
@@ -442,18 +457,22 @@ func (server *Server) check(response http.ResponseWriter, request *http.Request)
 		return
 	}
 
+	server.mu.Lock()
 	server.state.Images = images
 	server.state.LastCheckAt = &now
 	server.state.UpdateAvailable = anyUpdateAvailable(images)
+	server.checkRunning = false
 	server.addLog("info", "image update check completed")
 	server.saveState()
+	state := server.stateForAttempt("")
+	server.mu.Unlock()
 
-	writeJSON(response, http.StatusOK, server.stateForAttempt(""))
+	writeJSON(response, http.StatusOK, state)
 }
 
 func (server *Server) update(response http.ResponseWriter, request *http.Request) {
 	server.mu.Lock()
-	if server.state.UpdateRunning {
+	if server.state.UpdateRunning || server.checkRunning {
 		server.mu.Unlock()
 		writeJSON(response, http.StatusConflict, map[string]string{"message": "update already running"})
 		return
@@ -732,16 +751,67 @@ func (server *Server) collectImages() ([]ImageState, error) {
 		return nil, err
 	}
 
-	images := make([]ImageState, 0, len(services.Services))
+	type imageGroup struct {
+		automatic bool
+		image     string
+	}
+
+	servicesByImageGroup := make(map[imageGroup][]string)
 	for service, definition := range services.Services {
 		if definition.Image == "" {
 			continue
 		}
 
-		current, _ := server.currentDigest(service)
-		available, _ := server.imageDigest(definition.Image)
+		group := imageGroup{
+			automatic: server.autoUpdateEligible(service),
+			image:     definition.Image,
+		}
+		servicesByImageGroup[group] = append(servicesByImageGroup[group], service)
+	}
 
-		images = append(images, server.imageState(service, definition.Image, current, available))
+	imageGroups := make([]imageGroup, 0, len(servicesByImageGroup))
+	for group := range servicesByImageGroup {
+		imageGroups = append(imageGroups, group)
+	}
+	sort.Slice(imageGroups, func(left int, right int) bool {
+		if imageGroups[left].image != imageGroups[right].image {
+			return imageGroups[left].image < imageGroups[right].image
+		}
+
+		return imageGroups[left].automatic && !imageGroups[right].automatic
+	})
+
+	images := make([]ImageState, 0, len(imageGroups))
+	for _, group := range imageGroups {
+		imageServices := servicesByImageGroup[group]
+		sort.Strings(imageServices)
+
+		available, _ := server.imageDigest(group.image)
+		current := ""
+		outdatedCurrent := ""
+		for _, service := range imageServices {
+			serviceDigest, _ := server.currentDigest(service)
+			if serviceDigest == "" {
+				continue
+			}
+
+			if current == "" {
+				current = serviceDigest
+			}
+
+			if outdatedCurrent == "" && available != "" && serviceDigest != available {
+				outdatedCurrent = serviceDigest
+			}
+		}
+
+		if outdatedCurrent != "" {
+			current = outdatedCurrent
+		}
+
+		state := server.imageState(imageServices[0], group.image, current, available)
+		state.Services = imageServices
+
+		images = append(images, state)
 	}
 
 	if server.config.ForceSelfUpdateAvailable && !containsImageService(images, server.config.SelfService) {

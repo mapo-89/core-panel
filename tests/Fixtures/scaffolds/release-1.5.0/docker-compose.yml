@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app-prod
+      target: php-prod
       args:
         APP_ENV: production
     working_dir: /var/www/html
@@ -44,13 +44,13 @@ services:
       redis:
         condition: service_healthy
     expose:
-      - "8080"
+      - "9000"
 
   app-test:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app-dev
+      target: php-dev
       args:
         APP_ENV: testing
     working_dir: /var/www/html
@@ -87,14 +87,12 @@ services:
       redis:
         condition: service_healthy
     command: ["sleep", "infinity"]
-    healthcheck:
-      disable: true
 
   horizon:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app-prod
+      target: php-prod
       args:
         APP_ENV: production
     working_dir: /var/www/html
@@ -131,14 +129,12 @@ services:
       redis:
         condition: service_healthy
     command: ["php", "artisan", "horizon"]
-    healthcheck:
-      test: ["CMD", "healthcheck-horizon"]
 
   scheduler:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app-prod
+      target: php-prod
       args:
         APP_ENV: production
     working_dir: /var/www/html
@@ -175,8 +171,6 @@ services:
       redis:
         condition: service_healthy
     command: ["php", "artisan", "schedule:work"]
-    healthcheck:
-      test: ["CMD", "healthcheck-schedule"]
 
   postgres:
     image: postgres:18

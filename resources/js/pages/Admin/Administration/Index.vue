@@ -27,6 +27,7 @@ type SystemUpdateImage = {
     image: string
     manual_update_required?: boolean
     service: string
+    services?: string[]
     update_available: boolean
 }
 

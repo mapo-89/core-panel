@@ -8,20 +8,23 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder'
 import tailwindcss from '@tailwindcss/vite'
 import i18n from 'laravel-vue-i18n/vite'
 
-const hostJsPath = path.resolve(__dirname, 'resources/js')
+const hostJsPath = path.resolve(import.meta.dirname, 'resources/js')
 const packageJsPath = path.resolve(
-    __dirname,
+    import.meta.dirname,
     'vendor/mapo-89/core-panel/resources/js',
 )
 const packagePagesPath = path.resolve(
-    __dirname,
+    import.meta.dirname,
     'vendor/mapo-89/core-panel/resources/js/pages',
 )
 const hostThemePath = path.resolve(hostJsPath, 'theme/core-panel')
 const packageThemePath = path.resolve(packageJsPath, 'theme/core-panel')
 const additionalLangPaths = [
-    path.resolve(__dirname, 'lang/vendor/core-panel'),
-    path.resolve(__dirname, 'vendor/mapo-89/core-panel/resources/lang'),
+    path.resolve(import.meta.dirname, 'lang/vendor/core-panel'),
+    path.resolve(
+        import.meta.dirname,
+        'vendor/mapo-89/core-panel/resources/lang',
+    ),
 ].filter((candidate) => fs.existsSync(candidate))
 
 function resolveImportTarget(targetPath: string): string | null {
@@ -104,7 +107,7 @@ export default defineConfig({
         alias: [
             {
                 find: '@',
-                replacement: path.resolve(__dirname, 'resources/js'),
+                replacement: path.resolve(import.meta.dirname, 'resources/js'),
             },
             {
                 find: '@core-panel/theme/core-panel',
@@ -115,78 +118,85 @@ export default defineConfig({
             {
                 find: /^@primeuix\/themes$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@primeuix/themes/dist/index.mjs',
                 ),
             },
             {
                 find: /^@primeuix\/themes\/aura$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@primeuix/themes/dist/aura/index.mjs',
                 ),
             },
             {
                 find: /^@primeuix\/themes\/types$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@primeuix/themes/types/index.d.ts',
                 ),
             },
             {
                 find: /^@inertiajs\/core$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@inertiajs/core',
                 ),
             },
             {
                 find: /^@inertiajs\/vue3$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@inertiajs/vue3',
                 ),
             },
             {
                 find: /^@blade-flags\/core\/flags\/flat$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@blade-flags/core/dist/flags/flat.js',
                 ),
             },
             {
                 find: /^@vueuse\/core$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@vueuse/core',
                 ),
             },
             {
                 find: /^laravel-vue-i18n$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/laravel-vue-i18n',
                 ),
             },
             {
                 find: /^@lucide\/vue$/,
                 replacement: path.resolve(
-                    __dirname,
+                    import.meta.dirname,
                     'node_modules/@lucide/vue',
                 ),
             },
             {
                 find: /^primevue$/,
-                replacement: path.resolve(__dirname, 'node_modules/primevue'),
+                replacement: path.resolve(
+                    import.meta.dirname,
+                    'node_modules/primevue',
+                ),
             },
             {
                 find: /^primevue\/(.*)$/,
                 replacement:
-                    path.resolve(__dirname, 'node_modules/primevue') + '/$1',
+                    path.resolve(import.meta.dirname, 'node_modules/primevue') +
+                    '/$1',
             },
             {
                 find: /^vue$/,
-                replacement: path.resolve(__dirname, 'node_modules/vue'),
+                replacement: path.resolve(
+                    import.meta.dirname,
+                    'node_modules/vue',
+                ),
             },
         ],
     },
@@ -246,7 +256,7 @@ export default defineConfig({
     plugins: [
         corePanelVendorFirst(),
         tailwindcss(),
-        ...(fs.existsSync(path.resolve(__dirname, 'artisan'))
+        ...(fs.existsSync(path.resolve(import.meta.dirname, 'artisan'))
             ? [wayfinder()]
             : []),
         i18n({

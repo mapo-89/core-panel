@@ -105,14 +105,11 @@ services:
     build:
       args:
         APP_ENV: ${APP_ENV:-production}
-    user: root
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
-    ports:
-      - "${APP_PORT:-8000}:8080"
     restart: unless-stopped
 
   horizon:
@@ -127,9 +124,6 @@ services:
       RUN_MIGRATIONS: "false"
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
-    depends_on:
-      app:
-        condition: service_healthy
     restart: unless-stopped
 
   scheduler:
@@ -144,9 +138,6 @@ services:
       RUN_MIGRATIONS: "false"
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
-    depends_on:
-      app:
-        condition: service_healthy
     restart: unless-stopped
 
   system-updater:
@@ -160,7 +151,7 @@ services:
       UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-core-panel}
       UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}
       UPDATER_FORCE_SELF_UPDATE_AVAILABLE: ${SYSTEM_UPDATER_FORCE_SELF_UPDATE_AVAILABLE:-false}
-      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler}
+      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler,nginx}
       UPDATER_SELF_SERVICE: ${SYSTEM_UPDATER_SELF_SERVICE:-system-updater}
       UPDATER_SELF_UPDATE_ENABLED: ${SYSTEM_UPDATER_SELF_UPDATE_ENABLED:-false}
       UPDATER_STATE_PATH: /data/state.json
@@ -192,3 +183,19 @@ services:
     ports: !reset []
     volumes:
       - ${REDIS_DATA_PATH:-/srv/docker/core-panel/redis/data}:/data
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx-prod
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}
+    volumes:
+      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage:ro
+    restart: unless-stopped
+    ports:
+      - "8000:80"

@@ -103,6 +103,9 @@ function resolveFlashStatus(status: string): string {
         'recovery-codes-regenerated': trans(
             'page-settings.recovery_codes_regenerated_status',
         ),
+        'system-update-check-completed': trans(
+            'system_updates.check_completed',
+        ),
         'two-factor-authentication-confirmed': trans(
             'page-settings.two_factor_confirmed_status',
         ),
@@ -118,6 +121,12 @@ function resolveFlashStatus(status: string): string {
     }
 
     return translations[normalizedStatus] ?? normalizedStatus
+}
+
+function resolveFlashStatusSummary(status: string): string {
+    return status.trim() === 'system-update-check-completed'
+        ? trans('system_updates.status_title')
+        : trans('common.ui.saved')
 }
 
 const flashState = computed(() => ({
@@ -168,7 +177,7 @@ watch(
                       detail: resolveFlashStatus(flash.status),
                       life: 4000,
                       severity: 'success' as const,
-                      summary: trans('common.ui.saved'),
+                      summary: resolveFlashStatusSummary(flash.status),
                   }
                 : null,
             flash.error

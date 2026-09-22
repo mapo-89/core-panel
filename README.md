@@ -221,6 +221,135 @@ The scaffold gives you a working baseline, but most applications should still ma
 - rerun `php artisan erag:update-manifest` whenever `config/pwa.php` or the referenced icon assets change
 - if the host application already has its own PWA strategy or service worker, consolidate that logic instead of keeping two competing implementations
 
+## Upgrade To The Unified Docker Application Image
+
+This one-time upgrade is required when an existing installation still uses separate PHP-FPM and Nginx images. Afterwards, `app`, `horizon`, and `scheduler` run from the same application image. The former `nginx` service is removed, while PostgreSQL, Redis, and `system-updater` remain separate services.
+
+### 1. Prepare A Maintenance Window And Backups
+
+Plan for a short interruption while the containers are replaced. Back up at least the database, persistent storage directory, `.env`, and the Compose files currently in use. Example for PostgreSQL:
+
+```bash
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  > core-panel-before-upgrade.sql
+```
+
+Record the currently deployed image tags or digests as well so that a rollback remains possible.
+
+### 2. Update The Package And Managed Scaffolds
+
+Update CorePanel and then publish the new Docker and Compose structure:
+
+```bash
+composer update mapo-89/core-panel
+php artisan core-panel:update --force --no-interaction
+```
+
+With the tenancy addon installed:
+
+```bash
+composer update mapo-89/core-panel mapo-89/core-panel-tenancy
+php artisan core-panel:update --force --with-addon-updates --no-interaction
+```
+
+`core-panel:update` stores backups of replaced managed files in `.core-panel-backups/`. Review the diff afterwards and deliberately merge any project-specific customizations into the new files. Unmanaged host files are not overwritten without an existing scaffold baseline.
+
+### 3. Migrate The Image Variables
+
+Replace the previous `PHP_IMAGE` and `NGINX_IMAGE` variables in `.env`, Portainer, or the relevant deployment configuration with one unified application image:
+
+```dotenv
+APP_IMAGE=registry.example.com/core-panel/app:1.5.0
+UPDATER_IMAGE=registry.example.com/core-panel/system-updater:1.5.0
+SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler
+```
+
+Remove obsolete values for `PHP_IMAGE`, `NGINX_IMAGE`, and `PHP_UPSTREAM`. `UPDATER_IMAGE` remains separate because the system updater is not part of the application image.
+
+For a registry deployment, the updater must use both Compose files:
+
+```dotenv
+SYSTEM_UPDATER_COMPOSE_FILES=docker-compose.prod.yml,docker-compose.registry.yml
+```
+
+Portainer can continue to use automatic detection for `SYSTEM_UPDATER_COMPOSE_FILES`. Make sure that `APP_IMAGE` and `UPDATER_IMAGE` are configured as stack variables.
+
+### 4. Render The New Compose Configuration
+
+The configuration must render successfully and must no longer contain an `nginx` service:
+
+```bash
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  config > /dev/null
+
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  config --services
+```
+
+The service list must contain `app`, `horizon`, `scheduler`, and `system-updater`, but no separate `nginx` service. `app`, `horizon`, and `scheduler` must all resolve to the same `APP_IMAGE` value.
+
+### 5. Pull The Images And Replace The Stack
+
+Pull the new images first without changing the running containers:
+
+```bash
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  pull app horizon scheduler system-updater
+```
+
+Start the updated stack afterwards. `--remove-orphans` removes the old Nginx container, which is no longer defined:
+
+```bash
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  up -d --remove-orphans
+```
+
+Only `app` receives `RUN_MIGRATIONS=true` by default. Horizon and Scheduler therefore do not run migrations in parallel.
+
+For Portainer, redeploy the updated stack using `docker-compose.portainer.yml` instead. The reverse proxy must then target port `8080` on the `app` service directly; a target named `nginx` no longer exists.
+
+### 6. Verify The Upgrade
+
+Run the following checks immediately after the replacement:
+
+```bash
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  ps
+
+curl --fail --show-error http://127.0.0.1:8000/healthcheck
+
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  exec app php artisan migrate:status
+
+docker compose --env-file .env \
+  -f docker-compose.prod.yml \
+  -f docker-compose.registry.yml \
+  exec app php artisan horizon:status
+```
+
+Also verify a normal Laravel page, an asset under `/build/assets/`, uploads or the storage link, and the external reverse proxy. `app`, `horizon`, and `scheduler` must be healthy and use the same image or digest.
+
+### 7. Future Image Upgrades
+
+For later releases, update `APP_IMAGE` and `UPDATER_IMAGE` to the new tags or digests, then repeat the render, pull, start, and verification steps. Separate PHP and Nginx tags are no longer required.
+
+For a rollback, restore the backed-up Compose and `.env` files together with the previously recorded image tags, then start the previous Compose configuration again. Restore the database only if the upgrade ran migrations that are not backward compatible.
+
 ## Update
 
 CorePanel is designed vendor-first where Laravel supports it:

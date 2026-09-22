@@ -99,96 +99,152 @@ x-php-environment: &php-environment
 
 services:
   app:
-    extends:
-      file: docker-compose.yml
-      service: app
-    build:
-      args:
-        APP_ENV: ${APP_ENV:-production}
-    user: root
+    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    container_name: core-panel-app
+    restart: unless-stopped
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
-    ports:
-      - "${APP_PORT:-8000}:8080"
+    networks:
+      - core-panel
+    depends_on:
+      - postgres
+      - redis
+    cpus: "0.9"
+    mem_limit: 600m
+    mem_reservation: 256m
+
+  nginx:
+    image: ${NGINX_IMAGE:?Set NGINX_IMAGE}
+    container_name: core-panel-nginx
     restart: unless-stopped
+    environment:
+      PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}
+    volumes:
+      - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage:ro
+    depends_on:
+      - app
+    networks:
+      - proxy-network
+      - core-panel
+    cpus: "0.2"
+    mem_limit: 128m
+    mem_reservation: 32m
 
   horizon:
-    extends:
-      file: docker-compose.yml
-      service: horizon
-    build:
-      args:
-        APP_ENV: ${APP_ENV:-production}
+    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    restart: unless-stopped
+    command: php artisan horizon
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: "false"
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
+    networks:
+      - core-panel
     depends_on:
-      app:
-        condition: service_healthy
-    restart: unless-stopped
+      - postgres
+      - redis
+    cpus: "0.5"
+    mem_limit: 512m
+    mem_reservation: 128m
 
   scheduler:
-    extends:
-      file: docker-compose.yml
-      service: scheduler
-    build:
-      args:
-        APP_ENV: ${APP_ENV:-production}
+    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    restart: unless-stopped
+    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     environment:
       <<: *php-environment
       RUN_MIGRATIONS: "false"
     volumes:
       - ${STORAGE_ROOT_PATH:-/srv/docker/core-panel/storage}:/var/www/html/storage
+    networks:
+      - core-panel
     depends_on:
-      app:
-        condition: service_healthy
+      - postgres
+      - redis
+    cpus: "0.2"
+    mem_limit: 256m
+    mem_reservation: 64m
+
+  postgres:
+    image: postgres:18
     restart: unless-stopped
+    container_name: core-panel-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-core_panel}
+      POSTGRES_USER: ${POSTGRES_USER:-core_panel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${DB_PASSWORD:-}}
+    command: >
+      postgres
+      -c shared_buffers=192MB
+      -c effective_cache_size=512MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c max_connections=50
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-core_panel} -d ${POSTGRES_DB:-core_panel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ${POSTGRES_DATA_PATH:-/srv/docker/core-panel/postgres}:/var/lib/postgresql
+    networks:
+      - core-panel
+    cpus: "0.8"
+    mem_limit: 900m
+    mem_reservation: 512m
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    container_name: core-panel-redis
+    command: redis-server --appendonly yes --maxmemory 96mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ${REDIS_DATA_PATH:-/srv/docker/core-panel/redis/data}:/data
+    networks:
+      - core-panel
+    cpus: "0.3"
+    mem_limit: 128m
+    mem_reservation: 64m
 
   system-updater:
-    build:
-      context: ./updater
-      dockerfile: Dockerfile
+    image: ${UPDATER_IMAGE:?Set UPDATER_IMAGE}
+    restart: unless-stopped
     environment:
       UPDATER_ADDR: :8080
       UPDATER_COMPOSE_ENV_FILE: ${SYSTEM_UPDATER_COMPOSE_ENV_FILE:-auto}
-      UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-docker-compose.prod.yml}
-      UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-core-panel}
-      UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}
+      UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-auto}
+      UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-auto}
+      UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-auto}
       UPDATER_FORCE_SELF_UPDATE_AVAILABLE: ${SYSTEM_UPDATER_FORCE_SELF_UPDATE_AVAILABLE:-false}
-      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler}
+      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler,nginx}
       UPDATER_SELF_SERVICE: ${SYSTEM_UPDATER_SELF_SERVICE:-system-updater}
       UPDATER_SELF_UPDATE_ENABLED: ${SYSTEM_UPDATER_SELF_UPDATE_ENABLED:-false}
-      UPDATER_STATE_PATH: /data/state.json
-      UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:-}
+      UPDATER_STATE_PATH: /updater-data/state.json
+      UPDATER_TOKEN: ${SYSTEM_UPDATES_TOKEN:?Set SYSTEM_UPDATES_TOKEN}
       DOCKER_CONFIG: /docker-config
     expose:
       - "8080"
     volumes:
       - ${SYSTEM_UPDATER_PROJECT_PATH:-/srv/docker/core-panel}:/workspace:ro
+      - ${PORTAINER_DATA_PATH:-/srv/docker/portainer/data}:/data:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ${SYSTEM_UPDATER_DOCKER_CONFIG_PATH:-/srv/docker/core-panel/docker-config}:/docker-config:ro
-      - ${UPDATER_DATA_PATH:-/srv/docker/core-panel/updater/data}:/data
-    restart: unless-stopped
+      - ${UPDATER_DATA_PATH:-/srv/docker/core-panel/updater/data}:/updater-data
+    networks:
+      - core-panel
 
-  postgres:
-    extends:
-      file: docker-compose.yml
-      service: postgres
-    restart: unless-stopped
-    ports: !reset []
-    volumes:
-      - ${POSTGRES_DATA_PATH:-/srv/docker/core-panel/postgres}:/var/lib/postgresql
-
-  redis:
-    extends:
-      file: docker-compose.yml
-      service: redis
-    restart: unless-stopped
-    ports: !reset []
-    volumes:
-      - ${REDIS_DATA_PATH:-/srv/docker/core-panel/redis/data}:/data
+networks:
+  proxy-network:
+    external: true
+  core-panel:
+    name: core-panel
+    driver: bridge

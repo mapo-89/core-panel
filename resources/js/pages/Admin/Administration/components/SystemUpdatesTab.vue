@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3'
+import { progress, router, usePage } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import PrimePopover from 'primevue/popover'
 import { useToast } from 'primevue/usetoast'
@@ -23,6 +23,7 @@ type UpdateImage = {
     image: string
     manual_update_required?: boolean
     service: string
+    services?: string[]
     update_available: boolean
 }
 
@@ -122,6 +123,8 @@ let restartStatusDeadline = 0
 let preRestartDeadline = 0
 let restartMarkerFallback: RestartMarker | null = null
 let restartMarkerStorageUsable = true
+let checkLogsTimer: number | null = null
+let checkLogsRequestController: AbortController | null = null
 
 function isRestartMarker(
     marker: Partial<RestartMarker> | null,
@@ -468,6 +471,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     stopRestartStatusPolling()
+    stopCheckLogsPolling()
 })
 
 watch(restartTimedOut, (timedOut) => {
@@ -502,8 +506,18 @@ const automaticUpdateAvailable = computed(() =>
         (image) => image.update_available && !image.manual_update_required,
     ),
 )
+const servicesForImage = (image: UpdateImage): string[] =>
+    image.services?.length ? image.services : [image.service]
 const manualUpdateServices = computed(() =>
-    manuallyUpdatedImages.value.map((image) => image.service).join(', '),
+    [
+        ...new Set(
+            manuallyUpdatedImages.value.flatMap((image) =>
+                servicesForImage(image),
+            ),
+        ),
+    ]
+        .sort((left, right) => left.localeCompare(right))
+        .join(', '),
 )
 const canUpdate = computed(
     () =>
@@ -622,12 +636,71 @@ async function copyDigest(
     }
 }
 
-function runCheck(): void {
+function stopCheckLogsPolling(): void {
+    if (checkLogsTimer !== null) {
+        window.clearTimeout(checkLogsTimer)
+        checkLogsTimer = null
+    }
+
+    checkLogsRequestController?.abort()
+    checkLogsRequestController = null
+}
+
+function scheduleCheckLogsPoll(): void {
+    if (!checkStarting.value) {
+        return
+    }
+
+    checkLogsTimer = window.setTimeout(() => void pollCheckLogs(), 500)
+}
+
+async function refreshCheckLogs(): Promise<void> {
+    const requestController = new AbortController()
+    checkLogsRequestController = requestController
+    const statusUrl = new URL(props.routes.status, window.location.href)
+    statusUrl.searchParams.set('logs_only', '1')
+
+    try {
+        const response = await fetch(statusUrl, {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal: requestController.signal,
+        })
+        const payload = (await response.json().catch(() => ({}))) as {
+            logs?: UpdateLogs
+        }
+
+        if (response.ok && payload.logs) {
+            logsPayload.value = payload.logs
+        }
+    } catch {
+        // A later poll retries transient failures while the check is running.
+    } finally {
+        if (checkLogsRequestController === requestController) {
+            checkLogsRequestController = null
+        }
+    }
+}
+
+async function pollCheckLogs(): Promise<void> {
+    if (!checkStarting.value) {
+        return
+    }
+
+    await refreshCheckLogs()
+
+    scheduleCheckLogsPoll()
+}
+
+async function runCheck(): Promise<void> {
     if (checkStarting.value) {
         return
     }
 
     checkStarting.value = true
+    progress.start()
+    void pollCheckLogs()
     toast.add({
         detail: trans('system_updates.check_started'),
         life: 4000,
@@ -635,12 +708,57 @@ function runCheck(): void {
         summary: trans('common.ui.status'),
     })
 
-    router.post(props.routes.check, undefined, {
-        onFinish: () => {
-            checkStarting.value = false
-        },
-        preserveScroll: true,
-    })
+    try {
+        const token = csrfToken()
+        const xsrf = xsrfToken()
+        const response = await fetch(props.routes.check, {
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                ...(xsrf ? { 'X-XSRF-TOKEN': xsrf } : {}),
+            },
+            method: 'POST',
+        })
+        const body = (await response.json().catch(() => ({}))) as {
+            message?: string
+            status?: UpdateStatus
+        }
+
+        if (!response.ok) {
+            toast.add({
+                detail: body.message ?? trans('system_updates.action_failed'),
+                life: 5000,
+                severity: 'error',
+                summary: trans('common.ui.error'),
+            })
+
+            return
+        }
+
+        if (body.status) {
+            statusPayload.value = body.status
+        }
+
+        await refreshCheckLogs()
+        toast.add({
+            detail: body.message ?? trans('system_updates.check_completed'),
+            life: 4000,
+            severity: 'success',
+            summary: trans('system_updates.status_title'),
+        })
+    } catch {
+        toast.add({
+            detail: trans('system_updates.action_failed'),
+            life: 5000,
+            severity: 'error',
+            summary: trans('common.ui.error'),
+        })
+    } finally {
+        checkStarting.value = false
+        stopCheckLogsPolling()
+        progress.finish()
+    }
 }
 
 function csrfToken(): string | null {
@@ -927,7 +1045,7 @@ function forceUpdate(): void {
                             <td
                                 class="px-3 py-3 font-medium text-[var(--cp-text-primary)]"
                             >
-                                {{ image.service }}
+                                {{ servicesForImage(image).join(', ') }}
                                 <span
                                     class="block font-mono text-xs text-[var(--cp-text-muted)]"
                                 >

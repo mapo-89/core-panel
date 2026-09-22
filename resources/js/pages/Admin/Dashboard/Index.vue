@@ -16,7 +16,6 @@ type SystemHealth = {
     appVersion: string
     databaseStatus: string
     laravelVersion: string
-    octaneStatus: string
     phpVersion: string
     queueStatus: string
     redisStatus: string
@@ -85,11 +84,6 @@ const healthCards = computed(() => {
             key: 'storage',
             label: trans('dashboard.health_storage'),
             value: props.systemHealth.storageStatus,
-        },
-        {
-            key: 'octane',
-            label: trans('dashboard.health_octane'),
-            value: props.systemHealth.octaneStatus,
         },
     ]
 })

@@ -1,18 +1,11 @@
-x-development-build-args: &development-build-args
-  USER_ID: ${DEV_USER_ID:-1000}
-  GROUP_ID: ${DEV_GROUP_ID:-1000}
-
 services:
   app:
     extends:
       file: docker-compose.yml
       service: app
-    user: root
-    pull_policy: never
     build:
-      target: app-dev
+      target: php-dev
       args:
-        <<: *development-build-args
         APP_ENV: local
     environment:
       APP_ENV: local
@@ -21,25 +14,32 @@ services:
       ASSET_URL: ${DEV_ASSET_URL:-http://localhost:8000}
       MAIL_HOST: ${MAIL_HOST:-mailpit}
       MAIL_PORT: ${MAIL_PORT:-1025}
-      PREPARE_LOCAL_ENVIRONMENT: "true"
-      PHP_OPCACHE_ENABLE: "0"
       SYSTEM_UPDATES_FORCE_UPDATE_ENABLED: ${SYSTEM_UPDATES_FORCE_UPDATE_ENABLED:-true}
       SYSTEM_UPDATES_TOKEN: ${SYSTEM_UPDATES_TOKEN:-local-dev-token}
       SYSTEM_UPDATES_UPDATER_URL: ${SYSTEM_UPDATES_UPDATER_URL:-http://system-updater:8080}
     volumes:
       - ./:/var/www/html
+    command: ["/bin/sh", "/var/www/html/.docker/bin/start-dev-app.sh"]
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      PHP_UPSTREAM: ${PHP_UPSTREAM:-app:9000}
     ports:
-      - "${APP_PORT:-8000}:8080"
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./.docker/nginx/default.conf:/etc/nginx/templates/default.conf.template:ro
 
   app-test:
     extends:
       file: docker-compose.yml
       service: app-test
     build:
-      target: app-dev
-      args:
-        <<: *development-build-args
-        APP_ENV: testing
+      target: php-dev
     volumes:
       - ./:/var/www/html
 
@@ -47,11 +47,9 @@ services:
     extends:
       file: docker-compose.yml
       service: horizon
-    pull_policy: never
     build:
-      target: app-dev
+      target: php-dev
       args:
-        <<: *development-build-args
         APP_ENV: local
     environment:
       APP_ENV: local
@@ -65,11 +63,9 @@ services:
     extends:
       file: docker-compose.yml
       service: scheduler
-    pull_policy: never
     build:
-      target: app-dev
+      target: php-dev
       args:
-        <<: *development-build-args
         APP_ENV: local
     environment:
       APP_ENV: local
@@ -98,14 +94,13 @@ services:
     build:
       context: ./updater
       dockerfile: Dockerfile
-    pull_policy: never
     environment:
       UPDATER_ADDR: :8080
       UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-auto}
       UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-auto}
-      UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}
+      UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-auto}
       UPDATER_FORCE_SELF_UPDATE_AVAILABLE: ${SYSTEM_UPDATER_FORCE_SELF_UPDATE_AVAILABLE:-false}
-      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler}
+      UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler,nginx}
       UPDATER_SELF_SERVICE: ${SYSTEM_UPDATER_SELF_SERVICE:-system-updater}
       UPDATER_SELF_UPDATE_ENABLED: ${SYSTEM_UPDATER_SELF_UPDATE_ENABLED:-false}
       UPDATER_STATE_PATH: /data/state.json
@@ -113,7 +108,7 @@ services:
     ports:
       - "${SYSTEM_UPDATER_PORT:-8080}:8080"
     volumes:
-      - ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro
+      - ./:/workspace:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - system-updater-data:/data
 

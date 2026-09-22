@@ -15,7 +15,6 @@ return [
     'health_app' => 'App',
     'health_database' => 'Datenbank',
     'health_laravel_version' => 'Laravel',
-    'health_octane' => 'Octane',
     'health_php_version' => 'PHP',
     'health_queue' => 'Queue',
     'health_redis' => 'Redis',

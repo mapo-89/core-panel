@@ -974,14 +974,68 @@ it('returns the system update status payload', function (): void {
     Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/logs');
 });
 
+it('returns only system update logs for live check polling', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    Http::fake([
+        'system-updater:8080/logs' => Http::response([
+            'entries' => [
+                [
+                    'level' => 'info',
+                    'message' => 'checking for image updates',
+                    'timestamp' => '2026-09-20T19:25:00Z',
+                ],
+            ],
+        ]),
+    ]);
+
+    $this->actingAs(administrationUser('system-updates.view'))
+        ->getJson(route('core-panel.system-updates.status', ['logs_only' => 1]))
+        ->assertSuccessful()
+        ->assertJsonMissingPath('status')
+        ->assertJsonPath('logs.entries.0.message', 'checking for image updates');
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/logs');
+});
+
+it('does not report expected updater connection failures during live log polling', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    Http::fake([
+        'system-updater:8080/logs' => Http::failedConnection(),
+    ]);
+
+    Exceptions::fake();
+    $user = administrationUser('system-updates.view');
+
+    foreach (range(1, 3) as $_poll) {
+        $this->actingAs($user)
+            ->getJson(route('core-panel.system-updates.status', ['logs_only' => 1]))
+            ->assertSuccessful()
+            ->assertJsonPath('logs.entries', []);
+    }
+
+    Exceptions::assertNothingReported();
+});
+
 it('reports a completed system update check after the updater finishes', function (): void {
     config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
     config()->set('core-panel.administration.system_updates.token', 'secret-token');
 
     Http::fake([
         'system-updater:8080/check' => Http::response([
-            'images' => [],
-            'update_available' => false,
+            'images' => [
+                [
+                    'image' => 'registry.example/core-panel:latest',
+                    'service' => 'app',
+                    'update_available' => true,
+                ],
+            ],
+            'last_check_at' => '2026-09-21T12:00:00Z',
+            'update_available' => true,
             'update_running' => false,
         ]),
     ]);
@@ -990,11 +1044,41 @@ it('reports a completed system update check after the updater finishes', functio
         ->from('/admin/system/administration?tab=system-updates')
         ->post(route('core-panel.system-updates.check'))
         ->assertRedirect('/admin/system/administration?tab=system-updates')
-        ->assertSessionHas('info', __('system_updates.check_completed'));
+        ->assertSessionHas('status', 'system-update-check-completed');
 
     Http::assertSent(
         fn (HttpRequest $request): bool => $request->url() === 'http://system-updater:8080/check',
     );
+});
+
+it('returns a successful JSON response after an image update check', function (): void {
+    config()->set('core-panel.administration.system_updates.updater_url', 'http://system-updater:8080');
+    config()->set('core-panel.administration.system_updates.token', 'secret-token');
+
+    Http::fake([
+        'system-updater:8080/check' => Http::response([
+            'images' => [
+                [
+                    'image' => 'registry.example/core-panel:latest',
+                    'service' => 'app',
+                    'update_available' => true,
+                ],
+            ],
+            'last_check_at' => '2026-09-21T12:00:00Z',
+            'update_available' => true,
+            'update_running' => false,
+        ]),
+    ]);
+
+    $this->actingAs(administrationUser('system-updates.update'))
+        ->postJson(route('core-panel.system-updates.check'))
+        ->assertSuccessful()
+        ->assertJsonPath('message', __('system_updates.check_completed'))
+        ->assertJsonPath('status.configured', true)
+        ->assertJsonPath('status.error', null)
+        ->assertJsonPath('status.images.0.service', 'app')
+        ->assertJsonPath('status.last_check_at', '2026-09-21T12:00:00Z')
+        ->assertJsonPath('status.update_available', true);
 });
 
 it('returns the updater status when the auxiliary job status store is unavailable', function (): void {

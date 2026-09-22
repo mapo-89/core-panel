@@ -27,6 +27,90 @@ func TestNewUpdateAttemptIDReturnsUUID(t *testing.T) {
 	}
 }
 
+func TestCheckPublishesStartLogBeforePullCompletes(t *testing.T) {
+	originalCommandOutputFunc := commandOutputFunc
+	defer func() {
+		commandOutputFunc = originalCommandOutputFunc
+	}()
+
+	pullStarted := make(chan struct{})
+	releasePull := make(chan struct{})
+	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
+		command := strings.Join(args, " ")
+
+		if strings.HasSuffix(command, " pull") {
+			close(pullStarted)
+			<-releasePull
+
+			return nil, nil
+		}
+
+		if strings.HasSuffix(command, " config --format json") {
+			return []byte(`{"services":{}}`), nil
+		}
+
+		return nil, errors.New("unexpected command: " + command)
+	}
+
+	server := &Server{
+		config: Config{
+			ProjectName: "core-panel",
+			StatePath:   filepath.Join(t.TempDir(), "state.json"),
+			Workdir:     t.TempDir(),
+		},
+		state: State{Logs: []LogEntry{}},
+	}
+	checkResponse := httptest.NewRecorder()
+	checkDone := make(chan struct{})
+
+	go func() {
+		server.check(checkResponse, httptest.NewRequest("POST", "/check", nil))
+		close(checkDone)
+	}()
+
+	select {
+	case <-pullStarted:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for image pull to start")
+	}
+
+	logsResponse := httptest.NewRecorder()
+	logsDone := make(chan struct{})
+	go func() {
+		server.logs(logsResponse, httptest.NewRequest("GET", "/logs", nil))
+		close(logsDone)
+	}()
+
+	select {
+	case <-logsDone:
+	case <-time.After(time.Second):
+		t.Fatal("logs remained blocked while the image pull was running")
+	}
+
+	if body := logsResponse.Body.String(); !strings.Contains(body, "checking for image updates") || strings.Contains(body, "image update check completed") {
+		t.Fatalf("expected only the running check log before pull completion, got %s", body)
+	}
+
+	persistedState := server.loadState()
+	if len(persistedState.Logs) == 0 || persistedState.Logs[0].Message != "checking for image updates" {
+		t.Fatalf("expected running check log to be persisted immediately, got %#v", persistedState.Logs)
+	}
+
+	close(releasePull)
+	select {
+	case <-checkDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for image check to complete")
+	}
+
+	if checkResponse.Code != 200 {
+		t.Fatalf("expected successful image check response, got %d: %s", checkResponse.Code, checkResponse.Body.String())
+	}
+	if !strings.Contains(checkResponse.Body.String(), "image update check completed") {
+		t.Fatalf("expected completion log after successful check, got %s", checkResponse.Body.String())
+	}
+}
+
 func TestStateForAttemptRetainsTerminalResultAfterNextAttemptStarts(t *testing.T) {
 	completedAt := time.Date(2026, time.September, 10, 12, 0, 0, 0, time.UTC)
 	server := Server{
@@ -142,13 +226,207 @@ func TestAnyUpdateAvailableIncludesSelfServiceUpdateWhenAutomatic(t *testing.T) 
 	}
 }
 
+func TestCollectImagesDeduplicatesServicesUsingTheSameImage(t *testing.T) {
+	originalCommandOutputFunc := commandOutputFunc
+	defer func() {
+		commandOutputFunc = originalCommandOutputFunc
+	}()
+
+	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
+		command := strings.Join(append([]string{name}, args...), " ")
+
+		switch command {
+		case "docker compose -p core-panel -f docker-compose.yml config --format json":
+			return []byte(`{"services":{"app":{"image":"example/app:latest"},"horizon":{"image":"example/app:latest"},"scheduler":{"image":"example/app:latest"}}}`), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q app":
+			return []byte("app-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q horizon":
+			return []byte("horizon-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q scheduler":
+			return []byte("scheduler-container\n"), nil
+		case "docker inspect --format {{.Image}} app-container",
+			"docker inspect --format {{.Image}} horizon-container",
+			"docker inspect --format {{.Image}} scheduler-container":
+			return []byte("sha256:current\n"), nil
+		case "docker image inspect --format {{.Id}} example/app:latest":
+			return []byte("sha256:available\n"), nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return nil, nil
+		}
+	}
+
+	server := Server{
+		config: Config{
+			ComposeFiles:    []string{"docker-compose.yml"},
+			ProjectName:     "core-panel",
+			RuntimeServices: []string{"app", "horizon", "scheduler"},
+		},
+	}
+
+	images, err := server.collectImages()
+	if err != nil {
+		t.Fatalf("expected image collection to succeed: %v", err)
+	}
+
+	if len(images) != 1 {
+		t.Fatalf("expected one deduplicated image state, got %#v", images)
+	}
+
+	image := images[0]
+	if image.Service != "app" || strings.Join(image.Services, ",") != "app,horizon,scheduler" {
+		t.Fatalf("expected all application services to share one image state, got %#v", image)
+	}
+
+	if !image.UpdateAvailable || image.ManualUpdateRequired {
+		t.Fatalf("expected the shared runtime image update to remain automatic, got %#v", image)
+	}
+}
+
+func TestCollectImagesSeparatesSharedImageServicesByUpdateEligibility(t *testing.T) {
+	originalCommandOutputFunc := commandOutputFunc
+	defer func() {
+		commandOutputFunc = originalCommandOutputFunc
+	}()
+	runtimeDigest := "sha256:stale\n"
+
+	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
+		command := strings.Join(append([]string{name}, args...), " ")
+
+		switch command {
+		case "docker compose -p core-panel -f docker-compose.yml config --format json":
+			return []byte(`{"services":{"aaa-custom":{"image":"example/app:latest"},"app":{"image":"example/app:latest"},"horizon":{"image":"example/app:latest"},"zzz-custom":{"image":"example/app:latest"}}}`), nil
+		case "docker image inspect --format {{.Id}} example/app:latest":
+			return []byte("sha256:available\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q aaa-custom":
+			return []byte("aaa-custom-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q app":
+			return []byte("app-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q horizon":
+			return []byte("horizon-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q zzz-custom":
+			return []byte("zzz-custom-container\n"), nil
+		case "docker inspect --format {{.Image}} aaa-custom-container",
+			"docker inspect --format {{.Image}} zzz-custom-container":
+			return []byte("sha256:stale\n"), nil
+		case "docker inspect --format {{.Image}} app-container",
+			"docker inspect --format {{.Image}} horizon-container":
+			return []byte(runtimeDigest), nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return nil, nil
+		}
+	}
+
+	server := Server{
+		config: Config{
+			ComposeFiles:    []string{"docker-compose.yml"},
+			ProjectName:     "core-panel",
+			RuntimeServices: []string{"app", "horizon"},
+		},
+	}
+
+	images, err := server.collectImages()
+	if err != nil {
+		t.Fatalf("expected image collection to succeed: %v", err)
+	}
+
+	if len(images) != 2 {
+		t.Fatalf("expected automatic and manual image states, got %#v", images)
+	}
+
+	automatic := images[0]
+	manual := images[1]
+	if automatic.ManualUpdateRequired || strings.Join(automatic.Services, ",") != "app,horizon" || !automatic.UpdateAvailable {
+		t.Fatalf("expected runtime services to retain automatic update eligibility, got %#v", automatic)
+	}
+	if !manual.ManualUpdateRequired || strings.Join(manual.Services, ",") != "aaa-custom,zzz-custom" || !manual.UpdateAvailable {
+		t.Fatalf("expected custom services to remain a separate manual update group, got %#v", manual)
+	}
+	if !anyUpdateAvailable(images) {
+		t.Fatalf("expected the eligible runtime image group to keep automatic updates available")
+	}
+
+	runtimeDigest = "sha256:available\n"
+	images, err = server.collectImages()
+	if err != nil {
+		t.Fatalf("expected image collection with current runtime services to succeed: %v", err)
+	}
+
+	automatic = images[0]
+	manual = images[1]
+	if automatic.UpdateAvailable || automatic.ManualUpdateRequired {
+		t.Fatalf("expected current runtime services not to inherit a custom service update, got %#v", automatic)
+	}
+	if !manual.UpdateAvailable || !manual.ManualUpdateRequired {
+		t.Fatalf("expected stale custom services to keep their manual update, got %#v", manual)
+	}
+	if anyUpdateAvailable(images) {
+		t.Fatalf("expected a manual-only custom service update not to trigger automatic runtime updates")
+	}
+}
+
+func TestCollectImagesDetectsAStaleServiceUsingADeduplicatedImage(t *testing.T) {
+	originalCommandOutputFunc := commandOutputFunc
+	defer func() {
+		commandOutputFunc = originalCommandOutputFunc
+	}()
+
+	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
+		command := strings.Join(append([]string{name}, args...), " ")
+
+		switch command {
+		case "docker compose -p core-panel -f docker-compose.yml config --format json":
+			return []byte(`{"services":{"app":{"image":"example/app:latest"},"horizon":{"image":"example/app:latest"},"scheduler":{"image":"example/app:latest"}}}`), nil
+		case "docker image inspect --format {{.Id}} example/app:latest":
+			return []byte("sha256:available\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q app":
+			return []byte("app-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q horizon":
+			return []byte("horizon-container\n"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q scheduler":
+			return []byte("scheduler-container\n"), nil
+		case "docker inspect --format {{.Image}} app-container",
+			"docker inspect --format {{.Image}} scheduler-container":
+			return []byte("sha256:available\n"), nil
+		case "docker inspect --format {{.Image}} horizon-container":
+			return []byte("sha256:stale\n"), nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return nil, nil
+		}
+	}
+
+	server := Server{
+		config: Config{
+			ComposeFiles:    []string{"docker-compose.yml"},
+			ProjectName:     "core-panel",
+			RuntimeServices: []string{"app", "horizon", "scheduler"},
+		},
+	}
+
+	images, err := server.collectImages()
+	if err != nil {
+		t.Fatalf("expected image collection to succeed: %v", err)
+	}
+
+	if len(images) != 1 {
+		t.Fatalf("expected one deduplicated image state, got %#v", images)
+	}
+
+	image := images[0]
+	if image.CurrentDigest != "sha256:stale" || !image.UpdateAvailable || image.ManualUpdateRequired {
+		t.Fatalf("expected the stale shared-image service to keep the automatic update available, got %#v", image)
+	}
+}
+
 func TestRuntimeUpdateArgsForceRecreatesAllRuntimeServices(t *testing.T) {
 	server := Server{
-		config: Config{RuntimeServices: []string{"app", "horizon", "nginx"}},
+		config: Config{RuntimeServices: []string{"app", "horizon", "scheduler"}},
 	}
 
 	actual := strings.Join(server.runtimeUpdateArgs(), " ")
-	expected := "up -d --no-deps --force-recreate app horizon nginx"
+	expected := "up -d --no-deps --force-recreate app horizon scheduler"
 
 	if actual != expected {
 		t.Fatalf("expected runtime services to be force-recreated, got %q", actual)

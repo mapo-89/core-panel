@@ -1,14 +1,18 @@
 services:
   app:
-    image: ${APP_IMAGE:?Set APP_IMAGE}
+    image: ${PHP_IMAGE:?Set PHP_IMAGE}
     build: !reset null
 
   horizon:
-    image: ${APP_IMAGE:?Set APP_IMAGE}
+    image: ${PHP_IMAGE:?Set PHP_IMAGE}
     build: !reset null
 
   scheduler:
-    image: ${APP_IMAGE:?Set APP_IMAGE}
+    image: ${PHP_IMAGE:?Set PHP_IMAGE}
+    build: !reset null
+
+  nginx:
+    image: ${NGINX_IMAGE:?Set NGINX_IMAGE}
     build: !reset null
 
   system-updater:

@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# -----------------------------
+# 🔧 Logging function
+# -----------------------------
 log() {
     level="$1"
     message="$2"
@@ -14,28 +17,11 @@ app_version() {
         return
     fi
 
-    sed -nE 's/^[[:space:]]*"display_version"[[:space:]]*:[[:space:]]*"([^"]+)".*$/\1/p' "$version_file" | sed -n '1p'
-}
+    display_version="$(sed -nE 's/^[[:space:]]*"display_version"[[:space:]]*:[[:space:]]*"([^"]+)".*$/\1/p' "$version_file" | head -n 1)"
 
-show_application_information() {
-    display_version="$(app_version || true)"
-
-    if [ -f "${APP_ROOT}/.docker/php/banner.sh" ]; then
-        /bin/sh "${APP_ROOT}/.docker/php/banner.sh"
-    elif [ -f /usr/local/bin/core-panel-banner.sh ]; then
-        /bin/sh /usr/local/bin/core-panel-banner.sh
-    else
-        printf '\nCorePanel startup\n'
-    fi
-
-    printf '\n'
     if [ -n "$display_version" ]; then
-        printf '🏷️  Version:   %s\n' "$display_version"
+        printf '%s\n' "$display_version"
     fi
-    printf '👤 User:      %s  PUID:%s\n' "$(id -un)" "$(id -u)"
-    printf '👥 Group:     %s  PGID:%s\n' "$(id -gn)" "$(id -g)"
-    printf '🐘 PHP:       %s\n' "$(php -v | sed -n '1p')"
-    printf '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
 }
 
 is_enabled() {
@@ -69,18 +55,13 @@ ensure_public_storage_link() {
     mkdir -p "$(dirname "$public_storage_path")"
 
     if [ -L "$public_storage_path" ]; then
-        if [ "$(readlink "$public_storage_path")" = "$storage_target" ]; then
-            log "✅ success " "public/storage symlink is already configured"
-            return
-        fi
-
         ln -sfn "$storage_target" "$public_storage_path"
         log "✅ success " "Updated public/storage symlink"
         return
     fi
 
     if [ -e "$public_storage_path" ]; then
-        log "⚠️ WARNING " "Skipping public/storage symlink because it already exists and is not a symlink"
+        log "⚠️ WARNING " "Skipping public/storage symlink because ${public_storage_path} already exists and is not a symlink"
         return
     fi
 
@@ -91,12 +72,41 @@ ensure_public_storage_link() {
 APP_ROOT="${APP_ROOT:-/var/www/html}"
 MAX_RETRIES="${MAX_RETRIES:-30}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-5}"
-command_name="${DOCKER_CMD%% *}"
+ENTRYPOINT_DIR="${APP_ROOT}/.docker/php"
+WAIT_FOR_NGINX="${WAIT_FOR_NGINX:-auto}"
+APP_RUNTIME_USER="${APP_RUNTIME_USER:-www-data}"
+APP_RUNTIME_GROUP="${APP_RUNTIME_GROUP:-www-data}"
 
-cd "$APP_ROOT"
+command_name="${1:-}"
 
-show_application_information
+if [ "$command_name" = "docker-php-entrypoint" ] && [ "$#" -gt 1 ]; then
+    command_name="$2"
+fi
 
+if [ -x "${ENTRYPOINT_DIR}/banner.sh" ]; then
+    /bin/sh "${ENTRYPOINT_DIR}/banner.sh"
+elif [ -x /usr/local/bin/banner.sh ]; then
+    /usr/local/bin/banner.sh
+else
+    echo "Application startup"
+fi
+
+APP_VERSION="$(app_version || true)"
+
+echo
+if [ -n "$APP_VERSION" ]; then
+    echo "🏷️  Version:   ${APP_VERSION}"
+fi
+echo "👤 User:      $(id -un)  PUID:$(id -u)"
+echo "👥 Group:     $(id -gn)  PGID:$(id -g)"
+echo "🐘 PHP:       $(php -v | head -n 1)"
+echo
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo
+
+# -----------------------------
+# 📂 Load Laravel .env
+# -----------------------------
 if [ -f "${APP_ROOT}/.env" ]; then
     log "📥 info    " ".env detected at ${APP_ROOT}/.env"
 elif [ -n "${APP_ENV:-}" ] || [ -n "${APP_KEY:-}" ]; then
@@ -105,37 +115,44 @@ else
     log "⚠️ WARNING " ".env not found at ${APP_ROOT}/.env"
 fi
 
-mkdir -p \
-    storage/app \
-    storage/app/public \
-    storage/framework \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/logs \
-    bootstrap/cache
+# -----------------------------
+# 🌐 Wait for nginx
+# -----------------------------
+should_wait_for_nginx=0
 
-chmod u+rwX,g+rwX \
-    storage \
-    storage/app \
-    storage/app/public \
-    storage/framework \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/logs \
-    bootstrap/cache
-
-if [ "$(id -u)" -eq 0 ]; then
-    runtime_user="${PHP_FPM_CHILD_PROCESS_USER:-www-data}"
-    runtime_group="${PHP_FPM_CHILD_PROCESS_GROUP:-www-data}"
+if [ "$WAIT_FOR_NGINX" = "1" ] || [ "$WAIT_FOR_NGINX" = "true" ] || [ "$WAIT_FOR_NGINX" = "yes" ]; then
+    should_wait_for_nginx=1
+elif [ "$WAIT_FOR_NGINX" = "auto" ] && [ "$command_name" = "php-fpm" ]; then
+    should_wait_for_nginx=1
 fi
 
-if is_enabled "${PREPARE_LOCAL_ENVIRONMENT:-false}"; then
-    log "🔧 info    " "Preparing the local development environment"
-    /bin/sh "${APP_ROOT}/.docker/bin/prepare-local-environment.sh"
+if [ "$should_wait_for_nginx" -eq 1 ]; then
+    NGINX_HOST=${NGINX_HOST:-nginx}
+    NGINX_PORT=${NGINX_PORT:-80}
+    MAX_RETRIES=${MAX_RETRIES:-10}
+    RETRY_COUNT=0
+    NGINX_HEALTH_URL=${NGINX_HEALTH_URL:-http://${NGINX_HOST}:${NGINX_PORT}/nginx-health}
+
+    log "🔍 info    " "Checking nginx connection at ${NGINX_HEALTH_URL}..."
+
+    until curl -fsS "${NGINX_HEALTH_URL}" >/dev/null 2>&1; do
+        RETRY_COUNT=$((RETRY_COUNT+1))
+        if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+            log "🚫 ERROR   " "nginx unreachable after $MAX_RETRIES attempts!"
+            exit 1
+        fi
+        log "⏱ WARNING  " "Attempt $RETRY_COUNT/$MAX_RETRIES – waiting 5 seconds..."
+        sleep "$SLEEP_SECONDS"
+    done
+
+    log "✅ success " "nginx is reachable!"
+else
+    log "ℹ️ info    " "Skipping nginx wait for command: ${command_name:-unknown}"
 fi
 
+# -----------------------------
+# 🐬 Wait for Database
+# -----------------------------
 if [ "${DB_CONNECTION:-}" = "pgsql" ]; then
     db_host="${DB_HOST:-postgres}"
     db_port="${DB_PORT:-5432}"
@@ -168,15 +185,16 @@ if [ "${DB_CONNECTION:-}" = "pgsql" ]; then
             log "🚫 ERROR   " "PostgreSQL not reachable after ${MAX_RETRIES} attempts"
             exit 1
         fi
-        log "⏱ WARNING  " "Attempt ${attempt}/${MAX_RETRIES} – waiting ${SLEEP_SECONDS} seconds..."
+        log "⏱ WARNING  " "Attempt $attempt/$MAX_RETRIES – waiting 5 seconds..."
         sleep "$SLEEP_SECONDS"
     done
 
     log "✅ success " "PostgreSQL is reachable"
-elif [ "${DB_CONNECTION:-}" = "mysql" ]; then
+elif [ "${DB_CONNECTION:-}" = "mysql" ] && command -v mysql >/dev/null 2>&1; then
     db_host="${DB_HOST:-mysql}"
     db_port="${DB_PORT:-3306}"
     db_user="${DB_USERNAME:-root}"
+    db_name="${DB_DATABASE:-}"
     attempt=0
 
     log "🔍 info    " "Waiting for MySQL at ${db_host}:${db_port}"
@@ -192,45 +210,48 @@ elif [ "${DB_CONNECTION:-}" = "mysql" ]; then
             log "🚫 ERROR   " "MySQL not reachable after ${MAX_RETRIES} attempts"
             exit 1
         fi
-        log "⏱ WARNING  " "Attempt ${attempt}/${MAX_RETRIES} – waiting ${SLEEP_SECONDS} seconds..."
+        log "⏱ WARNING  " "Attempt $attempt/$MAX_RETRIES – waiting 5 seconds..."
         sleep "$SLEEP_SECONDS"
     done
 
-    log "✅ success " "MySQL is reachable"
+    log "✅ success " "MySQL is reachable${db_name:+ for ${db_name}}"
 else
     log "⚠️ WARNING " "Skipping database wait for DB_CONNECTION=${DB_CONNECTION:-unset}"
 fi
 
 ensure_public_storage_link
 
-if is_enabled "${RUN_MIGRATIONS:-false}"; then
-    if [ "$command_name" = "/init" ] || [ "$command_name" = "php-fpm" ]; then
+if is_enabled "${RUN_MIGRATIONS:-}"; then
+    if [ "$command_name" = "php-fpm" ]; then
         if has_artisan_command 'migrate:recursive'; then
-            log "ℹ️ info    " "Running php artisan migrate:recursive --force"
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate:recursive --force"
             php artisan migrate:recursive --force
             log "✅ success " "Central recursive migrations completed"
         else
-            log "ℹ️ info    " "Running php artisan migrate --force"
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan migrate --force"
             php artisan migrate --force
             log "✅ success " "Central migrations completed"
         fi
 
         if has_artisan_command 'tenants:migrate'; then
-            log "ℹ️ info    " "Running php artisan tenants:migrate --force"
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; running php artisan tenants:migrate --force"
             php artisan tenants:migrate --force
             log "✅ success " "Tenant migrations completed"
         else
-            log "ℹ️ info    " "Skipping tenant migrations because the tenancy addon is not installed"
+            log "ℹ️ info    " "RUN_MIGRATIONS enabled; skipping tenant migrations because the tenancy addon is not installed"
         fi
     else
-        log "ℹ️ info    " "Skipping migrations for worker command: ${command_name:-unknown}"
+        log "ℹ️ info    " "RUN_MIGRATIONS enabled; skipping migrations for command: ${command_name:-unknown}"
     fi
 fi
 
-if [ "$(id -u)" -eq 0 ]; then
-    chown -R "${runtime_user}:${runtime_group}" storage bootstrap/cache
-    log "✅ success " "Prepared writable runtime directories for ${runtime_user}:${runtime_group}"
+log "📥 info    " "Starting: $*"
+
+if [ "$command_name" != "php-fpm" ] \
+    && [ "$(id -u)" -eq 0 ] \
+    && [ "${APP_RUNTIME_USER}" != "root" ] \
+    && command -v gosu >/dev/null 2>&1; then
+    exec gosu "${APP_RUNTIME_USER}:${APP_RUNTIME_GROUP}" "$@"
 fi
 
-log "✅ success " "CorePanel initialization completed for: ${DOCKER_CMD:-unknown}"
-exit 0
+exec "$@"

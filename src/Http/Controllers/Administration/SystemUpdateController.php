@@ -35,6 +35,12 @@ final class SystemUpdateController extends Controller
         abort_unless($this->updater->enabled(), 404);
         abort_unless($request->user() !== null && $this->permissions->userHas($request->user(), 'system-updates.view'), 403);
 
+        if ($request->boolean('logs_only')) {
+            return response()->json([
+                'logs' => $this->updater->safeLogs(reportFailures: false),
+            ]);
+        }
+
         $attemptId = $request->string('attempt_id')->trim()->toString();
         $attemptId = Str::isUuid($attemptId) ? $attemptId : null;
         $reportFailures = $attemptId === null;
@@ -45,7 +51,7 @@ final class SystemUpdateController extends Controller
         ]);
     }
 
-    public function check(Request $request): RedirectResponse
+    public function check(Request $request): JsonResponse|RedirectResponse
     {
         abort_unless($this->updater->enabled(), 404);
         abort_unless($request->user() !== null && $this->permissions->userHas($request->user(), 'system-updates.update'), 403);
@@ -54,9 +60,26 @@ final class SystemUpdateController extends Controller
             $result = $this->updater->check();
             $this->logActivity($request, 'system_updates.checked', $result);
 
-            return back()->with('info', __('system_updates.check_completed'));
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => __('system_updates.check_completed'),
+                    'status' => [
+                        'configured' => true,
+                        'error' => null,
+                        ...$result,
+                    ],
+                ]);
+            }
+
+            return back()->with('status', 'system-update-check-completed');
         } catch (Throwable $throwable) {
             report($throwable);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => __('system_updates.action_failed'),
+                ], 500);
+            }
 
             return back()->with('error', __('system_updates.action_failed'));
         }

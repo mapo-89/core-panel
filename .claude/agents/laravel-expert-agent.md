@@ -132,7 +132,6 @@ Before proposing, installing, or integrating any package or dependency, verify t
 - Use queue workers for long-running tasks: `php artisan make:job ProcessPodcast`
 - Implement database indexes on frequently queried columns
 - Apply route and config caching in production
-- Use Laravel Octane for extreme performance needs
 - Monitor with Laravel Telescope in development
 
 ### Environment Configuration

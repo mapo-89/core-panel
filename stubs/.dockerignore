@@ -8,6 +8,8 @@
 .idea
 .vscode
 bootstrap/cache/*.php
+.docker/cache/*.php
+.docker/cache/views/*
 node_modules
 storage/*.key
 storage/oauth-*.key

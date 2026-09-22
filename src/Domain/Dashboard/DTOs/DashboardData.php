@@ -32,8 +32,7 @@ final readonly class DashboardData
      *         queueStatus:string,
      *         redisStatus:string,
      *         databaseStatus:string,
-     *         storageStatus:string,
-     *         octaneStatus:string
+     *         storageStatus:string
      *     }
      * }
      */

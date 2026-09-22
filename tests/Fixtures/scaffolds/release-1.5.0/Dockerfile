@@ -1,16 +1,18 @@
 FROM node:24-bookworm AS node
 
-FROM serversideup/php:8.5-fpm-nginx AS php-extension-base
+FROM php:8.5-fpm-bookworm AS php-extension-base
 
 ARG POSTGRES_CLIENT_MAJOR=18
 
-USER root
 WORKDIR /var/www/html
+
+COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        gosu \
     && install -d /usr/share/postgresql-common/pgdg \
     && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
     && . /etc/os-release \
@@ -32,6 +34,12 @@ RUN apt-get update \
         exif \
         gd \
         intl \
+        opcache \
+        pcntl \
+        pdo_mysql \
+        pdo_pgsql \
+        redis \
+        zip \
     && rm -rf /var/lib/apt/lists/*
 
 FROM php-extension-base AS php-build-base
@@ -83,74 +91,70 @@ RUN export APP_ENV=production APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF
     && php artisan wayfinder:generate --no-interaction \
     && npm run build
 
-FROM php-extension-base AS app-runtime-base
+FROM php-extension-base AS php-runtime-base
 
 COPY . /var/www/html
-COPY .docker/php/entrypoint.sh /etc/entrypoint.d/60-core-panel.sh
-COPY .docker/php/banner.sh /usr/local/bin/core-panel-banner.sh
-COPY .docker/nginx/default.conf /etc/nginx/site-opts.d/http.conf.template
-COPY .docker/php/php.ini /usr/local/etc/php/conf.d/zzz-core-panel.ini
-COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/zzz-core-panel-opcache.ini
+COPY .docker/bin/php-entrypoint.sh /usr/local/bin/core-panel-php-entrypoint
+COPY .docker/php/banner.sh /usr/local/bin/banner.sh
+COPY .docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY .docker/php/php.ini /usr/local/etc/php/conf.d/99-core-panel.ini
+COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/99-opcache.ini
+COPY .docker/php-fpm/zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 
 RUN mkdir -p \
-        /var/www/html/storage/app/public \
+        /var/www/html/storage/app \
         /var/www/html/storage/framework/cache \
         /var/www/html/storage/framework/sessions \
         /var/www/html/storage/framework/views \
         /var/www/html/storage/logs \
-        /var/www/html/.docker/cache/views \
         /var/www/html/bootstrap/cache \
-    && ln -sfn /var/www/html/storage/app/public /var/www/html/public/storage \
-    && chmod 755 /etc/entrypoint.d/60-core-panel.sh /usr/local/bin/core-panel-banner.sh \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/.docker/cache /var/www/html/bootstrap/cache \
-    && chmod -R u+rwX,g+rwX,o+rX /var/www/html/storage /var/www/html/.docker/cache /var/www/html/bootstrap/cache
+    && chmod +x /usr/local/bin/banner.sh /usr/local/bin/entrypoint.sh \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod +x /usr/local/bin/core-panel-php-entrypoint
 
-ENV NGINX_CLIENT_MAX_BODY_SIZE=256M \
-    PHP_MAX_EXECUTION_TIME=120 \
-    PHP_MEMORY_LIMIT=512M \
-    PHP_OPCACHE_ENABLE=1 \
-    PHP_POST_MAX_SIZE=256M \
-    PHP_UPLOAD_MAX_FILE_SIZE=256M
-
-FROM app-runtime-base AS app-prod
+FROM php-runtime-base AS php-prod
 
 COPY --from=vendor-prod /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
+COPY .env.example /var/www/html/.env
 
 RUN export APP_ENV=production APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= \
     && php artisan package:discover --ansi \
-    && php artisan wayfinder:generate --no-interaction \
-    && chown -R www-data:www-data \
-        /var/www/html/vendor \
-        /var/www/html/public/build \
-        /var/www/html/storage \
-        /var/www/html/.docker/cache \
-        /var/www/html/bootstrap/cache
+    && php artisan wayfinder:generate --no-interaction
 
-USER www-data
+EXPOSE 9000
 
-EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1
 
-FROM app-runtime-base AS app-dev
+ENTRYPOINT ["core-panel-php-entrypoint"]
+CMD ["php-fpm", "-F"]
 
-ARG USER_ID=1000
-ARG GROUP_ID=1000
+FROM php-runtime-base AS php-dev
 
-RUN docker-php-serversideup-set-id www-data "${USER_ID}:${GROUP_ID}"
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=vendor-dev /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
 
 RUN export APP_ENV=production APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= \
     && php artisan package:discover --ansi \
-    && php artisan wayfinder:generate --no-interaction \
-    && chown -R www-data:www-data \
-        /var/www/html/vendor \
-        /var/www/html/public/build \
-        /var/www/html/storage \
-        /var/www/html/.docker/cache \
-        /var/www/html/bootstrap/cache
+    && php artisan wayfinder:generate --no-interaction
 
-USER www-data
+EXPOSE 9000
 
-EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD php-fpm -t || exit 1
+
+ENTRYPOINT ["core-panel-php-entrypoint"]
+CMD ["php-fpm", "-F"]
+
+FROM nginx:1.31-alpine AS nginx-prod
+
+WORKDIR /var/www/html
+
+ENV PHP_UPSTREAM=app:9000
+
+COPY --from=php-prod /var/www/html/public /var/www/html/public
+COPY .docker/nginx/default.conf /etc/nginx/templates/default.conf.template

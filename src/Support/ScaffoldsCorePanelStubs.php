@@ -38,10 +38,20 @@ final readonly class ScaffoldsCorePanelStubs
      */
     private const UPDATE_PRESERVED_SCAFFOLDS = [
         '.docker/bin/php-entrypoint.sh',
-        '.docker/nginx/default.conf',
         '.docker/php/banner.sh',
-        '.docker/php/entrypoint.sh',
         '.docker/php/php.ini',
+    ];
+
+    /**
+     * Runtime scaffolds migrated from the separate PHP and Nginx images to the
+     * unified application image. Managed files may only be replaced when their
+     * installed contents still match the scaffold manifest baseline.
+     *
+     * @var list<string>
+     */
+    private const UNIFIED_RUNTIME_MIGRATION_SCAFFOLDS = [
+        '.docker/nginx/default.conf',
+        '.docker/php/entrypoint.sh',
         'Dockerfile',
         'docker-compose.dev.yml',
         'docker-compose.portainer.yml',
@@ -179,6 +189,7 @@ final readonly class ScaffoldsCorePanelStubs
             '9b991ba87ffd0767a9009544e23d5db09915be92c92ce1eec5ca98ae45183543',
             '065c207db85b8e721be73bb1b2d3e7e6a5d89f7fa72c398ea3498d72c5d7045e',
             'c0d741d29fd1ca8d9c6094f8d501bd1b1675afc16b141174740695d2a535d345',
+            '5de4ed4698da00bec1ad288307784a26341aec6b75d8e8f467ebc318ab52d087',
         ],
         'bootstrap/app.php' => [
             'c20cb15ecf282e2d1cf0df59bfe3c82a0736e08aecfffa8dbd4e4e07453fcdae',
@@ -225,6 +236,8 @@ final readonly class ScaffoldsCorePanelStubs
         '.docker/php/entrypoint.sh' => [
             '10d0c57de9589462e8dfbfdf6ffd7ad58169be81fe4ce6237ef3682de920d131',
             '596574435f116e822b3d76af33e491b7ecc2a274bf66b1c1fa1f7c48c0045b9d',
+            '0d925b3792945a4a368eb1792984b72a81179baaa159430846e559584f08e28f',
+            'ace55903a4c43bb51305ee968b4ddcd50dd8df21180c346a4d486f10387b25ba',
         ],
         '.docker/php/opcache.ini' => [
             '266d8b8eb4499dea81b8eb1981b558636e0122625c9e80eb49259e304965d664',
@@ -245,6 +258,8 @@ final readonly class ScaffoldsCorePanelStubs
             'bb0d1861dbbae6adc21111ea139c0cade3faaf32ad78625381cea7ab15c2be96',
             'c310e64d4a348d6785da3ce3eb14b6bfe265037f72df4ac9cd9defa86113d4c1',
             'ce16f741fea7a63c714b46202c24d54eccb6f44e24cc4a5ec8dfa8591a095fa9',
+            '651df5baf782cb9af41a2bdcb56e1bf440972c673c47c0554c9c4bb8fc3d3d7c',
+            '92b9b0142fc76cb9341ef68efc99477e59d6afd02c93d01011aaa626bcc4d90a',
         ],
         'docker-compose.dev.yml' => [
             '18b871d6e4d52e607cabff4329c3bbb32a89f6b3a3a3a6c4f86474b779e7e915',
@@ -252,15 +267,20 @@ final readonly class ScaffoldsCorePanelStubs
             '4f0aecf94e0392c234d6ccd313858e9cbe26ea8306492bf55516cc7c4b449660',
             '5db45f77975274c33300b1cfc2064ce20835ade121c9790c29bc8a6c8dac681b',
             '341e428533c156a6e4b1fda6bf74b3518b4fea26d059d97279aa08be63288704',
+            'dce23fe0b0ed4e04bbc4dcfcf35e3cae324572a1a957793884b12d6339179837',
         ],
         'docker-compose.portainer.yml' => [
             'a4f32d9bbeb4990a1d4f00e9b8bc47daefda73a0edc66b01b1ab1513e6b06d8c',
+            'fc634d74167a50dc0e71f8f6e0f16955fadb25eb68518659de035fe83f3a3aff',
+            '34299248566a55f8c4e6359bbba594e9208c6d2809935319a52383e964419230',
         ],
         'docker-compose.prod.yml' => [
             '58fe723965d80ebbb13e89a6703206e09408b08db45fdc3e420752bd095858b5',
             '648084b041e06e4da83807921be55f120d4566e772504ab793086c8b5540f61f',
             '9468376d2a71bbab02ab803d4256b3b30aeac613946d83c2f20960fa2ab839ca',
             '521e42aecfdaa64a07866210df87acbea5533900d69cd11d08c9083b8e6cb24a',
+            'afbb4e05ebb897fb5a0c9196d918b70b57de08d15ceb43796d085ae01b5051d8',
+            '4ea9dcb5a62c71655f7c1a83147fa8f0fe28ada0174efa34856d68e549d36e1a',
         ],
         'docker-compose.registry.yml' => [
             'd3b1222af0dd05b455c4823d598254cfa3ca978040e07c0f242c60d647ebd764',
@@ -290,6 +310,7 @@ final readonly class ScaffoldsCorePanelStubs
         ],
         'updater/main.go' => [
             'bef38635cb2ae2be66eaa0ef2ffa51da20ba6c2108c834c4d7f83a3b12466cb4',
+            '44d8f6888114791b9a67d691650c719ae3deb72cf8c9e2c1a71b1779a4dc2d2d',
         ],
         'vite.config.ts' => [
             '125a89df0aeabdd154fff978afb2c64005750ceb8792cb600513e11f3e38fdaf',
@@ -360,6 +381,8 @@ final readonly class ScaffoldsCorePanelStubs
         $this->deleteConflictingFiles($root, $pruneHostScaffolds);
         $currentVersion = $this->currentPackageVersion();
         $installedVersion = $this->installedScaffoldPackageVersion($root);
+        $preserveRuntimeMigrationScaffolds = $onlyManagedChanges
+            && $this->hasCustomizedRuntimeMigrationScaffold($root);
 
         foreach (self::paths() as $relativePath) {
             $sourcePath = $this->sourcePath($relativePath);
@@ -370,7 +393,7 @@ final readonly class ScaffoldsCorePanelStubs
                 continue;
             }
 
-            if ($onlyManagedChanges && $this->isUpdatePreservedScaffold($relativePath)) {
+            if ($preserveRuntimeMigrationScaffolds && $this->isUnifiedRuntimeMigrationScaffold($relativePath)) {
                 $this->mergeUpdatePreservedPhpEnvironment(
                     $relativePath,
                     $sourcePath,
@@ -378,6 +401,10 @@ final readonly class ScaffoldsCorePanelStubs
                     $root,
                 );
 
+                continue;
+            }
+
+            if ($onlyManagedChanges && $this->isUpdatePreservedScaffold($relativePath)) {
                 continue;
             }
 
@@ -429,6 +456,32 @@ final readonly class ScaffoldsCorePanelStubs
 
             $this->writeScaffoldFile($relativePath, $sourcePath, $destinationPath, $root);
         }
+
+    }
+
+    public function hasPendingUnifiedRegistryMigration(?string $basePath = null): bool
+    {
+        $root = $basePath ?? base_path();
+
+        if ($this->hasCustomizedRuntimeMigrationScaffold($root)) {
+            return false;
+        }
+
+        foreach (['docker-compose.registry.yml', 'docker-compose.portainer.yml'] as $relativePath) {
+            $path = $root.'/'.$relativePath;
+
+            if (! $this->files->isFile($path)) {
+                continue;
+            }
+
+            $contents = (string) $this->files->get($path);
+
+            if (str_contains($contents, 'PHP_IMAGE') || str_contains($contents, 'NGINX_IMAGE')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isVendorFirstScaffold(string $relativePath): bool
@@ -445,6 +498,51 @@ final readonly class ScaffoldsCorePanelStubs
     private function isUpdatePreservedScaffold(string $relativePath): bool
     {
         return in_array($relativePath, self::UPDATE_PRESERVED_SCAFFOLDS, true);
+    }
+
+    private function hasCustomizedRuntimeMigrationScaffold(string $root): bool
+    {
+        foreach (self::UNIFIED_RUNTIME_MIGRATION_SCAFFOLDS as $relativePath) {
+            if ($this->isCustomizedRuntimeMigrationScaffold($relativePath, $root)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isUnifiedRuntimeMigrationScaffold(string $relativePath): bool
+    {
+        return in_array($relativePath, self::UNIFIED_RUNTIME_MIGRATION_SCAFFOLDS, true);
+    }
+
+    private function isCustomizedRuntimeMigrationScaffold(string $relativePath, string $root): bool
+    {
+        if (! $this->files->isFile($root.'/'.$relativePath)) {
+            return false;
+        }
+
+        if (
+            $this->matchesCurrentVersionedScaffoldContents($relativePath, $root)
+            || $this->matchesKnownLegacyCriticalScaffoldContents($relativePath, $root)
+        ) {
+            return false;
+        }
+
+        $manifestEntry = $this->readScaffoldManifestFiles($root)[$relativePath] ?? null;
+
+        if (! is_array($manifestEntry)) {
+            return true;
+        }
+
+        $sourceHash = $manifestEntry['source_hash'] ?? null;
+        $destinationHash = $manifestEntry['destination_hash'] ?? null;
+        $currentHash = hash('sha256', (string) $this->files->get($root.'/'.$relativePath));
+
+        return ! is_string($sourceHash)
+            || ! is_string($destinationHash)
+            || $sourceHash !== $destinationHash
+            || $currentHash !== $destinationHash;
     }
 
     private function mergeUpdatePreservedPhpEnvironment(
