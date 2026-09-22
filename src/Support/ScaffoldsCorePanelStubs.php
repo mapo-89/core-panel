@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CorePanel\Support;
 
+use CorePanel\Support\Fortify\HostActionOverrides;
 use CorePanel\Support\Install\BackupManager;
 use Illuminate\Filesystem\Filesystem;
 use RecursiveDirectoryIterator;
@@ -129,6 +130,7 @@ final readonly class ScaffoldsCorePanelStubs
         'lang/en/page-user-groups.php',
         'lang/en/system_updates.php',
         'config/database.php',
+        'config/l5-swagger.php',
         'config/pwa.php',
         'config/services.php',
         'config/trustedproxy.php',
@@ -138,13 +140,77 @@ final readonly class ScaffoldsCorePanelStubs
         'public/sw.js',
         'resources/css/app.css',
         'resources/js/components/AppIcon.vue',
-        'resources/js/routes/core-panel/administration.ts',
-        'resources/js/routes/core-panel/log-files.ts',
-        'resources/js/routes/core-panel/system-updates.ts',
         'routes/console.php',
+        'routes/web/platform.php',
         'routes/web.php',
         'scripts/smoke.sh',
         'vite.config.ts',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    private const OBSOLETE_MANAGED_SCAFFOLDS = [
+        'app/Actions/Fortify/CreateNewUser.php' => 'dbfb45f46c020a704b4ddbd4cf156ef093be1ef8c8056492d6a40085b6245e29',
+        'app/Actions/Fortify/ResetUserPassword.php' => 'e3cbdcd1c49d1f2b1607ba7abddab282a91f13a583b1e8fc2a31a9a4ab2f85ba',
+        'app/Actions/Fortify/UpdateUserPassword.php' => '42583e94a0a615ba025012cf2b41712cbfa3176c862007b2581af10f9a56697c',
+        'app/Actions/Fortify/UpdateUserProfileInformation.php' => 'db39dae63e56e9451466586d27451ef9a226fede0e008a491c9b6807ad6990e4',
+        'app/Http/Middleware/TrackUserPresence.php' => '3d4be711f08323be5d137b8b9cb15e5a6695ef7a6259597091700d4702f1e4c9',
+        'app/OpenApi/Components/CorePanelSchemas.php' => '6ad367443d930cea6b34575cf53c13a6db9b36f34c2d7254324c5ba77d3c2141',
+        'app/OpenApi/CorePanelApiDocumentation.php' => 'cccdd6af5b263ed694b769e3e8395e2b4c4a6ddb8161177d513cb77ffb6b5c81',
+        'app/OpenApi/Paths/AuthenticationApi.php' => 'd912ad78f97b8cbe3aa524e19e2f74b9b68d923cd3022204b6cf1c585d9595b9',
+        'app/OpenApi/Paths/SystemApi.php' => 'e2b900dfe72fef2dbbd7b55a6ab50a9610232aa271c2d830c583698c166337c9',
+        'app/OpenApi/Paths/UsersApi.php' => 'ecb0ad01d57e2a0e24664a9e066e24ddbe52e444c6e164cc11458d0aeb82d13e',
+        'app/Providers/FortifyServiceProvider.php' => 'b11ee575d9034605045e3e49a21d837d7037ec4148da8d48219545a58dea4ce5',
+        'app/Providers/HorizonServiceProvider.php' => '67016936281aa3537c54f139b4c6a5d2dbdecee37731b75b344bf18cc6e47971',
+        'resources/js/routes/_wayfinder.ts' => '2282253da09aa9526457c92e2309692588f3ceb4883d8603be3ad1540baa7b21',
+        'resources/js/routes/auth/index.ts' => '834c03eb05b282f6ba05b708d67d6dac265d718564521d8a3919727bd897425c',
+        'resources/js/routes/auth/password/index.ts' => '30f59190b586a77526a308ea06381f0fe8dae2f474a69d143d9e072e919857b4',
+        'resources/js/routes/auth/two-factor/index.ts' => '8c93353457a43555fd7fef6d9b9146dc85e7ce5fd0b01aa405fa636650835ef0',
+        'resources/js/routes/auth/verification/index.ts' => 'bc084c8415432bf959727b2621e6e9b6dda9e92086b7892edfca9a46c9b92f8f',
+        'resources/js/routes/core-panel/activity.ts' => '4e84bb9087848b20b143b564989db7f3dd627e649c17e23f9b21dd0be0517c36',
+        'resources/js/routes/core-panel/administration.ts' => '6fdaddb48237ccd7d61f5eae58e09c77a7d836077a810cdb201dfada42190725',
+        'resources/js/routes/core-panel/api-tokens.ts' => '5a069ff5131b96c1c636c5aed391d70858b6cf616a4fbe3941e87617a0cdc443',
+        'resources/js/routes/core-panel/authentication-logs.ts' => '0fa1193e27c91c0087bc7ff1abb31833853ae0b36fd71c769fcddfa0020e0869',
+        'resources/js/routes/core-panel/developer.ts' => 'e734fddd4a92c13882ce289c994dc68542cd893bdaf4bbcfb4d8173b233d60ad',
+        'resources/js/routes/core-panel/files.ts' => '3d06ac92dd82fbe0ce635ce0891a4fb68ecd80199a265946990c6c977bcefb6c',
+        'resources/js/routes/core-panel/forms/index.ts' => 'd8e93d268569aeb69622e85d59644e5f6afa6f754e4c8ffb621703fb7d7cc2a2',
+        'resources/js/routes/core-panel/forms/public.ts' => '2aea021e17c98109dfa7857b92bc2957b958a842ef4effc855a2d02c12d99c9f',
+        'resources/js/routes/core-panel/log-files.ts' => '32adc74eccbca42573e50a65a462929b2a6177be773dae6ae55d9bccc888e132',
+        'resources/js/routes/core-panel/logs.ts' => '645e0999472bc50f79826bcda3cc4f4488a56acd2bcd7accaed4e78e5a7eb153',
+        'resources/js/routes/core-panel/oauth-clients.ts' => 'e4e2555d35f92746ccc25e4948e19f8214a8a7cd3012f87556dbf900060fc765',
+        'resources/js/routes/core-panel/permissions.ts' => 'b36a0713a38d3d91847e7e313c6fb7fc4276d9182c219ccff4373bdab2770f80',
+        'resources/js/routes/core-panel/roles.ts' => 'f0e04505050c6aa9c15dec7010f2de708d5d735fb57d899140fbadaa0d8a9279',
+        'resources/js/routes/core-panel/settings.ts' => 'dc1b62151128f52cc3bf03c9b5a13500bfcdc52c6b9c204b4380b467dbbae6bf',
+        'resources/js/routes/core-panel/system-updates.ts' => '9f7ef122c4ab19b1d16dcc6f0089b29118e62efb8cfb89e973ebcb25a0fe93f9',
+        'resources/js/routes/core-panel/tenants.ts' => '6ea96322055f624023bca453d7f933c18d77ad887f4cf28229b11147848ee76b',
+        'resources/js/routes/core-panel/user-groups.ts' => 'dc1807e3ad7d206bb90f4387a8f7047a5fab5a4d07d23356e32f7f0857514413',
+        'resources/js/routes/core-panel/users/avatar.ts' => 'ed2d3d2e2265f9ef0a3c0ded4ffe1bb94bd3a97f72d6f21e54686fce3198c226',
+        'resources/js/routes/core-panel/users/index.ts' => 'e6335d29b15ac2b4a909805614d997543b7b11b8919524fb80186ed022bb6194',
+        'resources/js/routes/core-panel/users/password.ts' => '1fd77125b5b3a9cb02ea31bbd9967ba853ac8756bd417e1f1997207306592327',
+        'resources/js/routes/core-panel/users/roles.ts' => 'b7a4f846d5ac184d7827e8552c7f2d6d5b9c7ede94c433d8ed194b22c6062868',
+        'resources/js/routes/core-panel/users/sessions.ts' => '881bf5ee8aa62b3b2c980c26c757014aca20c036913b4597ed8a761c958fbcf6',
+        'resources/js/routes/locale/index.ts' => '9e0dc44ebf9e41bda32ea83ee65f05b09ab7f93f6476b9c56665c159f289b034',
+        'resources/js/routes/login/index.ts' => 'b43e72fefce4695f9fb8281f40d20a1ecebf9f3fc1fb52cbf5c86cfc8d063d62',
+        'resources/js/routes/password/confirm/index.ts' => '1290122978eec6319de1cdd5cda1a93eb39a875a341c5e9814fc994f483ad035',
+        'resources/js/routes/password/index.ts' => '3c8c6ad0fe9b9be01170296501feff7b4e1cd4292fc5ababbc74175016ab7576',
+        'resources/js/routes/presence/index.ts' => 'a9a58657e652e5f967f4324a8b054d9e4fee2d6290950fb0cacc256502e34e36',
+        'resources/js/routes/profile/index.ts' => '40e5674e01671a99cabccff2e657d3cfc187d66dcecc9c4e0b8ea79ea0f47d97',
+        'resources/js/routes/register/index.ts' => 'b43e72fefce4695f9fb8281f40d20a1ecebf9f3fc1fb52cbf5c86cfc8d063d62',
+        'resources/js/routes/socialite/index.ts' => 'dd9c49ae8fcba8c8461a38420dbade5a22167a034c16f3b0499d28dd9963c81e',
+        'resources/js/routes/two-factor/index.ts' => '40cc9aaa76117781763a23ea629b21c37057d21bec70033e90900fa07bf876f4',
+        'resources/js/routes/two-factor/login/index.ts' => '6e21d890a324ed25d42fca7d1ee0fa972559def421e66ca319513274c63a7d6a',
+        'resources/js/routes/user-password/index.ts' => '2890eda82eb0dc14c03cd150798dcd5d93d552ae8df1e0441b683331f2c200b2',
+        'resources/js/routes/user-profile-information/index.ts' => '2890eda82eb0dc14c03cd150798dcd5d93d552ae8df1e0441b683331f2c200b2',
+        'resources/js/routes/verification/index.ts' => '905462f0bb2a0a4adea700060c1c9b8260059644ae7be872ed6d007c6d0d5723',
+    ];
+
+    /**
+     * @var array<string, non-empty-string>
+     */
+    private const OBSOLETE_PROVIDER_SCAFFOLDS = [
+        'app/Providers/FortifyServiceProvider.php' => 'App\\Providers\\FortifyServiceProvider',
+        'app/Providers/HorizonServiceProvider.php' => 'App\\Providers\\HorizonServiceProvider',
     ];
 
     /**
@@ -209,6 +275,9 @@ final readonly class ScaffoldsCorePanelStubs
             '8e9fc4e542335ddfb6550ff6b6f468a1a8f1e57edadeb64ea99ea0a44ebccf5e',
             '6d87c712b4083d826f68ee149816dc698dbdeb3d91fd2b37baa14e1169d85768',
             '6575e6017f5396ef77dea39475a8db0dee4c552f219f7206f3e87a98a6dde449',
+        ],
+        'config/l5-swagger.php' => [
+            'e23b4d757e7250f6802ca074715b4d6add934d150ece83e98dfbb9928840bcbd',
         ],
         'resources/js/components/AppIcon.vue' => [
             '8c8e84746405c6990de0a086a457954b217596ffa7a8edfd8e769d5697db2117',
@@ -296,6 +365,9 @@ final readonly class ScaffoldsCorePanelStubs
             '76995741161785f87bf512c95aec55ac7c89199011973623fecfd127f1e276d0',
             '96d1e75ae3e0eae24dfcc5bccd7300902c47624179acc24a71da13435ef7175f',
         ],
+        'routes/web/platform.php' => [
+            '1a5cc7194b52dbb5f1b36318ad2cc5292c7b261a31663b2f8725b09f9ca64742',
+        ],
         'routes/console.php' => [
             'b42ad0fb4b4f8d3aaf5c8ac5f8818e45062016e8ecb8422466b32bd34471cbad',
             '857319a1d1d0557fabfccfd9aa9afcf58b57a52c40e61e7162edc4abbecfe44a',
@@ -377,6 +449,13 @@ final readonly class ScaffoldsCorePanelStubs
         bool $onlyManagedChanges = false,
     ): void {
         $root = $basePath ?? base_path();
+        $removedObsoleteScaffolds = [];
+
+        if ($onlyManagedChanges) {
+            $this->migrateLegacyCorePanelScheduleBlocks($root);
+            $this->migratePreservedFortifyActionOverrides($root);
+            $removedObsoleteScaffolds = $this->removeObsoleteManagedScaffolds($root);
+        }
 
         $this->deleteConflictingFiles($root, $pruneHostScaffolds);
         $currentVersion = $this->currentPackageVersion();
@@ -419,7 +498,12 @@ final readonly class ScaffoldsCorePanelStubs
             }
 
             if ($relativePath === 'bootstrap/providers.php' && $destinationExists) {
-                if ($this->mergeBootstrapProvidersScaffold($sourcePath, $destinationPath, $root)) {
+                if ($this->mergeBootstrapProvidersScaffold(
+                    $sourcePath,
+                    $destinationPath,
+                    $root,
+                    $removedObsoleteScaffolds,
+                )) {
                     continue;
                 }
             }
@@ -895,10 +979,14 @@ final readonly class ScaffoldsCorePanelStubs
         return true;
     }
 
+    /**
+     * @param  list<string>  $removedObsoleteScaffolds
+     */
     private function mergeBootstrapProvidersScaffold(
         string $sourcePath,
         string $destinationPath,
         string $root,
+        array $removedObsoleteScaffolds,
     ): bool {
         if (! $this->files->isFile($sourcePath) || ! $this->files->isFile($destinationPath)) {
             return false;
@@ -907,6 +995,12 @@ final readonly class ScaffoldsCorePanelStubs
         $sourceContents = (string) $this->files->get($sourcePath);
         $destinationContents = (string) $this->files->get($destinationPath);
         $mergedContents = $destinationContents;
+
+        foreach (self::OBSOLETE_PROVIDER_SCAFFOLDS as $relativePath => $providerClass) {
+            if (in_array($relativePath, $removedObsoleteScaffolds, true)) {
+                $mergedContents = $this->removeBootstrapProvider($mergedContents, $providerClass);
+            }
+        }
         $hasUseBlock = preg_match('/^use\s+[^\n]+;\n/m', $mergedContents) === 1;
         $requiredProviders = $this->requiredBootstrapProviderClasses($sourceContents);
 
@@ -950,6 +1044,224 @@ final readonly class ScaffoldsCorePanelStubs
         $this->storeScaffoldManifestEntry('bootstrap/providers.php', $sourcePath, $destinationPath, $root);
 
         return true;
+    }
+
+    private function removeBootstrapProvider(string $contents, string $providerClass): string
+    {
+        $providerPattern = preg_quote($providerClass, '/');
+        $fullyQualifiedProviderPattern = preg_quote('\\'.$providerClass, '/');
+        $importPattern = '/^use '.$providerPattern.'(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?;\\R/m';
+        $importedReference = null;
+
+        if (preg_match($importPattern, $contents, $matches) === 1) {
+            $importedReference = $matches[1] ?? class_basename($providerClass);
+        }
+
+        $contents = preg_replace(
+            '/^\\s*'.$fullyQualifiedProviderPattern.'::class,\\R/m',
+            '',
+            $contents,
+        ) ?? $contents;
+
+        if (! is_string($importedReference)) {
+            return $contents;
+        }
+
+        $contents = preg_replace($importPattern, '', $contents) ?? $contents;
+
+        return preg_replace(
+            '/^\\s*'.preg_quote($importedReference, '/').'::class,\\R/m',
+            '',
+            $contents,
+        ) ?? $contents;
+    }
+
+    private function migratePreservedFortifyActionOverrides(string $root): void
+    {
+        $manifest = $this->readScaffoldManifestFiles($root);
+        $overrides = [];
+
+        foreach (HostActionOverrides::LEGACY_ACTIONS as $relativePath => $action) {
+            $destinationPath = $root.'/'.$relativePath;
+
+            if (! $this->files->isFile($destinationPath)) {
+                continue;
+            }
+
+            $currentHash = (string) hash_file('sha256', $destinationPath);
+            $legacyHash = self::OBSOLETE_MANAGED_SCAFFOLDS[$relativePath];
+            $managedDestinationHash = $manifest[$relativePath]['destination_hash'] ?? null;
+            $matchesManagedBaseline = is_string($managedDestinationHash)
+                && hash_equals($managedDestinationHash, $currentHash);
+
+            if (! hash_equals($legacyHash, $currentHash) && ! $matchesManagedBaseline) {
+                $overrides[$action['key']] = $action['class'];
+            }
+        }
+
+        $destinationPath = $root.'/'.HostActionOverrides::RELATIVE_PATH;
+
+        if ($overrides === [] || $this->files->exists($destinationPath)) {
+            return;
+        }
+
+        ksort($overrides);
+        $lines = [
+            '<?php',
+            '',
+            'declare(strict_types=1);',
+            '',
+            'return [',
+        ];
+
+        foreach ($overrides as $key => $class) {
+            $lines[] = sprintf("    '%s' => \\%s::class,", $key, $class);
+        }
+
+        $lines[] = '];';
+        $lines[] = '';
+
+        $this->files->ensureDirectoryExists(dirname($destinationPath));
+        $this->files->put($destinationPath, implode(PHP_EOL, $lines));
+    }
+
+    private function migrateLegacyCorePanelScheduleBlocks(string $root): void
+    {
+        $relativePath = 'routes/console.php';
+        $destinationPath = $root.'/'.$relativePath;
+
+        if (! $this->files->isFile($destinationPath)) {
+            return;
+        }
+
+        $contents = (string) $this->files->get($destinationPath);
+        $lineEnding = str_contains($contents, "\r\n") ? "\r\n" : "\n";
+        $migratedContents = $contents;
+
+        foreach ($this->legacyCorePanelScheduleBlocks() as $legacyBlock) {
+            $migratedContents = str_replace(
+                [$legacyBlock, str_replace("\n", "\r\n", $legacyBlock)],
+                '',
+                $migratedContents,
+            );
+        }
+
+        if ($migratedContents === $contents) {
+            return;
+        }
+
+        $contentsWithoutScheduleImport = str_replace(
+            [
+                "use Illuminate\\Support\\Facades\\Schedule;\n",
+                "use Illuminate\\Support\\Facades\\Schedule;\r\n",
+            ],
+            '',
+            $migratedContents,
+        );
+
+        if (preg_match('/\bSchedule\b/', $contentsWithoutScheduleImport) !== 1) {
+            $migratedContents = $contentsWithoutScheduleImport;
+        }
+
+        $migratedContents = preg_replace('/\R{3,}/', $lineEnding.$lineEnding, $migratedContents) ?? $migratedContents;
+        $migratedContents = rtrim($migratedContents).$lineEnding;
+
+        $this->backups->backupPaths([$this->sourcePath($relativePath) => $destinationPath], $root);
+        $this->files->put($destinationPath, $migratedContents);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function legacyCorePanelScheduleBlocks(): array
+    {
+        return [
+            <<<'PHP'
+if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {
+    Schedule::command('horizon:snapshot')->everyFiveMinutes();
+}
+PHP,
+            <<<'PHP'
+if ((bool) config('core-panel.administration.database_backups.enabled', true)) {
+    Schedule::command('database-backups:auto')
+        ->everyMinute()
+        ->withoutOverlapping(60);
+}
+PHP,
+            <<<'PHP'
+if ((bool) config('database-backups.enabled', config('core-panel.administration.database_backups.enabled', true))) {
+    Schedule::command('database-backups:auto')
+        ->everyMinute()
+        ->withoutOverlapping(60);
+}
+PHP,
+            <<<'PHP'
+if ((bool) config('core-panel.administration.system_updates.automatic.enabled', false)) {
+    Schedule::command('system-updates:auto')->everyFiveMinutes();
+}
+PHP,
+            <<<'PHP'
+if ((bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false))) {
+    Schedule::command('system-updates:auto')->everyFiveMinutes();
+}
+PHP,
+            <<<'PHP'
+if ((bool) config('core-panel.administration.system_updates.enabled', true)) {
+    Schedule::command('system-updates:auto')
+        ->everyMinute()
+        ->withoutOverlapping(20)
+        ->onOneServer();
+}
+PHP,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function removeObsoleteManagedScaffolds(string $root): array
+    {
+        $manifest = $this->readScaffoldManifestFiles($root);
+        $removedScaffolds = [];
+        $changed = false;
+
+        foreach (self::OBSOLETE_MANAGED_SCAFFOLDS as $relativePath => $legacyHash) {
+            $destinationPath = $root.'/'.$relativePath;
+
+            if (! $this->files->isFile($destinationPath)) {
+                if (isset($manifest[$relativePath])) {
+                    unset($manifest[$relativePath]);
+                    $removedScaffolds[] = $relativePath;
+                    $changed = true;
+                }
+
+                continue;
+            }
+
+            $isManaged = isset($manifest[$relativePath]);
+            $currentHash = (string) hash_file('sha256', $destinationPath);
+            $matchesLegacy = hash_equals($legacyHash, $currentHash);
+            $managedDestinationHash = $manifest[$relativePath]['destination_hash'] ?? null;
+            $matchesManagedBaseline = $isManaged
+                && is_string($managedDestinationHash)
+                && hash_equals($managedDestinationHash, $currentHash);
+
+            if (! $matchesManagedBaseline && ! $matchesLegacy) {
+                continue;
+            }
+
+            $this->backups->backupPaths([$root.'/.core-panel-obsolete' => $destinationPath], $root);
+            $this->files->delete($destinationPath);
+            unset($manifest[$relativePath]);
+            $removedScaffolds[] = $relativePath;
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->writeScaffoldManifest($root, $manifest, $this->currentPackageVersion());
+        }
+
+        return $removedScaffolds;
     }
 
     /**
@@ -1224,6 +1536,7 @@ final readonly class ScaffoldsCorePanelStubs
             '.env.example',
             'bootstrap/app.php',
             'config/database.php',
+            'config/l5-swagger.php',
             'resources/js/components/AppIcon.vue',
             '.docker/bin/php-entrypoint.sh',
             '.docker/bin/prepare-local-environment.sh',
@@ -1243,6 +1556,7 @@ final readonly class ScaffoldsCorePanelStubs
             'docker-compose.registry.yml',
             'docker-compose.yml',
             'routes/web.php',
+            'routes/web/platform.php',
             'routes/console.php',
             'updater/Dockerfile',
             'updater/go.mod',

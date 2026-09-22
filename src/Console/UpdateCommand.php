@@ -6,6 +6,7 @@ namespace CorePanel\Console;
 
 use CorePanel\Support\Install\AppServiceProviderMerger;
 use CorePanel\Support\Migrations\HostMigrationRunner;
+use CorePanel\Support\Migrations\ManagedMigrationScaffoldMigrator;
 use CorePanel\Support\PublishesCorePanelAssets;
 use CorePanel\Support\Publishing\VendorFirstAssetMigrator;
 use CorePanel\Support\PublishTag;
@@ -23,6 +24,7 @@ final class UpdateCommand extends Command
         private readonly AppServiceProviderMerger $appServiceProviderMerger,
         private readonly SynchronizesEnvironmentFile $environment,
         private readonly HostMigrationRunner $migrations,
+        private readonly ManagedMigrationScaffoldMigrator $migrationScaffolds,
         private readonly VendorFirstAssetMigrator $vendorFirstAssets,
     ) {
         parent::__construct();
@@ -34,7 +36,7 @@ final class UpdateCommand extends Command
         {--base-path= : Override the target base path}
         {--with-addon-updates : Also run update for installed optional addons}
         {--vendor-first : Deprecated alias for the default vendor-first frontend migration}
-        {--breaking-changes : Also refresh config files for breaking update paths}';
+        {--breaking-changes : Apply documented breaking update paths, including managed migration relocation}';
 
     protected $description = 'Refresh mutable published Laravel CorePanel overlays after package updates.';
 
@@ -112,6 +114,28 @@ final class UpdateCommand extends Command
             $publishedTagsResult,
             $explicitVendorFirst,
         );
+
+        $migrationChanges = $this->migrationScaffolds->migrate(
+            ManagedMigrationScaffoldMigrator::coreHostScaffolds(),
+            dryRun: $dryRun || ! $withBreakingChanges,
+            basePath: $basePath,
+        );
+
+        if ($migrationChanges !== []) {
+            $this->table(['Migration', 'Status', 'Reason'], $migrationChanges);
+        }
+
+        if (collect($migrationChanges)->contains('status', 'conflict')) {
+            $this->components->error('CorePanel cannot move customized unmanaged migrations into the package automatically. Resolve the reported files and rerun the update.');
+
+            return self::FAILURE;
+        }
+
+        if (! $withBreakingChanges && $migrationChanges !== [] && ! $dryRun) {
+            $this->components->error('CorePanel 1.6 moves domain migrations into the package. Rerun core-panel:update with --breaking-changes to back up and remove the managed host copies safely.');
+
+            return self::FAILURE;
+        }
 
         if ($dryRun) {
             return $shouldFailForConflicts ? self::FAILURE : self::SUCCESS;
@@ -326,7 +350,8 @@ final class UpdateCommand extends Command
         }
 
         config()->set('l5-swagger.documentations.default.paths.annotations', [
-            base_path('app/OpenApi'),
+            dirname(__DIR__, 2).'/src/OpenApi',
+            ...is_dir(base_path('app/OpenApi')) ? [base_path('app/OpenApi')] : [],
         ]);
 
         try {

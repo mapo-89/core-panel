@@ -215,64 +215,75 @@ it('rejects installation when core panel is already installed', function (): voi
     }
 });
 
-it('runs host migrations in global timestamp order across domain directories', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-order-'.bin2hex(random_bytes(5));
+it('runs host foundation and package migrations in global timestamp order', function (): void {
+    $temporaryBasePath = corePanelTestTemporaryPath('domain-migration-order');
 
-    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
     mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
-    mkdir($temporaryBasePath.'/database/migrations/files', 0777, true);
     mkdir($temporaryBasePath.'/database/migrations/tenancy', 0777, true);
     mkdir($temporaryBasePath.'/database/migrations/tenant/users', 0777, true);
 
-    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
-    file_put_contents($temporaryBasePath.'/database/migrations/files/2019_01_01_000001_create_media_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/tenancy/2026_01_01_000001_create_tenants_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/tenant/users/0001_01_01_000000_create_users_table.php', '<?php');
 
     /** @var list<string> $migrationFiles */
     $migrationFiles = app(HostMigrationExecutor::class)->migrationFiles($temporaryBasePath);
 
-    expect(array_map('basename', $migrationFiles))->toBe([
-        '0001_01_01_000000_create_users_table.php',
-        '2016_06_01_000001_create_oauth_auth_codes_table.php',
-        '2019_01_01_000001_create_media_table.php',
-        '2026_01_01_000001_create_tenants_table.php',
-    ])
+    $basenames = array_map('basename', $migrationFiles);
+
+    expect($basenames)->toBe(array_values(array_unique($basenames)))
+        ->and($basenames)->toContain(
+            '0001_01_01_000000_create_users_table.php',
+            '2016_06_01_000001_create_oauth_auth_codes_table.php',
+            '2019_01_01_000001_create_media_table.php',
+            '2026_01_01_000001_create_tenants_table.php',
+        )
         ->and(MigrationPathResolver::central($temporaryBasePath))->toBe($migrationFiles);
 });
 
-it('resolves tenant migrations recursively in global timestamp order', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-tenant-migration-order-'.bin2hex(random_bytes(5));
+it('resolves tenant foundation and package migrations in global timestamp order', function (): void {
+    $temporaryBasePath = corePanelTestTemporaryPath('tenant-migration-order');
 
-    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
-    mkdir($temporaryBasePath.'/database/migrations/tenant/auth', 0777, true);
     mkdir($temporaryBasePath.'/database/migrations/tenant/users', 0777, true);
-    mkdir($temporaryBasePath.'/database/migrations/tenant/files', 0777, true);
 
-    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
-    file_put_contents($temporaryBasePath.'/database/migrations/tenant/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/tenant/users/0001_01_01_000000_create_users_table.php', '<?php');
-    file_put_contents($temporaryBasePath.'/database/migrations/tenant/files/2019_01_01_000001_create_media_table.php', '<?php');
 
     $migrationFiles = MigrationPathResolver::tenant($temporaryBasePath);
+    $basenames = array_map('basename', $migrationFiles);
 
-    expect(array_map('basename', $migrationFiles))->toBe([
-        '0001_01_01_000000_create_users_table.php',
-        '2016_06_01_000001_create_oauth_auth_codes_table.php',
-        '2019_01_01_000001_create_media_table.php',
-    ]);
+    expect($basenames)->toBe(array_values(array_unique($basenames)))
+        ->and($basenames)->toContain(
+            '0001_01_01_000000_create_users_table.php',
+            '2016_06_01_000001_create_oauth_auth_codes_table.php',
+            '2019_01_01_000001_create_media_table.php',
+        );
+});
+
+it('prefers preserved host tenant migrations over package migrations with the same basename', function (): void {
+    $temporaryBasePath = corePanelTestTemporaryPath('tenant-migration-host-override');
+    $basename = '2026_01_01_000003_create_core_panel_settings_table.php';
+    $hostMigration = $temporaryBasePath.'/database/migrations/tenant/settings/'.$basename;
+
+    mkdir(dirname($hostMigration), 0777, true);
+    file_put_contents($hostMigration, '<?php // customized host tenant migration');
+
+    $matchingMigrations = array_values(array_filter(
+        MigrationPathResolver::tenant($temporaryBasePath),
+        static fn (string $path): bool => basename($path) === $basename,
+    ));
+
+    expect($matchingMigrations)->toBe([(string) realpath($hostMigration)]);
 });
 
 it('executes host migrations and reports the applied migration basenames', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-execute-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('domain-migration-execute');
     $database = (string) config('database.default');
 
-    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
     mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
 
-    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
+
+    $expectedBasenames = array_map('basename', MigrationPathResolver::host($temporaryBasePath));
 
     Schema::dropIfExists('migrations');
     Schema::create('migrations', function ($table): void {
@@ -284,14 +295,11 @@ it('executes host migrations and reports the applied migration basenames', funct
     $kernel = mock(Kernel::class);
     $kernel->shouldReceive('call')
         ->once()
-        ->with('migrate', Mockery::on(static function (array $arguments) use ($database): bool {
+        ->with('migrate', Mockery::on(static function (array $arguments) use ($database, $expectedBasenames): bool {
             return $arguments['--database'] === $database
                 && $arguments['--force'] === false
                 && $arguments['--realpath'] === true
-                && array_map('basename', $arguments['--path']) === [
-                    '0001_01_01_000000_create_users_table.php',
-                    '2016_06_01_000001_create_oauth_auth_codes_table.php',
-                ];
+                && array_map('basename', $arguments['--path']) === $expectedBasenames;
         }))
         ->andReturnUsing(static function () use ($database): int {
             DB::connection($database)->table('migrations')->insert([
@@ -318,15 +326,16 @@ it('executes host migrations and reports the applied migration basenames', funct
     ]);
 });
 
-it('skips executing host migrations when no host migration files exist', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-empty-host-migrations-'.bin2hex(random_bytes(5));
+it('executes package migrations when the host has no migration directory', function (): void {
+    $temporaryBasePath = corePanelTestTemporaryPath('package-only-migrations');
     $database = (string) config('database.default');
 
-    mkdir($temporaryBasePath.'/database/migrations', 0777, true);
-
     $kernel = mock(Kernel::class);
-    $kernel->shouldNotReceive('call');
-    $kernel->shouldNotReceive('output');
+    $kernel->shouldReceive('call')
+        ->once()
+        ->with('migrate', Mockery::on(static fn (array $arguments): bool => $arguments['--path'] === MigrationPathResolver::corePackage()))
+        ->andReturn(0);
+    $kernel->shouldReceive('output')->once()->andReturn('Nothing to migrate.');
 
     app()->instance(Kernel::class, $kernel);
 
@@ -334,28 +343,24 @@ it('skips executing host migrations when no host migration files exist', functio
 
     expect($result)->toBe([
         'executed_migrations' => [],
-        'output' => '',
+        'output' => 'Nothing to migrate.',
     ]);
 });
 
-it('keeps tenant migration path scoped when no tenant migration files exist', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-empty-tenant-migrations-'.bin2hex(random_bytes(5));
+it('uses package migrations when no tenant migration files exist', function (): void {
+    $temporaryBasePath = corePanelTestTemporaryPath('package-only-tenant-migrations');
 
-    mkdir($temporaryBasePath.'/database/migrations', 0777, true);
-
-    expect(MigrationPathResolver::tenant($temporaryBasePath))->toBe([
-        $temporaryBasePath.'/database/migrations/tenant',
-    ]);
+    expect(MigrationPathResolver::tenant($temporaryBasePath))->toBe(MigrationPathResolver::corePackage());
 });
 
 it('executes host migrations in a single batch-preserving migrate call', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-run-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('domain-migration-run');
 
-    mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
     mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
 
-    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
     file_put_contents($temporaryBasePath.'/database/migrations/users/0001_01_01_000000_create_users_table.php', '<?php');
+
+    $expectedBasenames = array_map('basename', MigrationPathResolver::host($temporaryBasePath));
 
     $runner = app(HostMigrationRunner::class);
     $command = new RecordingMigrationCommand;
@@ -366,20 +371,15 @@ it('executes host migrations in a single batch-preserving migrate call', functio
         ->and($command->calls[0]['command'])->toBe('migrate')
         ->and($command->calls[0]['arguments']['--force'])->toBeTrue()
         ->and($command->calls[0]['arguments']['--realpath'])->toBeTrue()
-        ->and(array_map('basename', $command->calls[0]['arguments']['--path']))->toBe([
-            '0001_01_01_000000_create_users_table.php',
-            '2016_06_01_000001_create_oauth_auth_codes_table.php',
-        ]);
+        ->and(array_map('basename', $command->calls[0]['arguments']['--path']))->toBe($expectedBasenames);
 });
 
 it('rejects duplicate host migration basenames across domain directories', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-domain-migration-duplicates-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('domain-migration-duplicates');
 
     mkdir($temporaryBasePath.'/database/migrations/auth', 0777, true);
-    mkdir($temporaryBasePath.'/database/migrations/users', 0777, true);
 
-    file_put_contents($temporaryBasePath.'/database/migrations/auth/2026_01_01_000001_create_users_table.php', '<?php');
-    file_put_contents($temporaryBasePath.'/database/migrations/users/2026_01_01_000001_create_users_table.php', '<?php');
+    file_put_contents($temporaryBasePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php', '<?php');
 
     $runner = app(HostMigrationRunner::class);
     $command = new RecordingMigrationCommand;
@@ -510,7 +510,7 @@ it('persists the generated application key back into the environment file during
 });
 
 it('adds the local tenancy addon path repository and requirement to the host composer manifest', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-tenancy-composer-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-tenancy-composer');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -551,7 +551,7 @@ it('adds the local tenancy addon path repository and requirement to the host com
 });
 
 it('updates an existing local tenancy addon path repository to include the expected version override', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-tenancy-composer-update-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-tenancy-composer-update');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -597,6 +597,35 @@ it('updates an existing local tenancy addon path repository to include the expec
                 'mapo-89/core-panel-tenancy' => 'dev-main',
             ],
         ],
+    ]);
+});
+
+it('registers a newly installed local tenancy addon migration paths in the running installer', function (): void {
+    $temporaryBasePath = corePanelTestTemporaryPath('install-tenancy-runtime-migrations');
+    $hostMigrations = $temporaryBasePath.'/database/migrations';
+    $tenantMigrations = $temporaryBasePath.'/database/tenant-migrations';
+
+    mkdir($hostMigrations, 0777, true);
+    mkdir($tenantMigrations, 0777, true);
+
+    config()->set('core-panel.migrations.host_paths', ['/host/custom-migrations']);
+    config()->set('core-panel.migrations.tenant_paths', ['/tenant/custom-migrations']);
+
+    $installer = app(CorePanelInstaller::class);
+    $method = new ReflectionMethod($installer, 'registerLocalAddonMigrationPaths');
+    $method->setAccessible(true);
+    $method->invoke($installer, [
+        'package' => 'mapo-89/core-panel-tenancy',
+        'version' => 'dev-main',
+        'path' => $temporaryBasePath,
+    ]);
+
+    expect(config('core-panel.migrations.host_paths'))->toBe([
+        '/host/custom-migrations',
+        $hostMigrations,
+    ])->and(config('core-panel.migrations.tenant_paths'))->toBe([
+        '/tenant/custom-migrations',
+        $tenantMigrations,
     ]);
 });
 
@@ -804,7 +833,7 @@ it('skips external permission cache writes while the installer seeders run', fun
 });
 
 it('keeps environment synchronization idempotent when the installer runs twice with the same overrides', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-sync-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-sync');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', "APP_NAME=Laravel\n");
@@ -838,7 +867,7 @@ it('synchronizes tenancy database connection settings when tenancy installation 
 });
 
 it('preserves existing environment values while still applying explicit installer overrides', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-preserve-env-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-preserve-env');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', implode(PHP_EOL, [
@@ -863,7 +892,7 @@ it('preserves existing environment values while still applying explicit installe
 });
 
 it('creates an environment backup before synchronizing existing values', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-backup-env-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-backup-env');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -886,7 +915,7 @@ it('creates an environment backup before synchronizing existing values', functio
 });
 
 it('replaces template-managed environment values during installation synchronization', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-replace-env-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-replace-env');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', implode(PHP_EOL, [
@@ -917,7 +946,7 @@ it('replaces template-managed environment values during installation synchroniza
 });
 
 it('renders the synchronized environment file using the template structure', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-template-structure-env-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-template-structure-env');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', implode(PHP_EOL, [
@@ -943,7 +972,7 @@ it('renders the synchronized environment file using the template structure', fun
 });
 
 it('refreshes the scaffolded pwa manifest after installation environment sync', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-refresh-pwa-manifest-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-refresh-pwa-manifest');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', "APP_NAME=Laravel\n");
@@ -967,7 +996,7 @@ it('refreshes the scaffolded pwa manifest after installation environment sync', 
 });
 
 it('preserves an existing unmanaged pwa manifest during installation refresh', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-preserve-host-pwa-manifest-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-preserve-host-pwa-manifest');
 
     mkdir($temporaryBasePath.'/public', 0777, true);
     file_put_contents($temporaryBasePath.'/.env', "APP_NAME=Laravel\n");
@@ -999,7 +1028,7 @@ it('preserves an existing unmanaged pwa manifest during installation refresh', f
 });
 
 it('deduplicates existing environment keys when synchronizing the environment file', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-install-deduplicate-env-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('install-deduplicate-env');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', implode(PHP_EOL, [

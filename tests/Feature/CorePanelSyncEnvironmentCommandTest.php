@@ -21,7 +21,7 @@ function fakeUpdaterComposeLabels(string $workdir, string $composeFiles): void
 }
 
 it('synchronizes the host environment file from the template through the artisan command', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.prod.yml', $temporaryBasePath.'/docker-compose.prod.yml');
@@ -64,7 +64,7 @@ it('synchronizes the host environment file from the template through the artisan
 });
 
 it('migrates a quoted legacy updater service list for the unified topology', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-quoted-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-quoted-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.prod.yml', $temporaryBasePath.'/docker-compose.prod.yml');
@@ -85,7 +85,7 @@ it('migrates a quoted legacy updater service list for the unified topology', fun
 });
 
 it('migrates a whitespace-separated legacy updater service list for the unified topology', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-spaced-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-spaced-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.prod.yml', $temporaryBasePath.'/docker-compose.prod.yml');
@@ -105,7 +105,7 @@ it('migrates a whitespace-separated legacy updater service list for the unified 
 });
 
 it('migrates the legacy updater service list when block compose services contain whitespace-only lines', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-whitespace-compose-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-whitespace-compose-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/compose.yml', implode(PHP_EOL, [
@@ -135,7 +135,7 @@ it('migrates the legacy updater service list when block compose services contain
 });
 
 it('migrates a quoted legacy updater service list with a trailing dotenv comment', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-commented-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-commented-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.prod.yml', $temporaryBasePath.'/docker-compose.prod.yml');
@@ -155,7 +155,7 @@ it('migrates a quoted legacy updater service list with a trailing dotenv comment
 });
 
 it('normalizes commented compose settings before detecting the unified topology', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-commented-compose-settings-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-commented-compose-settings');
     $composeWorkdir = $temporaryBasePath.'/deployment';
 
     mkdir($composeWorkdir, 0777, true);
@@ -177,7 +177,7 @@ it('normalizes commented compose settings before detecting the unified topology'
 });
 
 it('preserves nginx in the updater service list when standalone sync detects the legacy runtime topology', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-legacy-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-legacy-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(
@@ -207,7 +207,7 @@ it('preserves nginx in the updater service list when standalone sync detects the
 });
 
 it('resolves an auto-detected unified Portainer topology before migrating the updater service list', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-auto-portainer-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-auto-portainer-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.portainer.yml', $temporaryBasePath.'/docker-compose.portainer.yml');
@@ -230,7 +230,7 @@ it('resolves an auto-detected unified Portainer topology before migrating the up
 });
 
 it('preserves nginx for an auto-detected legacy Portainer topology', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-auto-legacy-portainer-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-auto-legacy-portainer-runtime');
     $activeProjectPath = $temporaryBasePath.'/active-stack';
 
     mkdir($activeProjectPath, 0777, true);
@@ -258,7 +258,7 @@ it('preserves nginx for an auto-detected legacy Portainer topology', function ()
 });
 
 it('uses the active Compose labels instead of the published Portainer filename in auto mode', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-auto-custom-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-auto-custom-runtime');
     $activeProjectPath = $temporaryBasePath.'/active-stack';
 
     mkdir($activeProjectPath, 0777, true);
@@ -295,7 +295,7 @@ it('uses the active Compose labels instead of the published Portainer filename i
 });
 
 it('preserves the runtime service list when auto discovery finds multiple updater stacks', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-auto-ambiguous-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-auto-ambiguous-runtime');
     $inspectCalls = 0;
 
     mkdir($temporaryBasePath, 0777, true);
@@ -327,7 +327,7 @@ it('preserves the runtime service list when auto discovery finds multiple update
 });
 
 it('does not substitute the application root for an inaccessible labeled Compose workdir', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-auto-inaccessible-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-auto-inaccessible-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.portainer.yml', $temporaryBasePath.'/docker-compose.portainer.yml');
@@ -349,7 +349,7 @@ it('does not substitute the application root for an inaccessible labeled Compose
 });
 
 it('resolves relative compose files from the configured updater workdir', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-compose-workdir-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-compose-workdir');
     $composeWorkdir = $temporaryBasePath.'/deployment';
 
     mkdir($composeWorkdir, 0777, true);
@@ -375,7 +375,7 @@ it('resolves relative compose files from the configured updater workdir', functi
 });
 
 it('preserves the legacy service list when an explicit compose file is unreadable on the host', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-explicit-inaccessible-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-explicit-inaccessible-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     copy(__DIR__.'/../../stubs/docker-compose.prod.yml', $temporaryBasePath.'/docker-compose.prod.yml');
@@ -397,7 +397,7 @@ it('preserves the legacy service list when an explicit compose file is unreadabl
 });
 
 it('preserves the legacy service list when compose services use unsupported flow syntax', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-flow-services-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-flow-services-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents(
@@ -420,7 +420,7 @@ it('preserves the legacy service list when compose services use unsupported flow
 });
 
 it('only uses the top-level compose services block when detecting nginx', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-nested-services-runtime-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-nested-services-runtime');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/compose.yml', <<<'YAML'
@@ -450,7 +450,7 @@ YAML.PHP_EOL);
 });
 
 it('uses the unified service default when the topology is unknown and the service list is absent', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-unknown-runtime-without-services-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-unknown-runtime-without-services');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', implode(PHP_EOL, [
@@ -470,7 +470,7 @@ it('uses the unified service default when the topology is unknown and the servic
 });
 
 it('maps the updater workspace to the configured host project path', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-project-path-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-project-path');
     $projectPath = $temporaryBasePath.'/deployed-project';
 
     mkdir($projectPath, 0777, true);
@@ -497,7 +497,7 @@ it('maps the updater workspace to the configured host project path', function ()
 });
 
 it('maps nested updater workspace directories beneath the configured host project path', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-nested-project-path-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-nested-project-path');
     $projectPath = $temporaryBasePath.'/deployed-project';
     $composeWorkdir = $projectPath.'/deployment';
 
@@ -525,7 +525,7 @@ it('maps nested updater workspace directories beneath the configured host projec
 });
 
 it('can replace existing template-managed environment values when requested', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-replace-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-replace');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -547,7 +547,7 @@ it('can replace existing template-managed environment values when requested', fu
 });
 
 it('preserves exported environment values while synchronizing template-managed keys', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-exported-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-exported');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -572,7 +572,7 @@ it('preserves exported environment values while synchronizing template-managed k
 });
 
 it('preserves supported environment keys that are not listed in the template', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-command-supported-keys-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env-command-supported-keys');
 
     mkdir($temporaryBasePath, 0777, true);
 

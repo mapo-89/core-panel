@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -39,7 +38,7 @@ final class UserModelManager
     }
 
     /**
-     * @return Builder<Model>
+     * @return Builder<Model&Authenticatable>
      */
     public function query(bool $withTrashed = false): Builder
     {
@@ -54,7 +53,7 @@ final class UserModelManager
     }
 
     /**
-     * @return Builder<Model>
+     * @return Builder<Model&Authenticatable>
      */
     public function visibleQuery(bool $withTrashed = false): Builder
     {
@@ -67,14 +66,6 @@ final class UserModelManager
     public function findOrFail(int|string $userId, bool $withTrashed = false): Model
     {
         $user = $this->query($withTrashed)->with($this->relations())->findOrFail($userId);
-
-        if (! $user instanceof Authenticatable) {
-            throw new RuntimeException(sprintf(
-                'Configured user model [%s] must implement [%s].',
-                $user::class,
-                Authenticatable::class,
-            ));
-        }
 
         return $user;
     }

@@ -6,6 +6,8 @@ parameters:
         - ../../vendor/larastan/larastan/bootstrap.php
     paths:
         - src
+        - stubs/app/Models/User.php
+        - stubs/database/factories/UserFactory.php
     level: 6
     parallel:
         maximumNumberOfProcesses: 1

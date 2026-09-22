@@ -12,7 +12,7 @@ it('ships social login buttons in the login page and linked account actions in s
     $conflictPage = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/SocialAccountConflict.vue');
     $providerConnectionCard = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/SocialProviderConnectionCard.vue');
     $authSettingsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Settings/components/AuthSettingsTab.vue');
-    $fortifyProvider = file_get_contents(__DIR__.'/../../stubs/app/Providers/FortifyServiceProvider.php');
+    $fortifyProvider = file_get_contents(__DIR__.'/../../src/Providers/CorePanelFortifyServiceProvider.php');
     $callbackController = file_get_contents(__DIR__.'/../../src/Http/Controllers/Auth/SocialiteCallbackController.php');
 
     expect($login)->toContain('socialite.redirect.url(provider.provider)')

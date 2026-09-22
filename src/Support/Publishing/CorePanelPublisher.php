@@ -229,7 +229,6 @@ final readonly class CorePanelPublisher
                 if (
                     $manifestAware
                     && ! $destinationExists
-                    && is_array($manifestEntry)
                     && ! $recreateManagedMissing
                 ) {
                     $changes[] = $this->change($tag, 'skipped', $source, $destination, 'managed file intentionally kept in vendor');
@@ -245,7 +244,7 @@ final readonly class CorePanelPublisher
                         continue;
                     }
 
-                    if ($manifestAware && is_array($manifestEntry)) {
+                    if ($manifestAware) {
                         if ($manifestEntry['destination_hash'] === $destinationHash) {
                             $status = 'update';
                             $reason = 'published file changed upstream';

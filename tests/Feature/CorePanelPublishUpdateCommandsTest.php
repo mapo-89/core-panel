@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Process;
 
 function makePublishBasePath(string $suffix): string
 {
-    return sys_get_temp_dir().'/core-panel-publish-'.bin2hex(random_bytes(4)).'-'.$suffix;
+    return corePanelTestTemporaryPath('publish-'.$suffix);
 }
 
 function readManifest(string $basePath): string
@@ -508,6 +508,23 @@ Dockerfile
 TEXT;
 }
 
+function legacyCriticalL5SwaggerContents(): string
+{
+    $contents = (string) file_get_contents(__DIR__.'/../../stubs/config/l5-swagger.php');
+
+    return str_replace(
+        [
+            "use CorePanel\\CorePanelServiceProvider;\n\n",
+            "                    dirname((new ReflectionClass(CorePanelServiceProvider::class))->getFileName()).'/OpenApi',\n                    ...is_dir(base_path('app/OpenApi')) ? [base_path('app/OpenApi')] : [],",
+        ],
+        [
+            '',
+            "                    base_path('app/OpenApi'),",
+        ],
+        $contents,
+    );
+}
+
 /**
  * @return list<string>
  */
@@ -539,6 +556,7 @@ function criticalVersionedUpdateScaffoldPaths(): array
         '.env.example',
         'bootstrap/app.php',
         'config/database.php',
+        'config/l5-swagger.php',
         'config/services.php',
         'resources/js/components/AppIcon.vue',
         '.docker/bin/php-entrypoint.sh',
@@ -558,6 +576,7 @@ function criticalVersionedUpdateScaffoldPaths(): array
         'docker-compose.prod.yml',
         'docker-compose.registry.yml',
         'docker-compose.yml',
+        'routes/web/platform.php',
         'routes/web.php',
         'routes/console.php',
         'updater/Dockerfile',
@@ -583,6 +602,7 @@ it('versions the managed update scaffolds that still require host copies', funct
     expect(versionedUpdateScaffoldPaths())->toContain(
         '.env.example',
         'bootstrap/app.php',
+        'config/l5-swagger.php',
         'config/database.php',
         'config/pwa.php',
         'config/trustedproxy.php',
@@ -595,9 +615,8 @@ it('versions the managed update scaffolds that still require host copies', funct
         'public/offline.html',
         'public/sw.js',
         'resources/css/app.css',
-        'resources/js/routes/core-panel/log-files.ts',
-        'resources/js/routes/core-panel/system-updates.ts',
         'routes/console.php',
+        'routes/web/platform.php',
         'routes/web.php',
     )->not->toContain(
         'bootstrap/providers.php',
@@ -629,6 +648,59 @@ it('creates a missing Vite scaffold during updates and records it in the manifes
         ->and($manifestEntry['source_hash'] ?? null)->toBe($expectedHash)
         ->and($manifestEntry['destination_hash'] ?? null)->toBe($expectedHash)
         ->and(glob($basePath.'/.core-panel-backups/*/vite.config.ts'))->toBe([]);
+});
+
+it('creates a missing Swagger config with package and optional host scan paths', function (): void {
+    $basePath = makePublishBasePath('missing-swagger-config');
+    $relativePath = 'config/l5-swagger.php';
+    $target = $basePath.'/'.$relativePath;
+
+    mkdir($basePath, 0777, true);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    expect(file_get_contents($target))
+        ->toBe(file_get_contents(__DIR__.'/../../stubs/'.$relativePath))
+        ->toContain("dirname((new ReflectionClass(CorePanelServiceProvider::class))->getFileName()).'/OpenApi'")
+        ->toContain("...is_dir(base_path('app/OpenApi')) ? [base_path('app/OpenApi')] : []")
+        ->and($manifest['files'][$relativePath] ?? null)->toBeArray()
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+});
+
+it('backs up and updates an untracked legacy Swagger config', function (): void {
+    $basePath = makePublishBasePath('legacy-swagger-config');
+    $relativePath = 'config/l5-swagger.php';
+    $target = $basePath.'/'.$relativePath;
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, legacyCriticalL5SwaggerContents());
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    expect(file_get_contents($target))
+        ->toBe(file_get_contents(__DIR__.'/../../stubs/'.$relativePath))
+        ->toContain("dirname((new ReflectionClass(CorePanelServiceProvider::class))->getFileName()).'/OpenApi'")
+        ->toContain("...is_dir(base_path('app/OpenApi')) ? [base_path('app/OpenApi')] : []")
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->not->toBeEmpty()
+        ->and($manifest['files'][$relativePath] ?? null)->toBeArray();
 });
 
 it('preserves an existing customized untracked Vite scaffold during updates', function (): void {
@@ -1341,7 +1413,8 @@ PHP;
         '--base-path' => $basePath,
     ])->assertExitCode(0);
 
-    expect(file_get_contents($target))->toContain("Schedule::command('horizon:snapshot')->everyFiveMinutes();");
+    expect(file_get_contents($target))->toBe((string) file_get_contents(__DIR__.'/../../stubs/routes/console.php'))
+        ->not->toContain('Schedule::');
 });
 
 it('does not merge untracked existing package json during updates', function (): void {
@@ -1433,13 +1506,8 @@ it('creates missing versioned application scaffolds during updates without a pre
     ])->assertExitCode(0);
 
     expect(file_exists($target))->toBeTrue()
-        ->and(file_get_contents($target))->toContain('database-backups:auto')
-        ->and(file_get_contents($target))->toContain('system-updates:auto')
-        ->and(file_get_contents($target))->toContain('->everyMinute()')
-        ->and(file_get_contents($target))->toContain('->withoutOverlapping(20)')
-        ->and(file_get_contents($target))->toContain('->onOneServer()')
-        ->and(file_get_contents($target))->not->toContain("app()->bound('command.database-backups:auto')")
-        ->and(file_get_contents($target))->not->toContain("app()->bound('command.system-updates:auto')");
+        ->and(file_get_contents($target))->toContain("Artisan::command('inspire'")
+        ->and(file_get_contents($target))->not->toContain('Schedule::');
 });
 
 it('creates missing unified application image scaffolds and records their baselines', function (): void {
@@ -2153,13 +2221,26 @@ SH."\n\n",
         ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)->toBe(hash('sha256', $currentContents));
 });
 
-it('creates the missing system update route scaffold during upgrades', function (): void {
-    $basePath = makePublishBasePath('missing-system-update-route-scaffold');
+it('removes legacy generated route scaffolds during upgrades', function (): void {
+    $basePath = makePublishBasePath('legacy-system-update-route-scaffold');
     $relativePath = 'resources/js/routes/core-panel/system-updates.ts';
     $target = $basePath.'/'.$relativePath;
-    $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+    $legacyContents = <<<'TS'
+import { action } from '../_wayfinder'
 
-    mkdir($basePath, 0777, true);
+export default {
+    check: action('post'),
+    settings: {
+        update: action('put'),
+    },
+    status: action('get'),
+    update: action('post'),
+}
+TS;
+    $legacyContents .= "\n";
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $legacyContents);
 
     $this->artisan('core-panel:update', [
         '--base-path' => $basePath,
@@ -2172,17 +2253,16 @@ it('creates the missing system update route scaffold during upgrades', function 
         JSON_THROW_ON_ERROR,
     );
 
-    expect(file_get_contents($target))->toBe($expectedContents)
-        ->and($manifest['files'][$relativePath] ?? null)->toBeArray()
-        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    expect(file_exists($target))->toBeFalse()
+        ->and($manifest['files'][$relativePath] ?? null)->toBeNull()
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->not->toBeEmpty();
 });
 
-it('backs up and updates an existing untracked system update route scaffold during upgrades', function (): void {
+it('preserves an existing untracked customized route file during upgrades', function (): void {
     $basePath = makePublishBasePath('untracked-system-update-route-scaffold');
     $relativePath = 'resources/js/routes/core-panel/system-updates.ts';
     $target = $basePath.'/'.$relativePath;
     $customContents = "export default { custom: true }\n";
-    $expectedContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
 
     mkdir(dirname($target), 0777, true);
     file_put_contents($target, $customContents);
@@ -2199,10 +2279,9 @@ it('backs up and updates an existing untracked system update route scaffold duri
     );
     $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
 
-    expect(file_get_contents($target))->toBe($expectedContents)
-        ->and($backups)->not->toBeEmpty()
-        ->and(file_get_contents($backups[0]))->toBe($customContents)
-        ->and($manifest['files'][$relativePath] ?? null)->toBeArray();
+    expect(file_get_contents($target))->toBe($customContents)
+        ->and($backups)->toBeEmpty()
+        ->and($manifest['files'][$relativePath] ?? null)->toBeNull();
 });
 
 it('creates the OIDC services scaffold when it is missing during an update', function (): void {
@@ -2274,7 +2353,8 @@ it('restores missing manifest-managed application scaffolds during updates', fun
     ])->assertExitCode(0);
 
     expect(file_exists($target))->toBeTrue()
-        ->and(file_get_contents($target))->toContain("Schedule::command('horizon:snapshot')->everyFiveMinutes();");
+        ->and(file_get_contents($target))->toContain("Artisan::command('inspire'")
+        ->and(file_get_contents($target))->not->toContain('Schedule::');
 });
 
 it('creates explicitly versioned missing application scaffolds during updates', function (): void {
@@ -2627,11 +2707,389 @@ PHP);
     ])->assertExitCode(0);
 
     expect(file_get_contents($target))->toContain('use App\Providers\TelemetryServiceProvider;')
+        ->and(file_get_contents($target))->toContain('use App\Providers\FortifyServiceProvider;')
+        ->and(file_get_contents($target))->toContain('use App\Providers\HorizonServiceProvider;')
         ->and(file_get_contents($target))->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
+        ->and(file_get_contents($target))->toContain('FortifyServiceProvider::class,')
+        ->and(file_get_contents($target))->toContain('HorizonServiceProvider::class,')
         ->and(file_get_contents($target))->toContain('TelemetryServiceProvider::class,')
         ->and(file_get_contents($target))->toContain('EragLaravelPwaServiceProvider::class,')
         ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/providers.php'))
         ->not->toBeEmpty();
+});
+
+it('keeps customized unmanaged host providers registered during updates', function (): void {
+    $basePath = makePublishBasePath('preserve-customized-host-providers');
+    $bootstrapTarget = $basePath.'/bootstrap/providers.php';
+    $fortifyTarget = $basePath.'/app/Providers/FortifyServiceProvider.php';
+    $horizonTarget = $basePath.'/app/Providers/HorizonServiceProvider.php';
+    $fortifyContents = "<?php\n\n// Customized Fortify hooks.\n";
+    $horizonContents = "<?php\n\n// Customized Horizon authorization.\n";
+
+    mkdir(dirname($bootstrapTarget), 0777, true);
+    mkdir(dirname($fortifyTarget), 0777, true);
+    file_put_contents($fortifyTarget, $fortifyContents);
+    file_put_contents($horizonTarget, $horizonContents);
+    file_put_contents($bootstrapTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+use App\Providers\FortifyServiceProvider;
+use App\Providers\HorizonServiceProvider;
+
+return [
+    AppServiceProvider::class,
+    FortifyServiceProvider::class,
+    HorizonServiceProvider::class,
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $bootstrapContents = (string) file_get_contents($bootstrapTarget);
+
+    expect(file_get_contents($fortifyTarget))->toBe($fortifyContents)
+        ->and(file_get_contents($horizonTarget))->toBe($horizonContents)
+        ->and($bootstrapContents)->toContain('use App\Providers\FortifyServiceProvider;')
+        ->and($bootstrapContents)->toContain('use App\Providers\HorizonServiceProvider;')
+        ->and($bootstrapContents)->toContain('FortifyServiceProvider::class,')
+        ->and($bootstrapContents)->toContain('HorizonServiceProvider::class,')
+        ->and(glob($basePath.'/.core-panel-backups/*/app/Providers/FortifyServiceProvider.php'))->toBe([])
+        ->and(glob($basePath.'/.core-panel-backups/*/app/Providers/HorizonServiceProvider.php'))->toBe([]);
+});
+
+it('unregisters unchanged provider scaffolds confirmed as package managed', function (): void {
+    $basePath = makePublishBasePath('remove-managed-host-providers');
+    $bootstrapTarget = $basePath.'/bootstrap/providers.php';
+    $providerScaffolds = [
+        'app/Providers/FortifyServiceProvider.php' => "<?php\n\n// Managed Fortify provider.\n",
+        'app/Providers/HorizonServiceProvider.php' => "<?php\n\n// Managed Horizon provider.\n",
+    ];
+
+    foreach ($providerScaffolds as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, $contents);
+    }
+
+    mkdir(dirname($bootstrapTarget), 0777, true);
+    file_put_contents($bootstrapTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+use App\Providers\FortifyServiceProvider;
+use App\Providers\HorizonServiceProvider;
+
+return [
+    AppServiceProvider::class,
+    FortifyServiceProvider::class,
+    HorizonServiceProvider::class,
+];
+PHP);
+    seedScaffoldManifestFiles($basePath, $providerScaffolds);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $bootstrapContents = (string) file_get_contents($bootstrapTarget);
+
+    expect(file_exists($basePath.'/app/Providers/FortifyServiceProvider.php'))->toBeFalse()
+        ->and(file_exists($basePath.'/app/Providers/HorizonServiceProvider.php'))->toBeFalse()
+        ->and($bootstrapContents)->not->toContain('FortifyServiceProvider')
+        ->and($bootstrapContents)->not->toContain('HorizonServiceProvider')
+        ->and(glob($basePath.'/.core-panel-backups/*/app/Providers/FortifyServiceProvider.php'))->not->toBeEmpty()
+        ->and(glob($basePath.'/.core-panel-backups/*/app/Providers/HorizonServiceProvider.php'))->not->toBeEmpty();
+});
+
+it('keeps same-named vendor providers registered when obsolete app providers are removed', function (): void {
+    $basePath = makePublishBasePath('preserve-same-named-vendor-providers');
+    $bootstrapTarget = $basePath.'/bootstrap/providers.php';
+    $providerScaffolds = [
+        'app/Providers/FortifyServiceProvider.php' => "<?php\n\n// Managed Fortify provider.\n",
+        'app/Providers/HorizonServiceProvider.php' => "<?php\n\n// Managed Horizon provider.\n",
+    ];
+
+    foreach ($providerScaffolds as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, $contents);
+    }
+
+    mkdir(dirname($bootstrapTarget), 0777, true);
+    file_put_contents($bootstrapTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+use Vendor\Auth\FortifyServiceProvider;
+use Vendor\Queue\HorizonServiceProvider;
+
+return [
+    AppServiceProvider::class,
+    FortifyServiceProvider::class,
+    HorizonServiceProvider::class,
+];
+PHP);
+    seedScaffoldManifestFiles($basePath, $providerScaffolds);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $bootstrapContents = (string) file_get_contents($bootstrapTarget);
+
+    expect(file_exists($basePath.'/app/Providers/FortifyServiceProvider.php'))->toBeFalse()
+        ->and(file_exists($basePath.'/app/Providers/HorizonServiceProvider.php'))->toBeFalse()
+        ->and($bootstrapContents)->toContain('use Vendor\Auth\FortifyServiceProvider;')
+        ->and($bootstrapContents)->toContain('use Vendor\Queue\HorizonServiceProvider;')
+        ->and($bootstrapContents)->toContain('FortifyServiceProvider::class,')
+        ->and($bootstrapContents)->toContain('HorizonServiceProvider::class,');
+});
+
+it('keeps locally modified managed host providers registered during updates', function (): void {
+    $basePath = makePublishBasePath('preserve-modified-managed-host-providers');
+    $bootstrapTarget = $basePath.'/bootstrap/providers.php';
+    $managedProviderScaffolds = [
+        'app/Providers/FortifyServiceProvider.php' => "<?php\n\n// Published Fortify provider.\n",
+        'app/Providers/HorizonServiceProvider.php' => "<?php\n\n// Published Horizon provider.\n",
+    ];
+    $customizedProviderScaffolds = [
+        'app/Providers/FortifyServiceProvider.php' => "<?php\n\n// Customized Fortify hooks and rate limiters.\n",
+        'app/Providers/HorizonServiceProvider.php' => "<?php\n\n// Customized Horizon authorization.\n",
+    ];
+
+    foreach ($managedProviderScaffolds as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, $contents);
+    }
+
+    seedScaffoldManifestFiles($basePath, $managedProviderScaffolds);
+
+    foreach ($customizedProviderScaffolds as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents);
+    }
+
+    mkdir(dirname($bootstrapTarget), 0777, true);
+    file_put_contents($bootstrapTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+use App\Providers\FortifyServiceProvider;
+use App\Providers\HorizonServiceProvider;
+
+return [
+    AppServiceProvider::class,
+    FortifyServiceProvider::class,
+    HorizonServiceProvider::class,
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $bootstrapContents = (string) file_get_contents($bootstrapTarget);
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($customizedProviderScaffolds as $relativePath => $contents) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and($manifest['files'])->toHaveKey($relativePath)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    }
+
+    expect($bootstrapContents)->toContain('use App\Providers\FortifyServiceProvider;')
+        ->and($bootstrapContents)->toContain('use App\Providers\HorizonServiceProvider;')
+        ->and($bootstrapContents)->toContain('FortifyServiceProvider::class,')
+        ->and($bootstrapContents)->toContain('HorizonServiceProvider::class,');
+});
+
+it('keeps locally modified obsolete managed scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('preserve-modified-obsolete-managed-scaffolds');
+    $managedScaffolds = [
+        'app/Actions/Fortify/CreateNewUser.php' => "<?php\n\n// Published Fortify action.\n",
+        'app/Http/Middleware/TrackUserPresence.php' => "<?php\n\n// Published presence middleware.\n",
+        'app/OpenApi/CorePanelApiDocumentation.php' => "<?php\n\n// Published OpenAPI documentation.\n",
+    ];
+    $customizedScaffolds = [
+        'app/Actions/Fortify/CreateNewUser.php' => "<?php\n\n// Customized Fortify registration action.\n",
+        'app/Http/Middleware/TrackUserPresence.php' => "<?php\n\n// Customized presence tracking.\n",
+        'app/OpenApi/CorePanelApiDocumentation.php' => "<?php\n\n// Customized host API documentation.\n",
+    ];
+
+    foreach ($managedScaffolds as $relativePath => $contents) {
+        $target = $basePath.'/'.$relativePath;
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+
+        file_put_contents($target, $contents);
+    }
+
+    seedScaffoldManifestFiles($basePath, $managedScaffolds);
+
+    foreach ($customizedScaffolds as $relativePath => $contents) {
+        file_put_contents($basePath.'/'.$relativePath, $contents);
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    foreach ($customizedScaffolds as $relativePath => $contents) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toBe($contents)
+            ->and($manifest['files'])->toHaveKey($relativePath)
+            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+    }
+});
+
+it('keeps a preserved presence middleware wired when updating a managed bootstrap scaffold', function (): void {
+    $basePath = makePublishBasePath('preserve-customized-presence-wiring');
+    $presenceRelativePath = 'app/Http/Middleware/TrackUserPresence.php';
+    $bootstrapRelativePath = 'bootstrap/app.php';
+    $presenceTarget = $basePath.'/'.$presenceRelativePath;
+    $bootstrapTarget = $basePath.'/'.$bootstrapRelativePath;
+    $publishedPresence = "<?php\n\n// Published presence middleware.\n";
+    $customizedPresence = "<?php\n\n// Customized host presence behavior.\n";
+    $publishedBootstrap = legacyCriticalBootstrapAppContents();
+
+    mkdir(dirname($presenceTarget), 0777, true);
+    mkdir(dirname($bootstrapTarget), 0777, true);
+    file_put_contents($presenceTarget, $publishedPresence);
+    file_put_contents($bootstrapTarget, $publishedBootstrap);
+    seedScaffoldManifestFiles($basePath, [
+        $presenceRelativePath => $publishedPresence,
+        $bootstrapRelativePath => $publishedBootstrap,
+    ]);
+    file_put_contents($presenceTarget, $customizedPresence);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $bootstrapContents = (string) file_get_contents($bootstrapTarget);
+
+    expect(file_get_contents($presenceTarget))->toBe($customizedPresence)
+        ->and($bootstrapContents)->toContain('class_exists(App\Http\Middleware\TrackUserPresence::class)')
+        ->and($bootstrapContents)->toContain('? App\Http\Middleware\TrackUserPresence::class')
+        ->and($bootstrapContents)->toContain(': TrackUserPresence::class;')
+        ->and($bootstrapContents)->toContain('$presenceMiddleware,')
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$presenceRelativePath))->toBe([])
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$bootstrapRelativePath))->not->toBeEmpty();
+});
+
+it('removes unchanged obsolete managed scaffolds during updates', function (): void {
+    $basePath = makePublishBasePath('remove-unchanged-obsolete-managed-scaffolds');
+    $relativePath = 'app/Actions/Fortify/CreateNewUser.php';
+    $managedContents = "<?php\n\n// Published Fortify action.\n";
+    $target = $basePath.'/'.$relativePath;
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $managedContents);
+    seedScaffoldManifest($basePath, $relativePath, $managedContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $manifest = json_decode(
+        (string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    expect(file_exists($target))->toBeFalse()
+        ->and($manifest['files'])->not->toHaveKey($relativePath)
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->not->toBeEmpty();
+});
+
+it('maps a preserved customized Fortify action after removing its unchanged provider', function (): void {
+    $basePath = makePublishBasePath('map-preserved-fortify-action');
+    $actionRelativePath = 'app/Actions/Fortify/CreateNewUser.php';
+    $providerRelativePath = 'app/Providers/FortifyServiceProvider.php';
+    $actionTarget = $basePath.'/'.$actionRelativePath;
+    $providerTarget = $basePath.'/'.$providerRelativePath;
+    $bootstrapTarget = $basePath.'/bootstrap/providers.php';
+    $publishedAction = "<?php\n\n// Published registration action.\n";
+    $customizedAction = "<?php\n\n// Customized registration rules.\n";
+    $publishedProvider = "<?php\n\n// Published Fortify provider.\n";
+
+    mkdir(dirname($actionTarget), 0777, true);
+    mkdir(dirname($providerTarget), 0777, true);
+    mkdir(dirname($bootstrapTarget), 0777, true);
+    file_put_contents($actionTarget, $publishedAction);
+    file_put_contents($providerTarget, $publishedProvider);
+    seedScaffoldManifestFiles($basePath, [
+        $actionRelativePath => $publishedAction,
+        $providerRelativePath => $publishedProvider,
+    ]);
+    file_put_contents($actionTarget, $customizedAction);
+    file_put_contents($bootstrapTarget, <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use App\Providers\AppServiceProvider;
+use App\Providers\FortifyServiceProvider;
+
+return [
+    AppServiceProvider::class,
+    FortifyServiceProvider::class,
+];
+PHP);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $overrideTarget = $basePath.'/config/core-panel-fortify-actions.php';
+    $overrides = require $overrideTarget;
+
+    expect(file_get_contents($actionTarget))->toBe($customizedAction)
+        ->and(file_exists($providerTarget))->toBeFalse()
+        ->and(file_get_contents($bootstrapTarget))->not->toContain('FortifyServiceProvider')
+        ->and(file_exists($overrideTarget))->toBeTrue()
+        ->and($overrides)->toBe([
+            'create_user' => 'App\Actions\Fortify\CreateNewUser',
+        ])
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$actionRelativePath))->toBe([])
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$providerRelativePath))->not->toBeEmpty();
 });
 
 it('merges the fully qualified pwa provider into bootstrap providers without imports', function (): void {
@@ -2656,6 +3114,7 @@ PHP);
     ])->assertExitCode(0);
 
     expect(file_get_contents($target))->not->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
+        ->and(file_get_contents($target))->toContain('\App\Providers\FortifyServiceProvider::class,')
         ->and(file_get_contents($target))->toContain('\App\Providers\CustomTelemetryServiceProvider::class,')
         ->and(file_get_contents($target))->toContain('\EragLaravelPwa\EragLaravelPwaServiceProvider::class,')
         ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/providers.php'))
@@ -2888,10 +3347,7 @@ it('updates known legacy critical versioned scaffolds without a previous baselin
         ->and(file_get_contents($basePath.'/bootstrap/app.php'))->toContain('AllowBlobImageCsp::class')
         ->and(glob($basePath.'/.core-panel-backups/*/bootstrap/app.php'))->not->toBeEmpty()
         ->and($manifest['files']['bootstrap/app.php'] ?? null)->toBeArray()
-        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('database-backups:auto')")
-        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('system-updates:auto')")
-        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain('->withoutOverlapping(20)')
-        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain('->onOneServer()')
+        ->and(file_get_contents($basePath.'/routes/console.php'))->not->toContain('Schedule::')
         ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->not->toBeEmpty()
         ->and($manifest['files']['routes/console.php'] ?? null)->toBeArray()
         ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('.gitea')
@@ -2947,9 +3403,10 @@ it('updates additional pre-manifest critical scaffolds without a previous baseli
         ])->assertExitCode(0);
 
         $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+        $hasBackup = glob($basePath.'/.core-panel-backups/*/'.$relativePath) !== [];
 
         expect((string) file_get_contents($target))->toBe($file['current'])
-            ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->not->toBeEmpty()
+            ->and($hasBackup)->toBe($file['current'] !== $file['legacy']."\n")
             ->and($manifest['files'][$relativePath] ?? null)->toBeArray();
     }
 });
@@ -3211,6 +3668,19 @@ if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.h
     Schedule::command('horizon:snapshot')->everyFiveMinutes();
 }
 
+if ((bool) config('database-backups.enabled', config('core-panel.administration.database_backups.enabled', true))) {
+    Schedule::command('database-backups:auto')
+        ->everyMinute()
+        ->withoutOverlapping(60);
+}
+
+if ((bool) config('core-panel.administration.system_updates.enabled', true)) {
+    Schedule::command('system-updates:auto')
+        ->everyMinute()
+        ->withoutOverlapping(20)
+        ->onOneServer();
+}
+
 Artisan::command('host:custom', function () {
     $this->comment('host');
 });
@@ -3270,13 +3740,71 @@ TEXT,
         ->and(glob($basePath.'/.core-panel-backups/*/routes/web.php'))->toBeEmpty()
         ->and($manifest['files']['routes/web.php'] ?? null)->toBeNull()
         ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Artisan::command('host:custom'")
+        ->and(file_get_contents($basePath.'/routes/console.php'))->toContain("Schedule::command('host:custom')->hourly()")
+        ->and(file_get_contents($basePath.'/routes/console.php'))->not->toContain("Schedule::command('horizon:snapshot')")
         ->and(file_get_contents($basePath.'/routes/console.php'))->not->toContain("Schedule::command('database-backups:auto')")
-        ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->toBeEmpty()
+        ->and(file_get_contents($basePath.'/routes/console.php'))->not->toContain("Schedule::command('system-updates:auto')")
+        ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->not->toBeEmpty()
         ->and($manifest['files']['routes/console.php'] ?? null)->toBeNull()
         ->and(file_get_contents($basePath.'/.dockerignore'))->toContain('custom-host-artifacts')
         ->and(file_get_contents($basePath.'/.dockerignore'))->not->toContain('.gitea')
         ->and(glob($basePath.'/.core-panel-backups/*/.dockerignore'))->toBeEmpty()
         ->and($manifest['files']['.dockerignore'] ?? null)->toBeNull();
+});
+
+it('removes earlier CorePanel schedule variants from a preserved console route file', function (): void {
+    $basePath = makePublishBasePath('migrate-earlier-core-panel-schedules');
+    $target = $basePath.'/routes/console.php';
+    $legacyContents = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+Artisan::command('inspire', function () {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+
+if ((bool) config('core-panel.administration.database_backups.enabled', true)) {
+    Schedule::command('database-backups:auto')
+        ->everyMinute()
+        ->withoutOverlapping(60);
+}
+
+if ((bool) config('core-panel.administration.system_updates.automatic.enabled', false)) {
+    Schedule::command('system-updates:auto')->everyFiveMinutes();
+}
+
+if ((bool) config('system-updates.automatic.enabled', config('core-panel.administration.system_updates.automatic.enabled', false))) {
+    Schedule::command('system-updates:auto')->everyFiveMinutes();
+}
+
+Artisan::command('host:custom', function () {
+    $this->comment('host');
+});
+PHP;
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, str_replace("\n", "\r\n", $legacyContents)."\r\n");
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $contents = (string) file_get_contents($target);
+    $manifest = file_exists($basePath.'/storage/app/core-panel/scaffolds.json')
+        ? json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR)
+        : ['files' => []];
+
+    expect($contents)->toContain("Artisan::command('host:custom'")
+        ->and($contents)->not->toContain('database-backups:auto')
+        ->and($contents)->not->toContain('system-updates:auto')
+        ->and($contents)->not->toContain('use Illuminate\Support\Facades\Schedule;')
+        ->and(glob($basePath.'/.core-panel-backups/*/routes/console.php'))->not->toBeEmpty()
+        ->and($manifest['files']['routes/console.php'] ?? null)->toBeNull();
 });
 
 it('updates existing page-users translation scaffolds without a previous baseline', function (): void {
@@ -3499,4 +4027,131 @@ it('does not create optional publish targets during update when they were never 
 
     expect(file_exists($basePath.'/config/core-panel.php'))->toBeFalse()
         ->and(readManifest($basePath))->not->toContain('core-panel-config');
+});
+
+it('requires breaking-change mode before relocating legacy domain migrations', function (): void {
+    $basePath = makePublishBasePath('migration-relocation-guard');
+    $relativePath = 'database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php';
+    $target = $basePath.'/'.$relativePath;
+    $source = __DIR__.'/../../database/migrations/'.basename($target);
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, (string) file_get_contents($source));
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(1);
+
+    expect(file_get_contents($target))->toBe(file_get_contents($source));
+});
+
+it('backs up and removes legacy domain migrations in breaking-change mode', function (): void {
+    $basePath = makePublishBasePath('migration-relocation');
+    $relativePath = 'database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php';
+    $target = $basePath.'/'.$relativePath;
+    $source = __DIR__.'/../../database/migrations/'.basename($target);
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, (string) file_get_contents($source));
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+        '--breaking-changes' => true,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+    expect(file_exists($target))->toBeFalse()
+        ->and($backups)->not->toBeFalse()
+        ->and($backups)->toHaveCount(1)
+        ->and(file_get_contents($backups[0]))->toBe(file_get_contents($source));
+});
+
+it('backs up customized managed domain migrations and removes their scaffold manifest entries', function (): void {
+    $basePath = makePublishBasePath('managed-migration-relocation');
+    $relativePath = 'database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php';
+    $target = $basePath.'/'.$relativePath;
+    $customized = "<?php\n// customized managed migration\n";
+    $manifestPath = $basePath.'/storage/app/core-panel/scaffolds.json';
+
+    mkdir(dirname($target), 0777, true);
+    mkdir(dirname($manifestPath), 0777, true);
+    file_put_contents($target, $customized);
+    file_put_contents($manifestPath, json_encode([
+        '_meta' => ['package_version' => '1.5.0'],
+        'files' => [
+            $relativePath => [
+                'source_hash' => hash('sha256', 'legacy'),
+                'destination_hash' => hash('sha256', $customized),
+                'package_version' => '1.5.0',
+                'snapshot' => 'storage/app/core-panel/scaffolds/legacy',
+            ],
+        ],
+    ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+        '--breaking-changes' => true,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+    $manifest = json_decode((string) file_get_contents($manifestPath), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(file_exists($target))->toBeFalse()
+        ->and($backups)->not->toBeFalse()
+        ->and($backups)->toHaveCount(1)
+        ->and(file_get_contents($backups[0]))->toBe($customized)
+        ->and($manifest['files'])->not->toHaveKey($relativePath);
+});
+
+it('refuses to relocate a scaffold-managed domain migration modified after publication', function (): void {
+    $basePath = makePublishBasePath('modified-managed-migration-conflict');
+    $relativePath = 'database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php';
+    $target = $basePath.'/'.$relativePath;
+    $publishedContents = (string) file_get_contents(__DIR__.'/../../database/migrations/'.basename($target));
+    $customizedContents = $publishedContents."\n// host schema customization\n";
+    $manifestPath = $basePath.'/storage/app/core-panel/scaffolds.json';
+
+    mkdir(dirname($target), 0777, true);
+    mkdir(dirname($manifestPath), 0777, true);
+    file_put_contents($target, $customizedContents);
+    file_put_contents($manifestPath, json_encode([
+        '_meta' => ['package_version' => '1.5.0'],
+        'files' => [
+            $relativePath => [
+                'source_hash' => hash('sha256', $publishedContents),
+                'destination_hash' => hash('sha256', $publishedContents),
+                'package_version' => '1.5.0',
+                'snapshot' => 'storage/app/core-panel/scaffolds/legacy',
+            ],
+        ],
+    ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR).PHP_EOL);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+        '--breaking-changes' => true,
+    ])->assertExitCode(1);
+
+    $manifest = json_decode((string) file_get_contents($manifestPath), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(file_get_contents($target))->toBe($customizedContents)
+        ->and($manifest['files'])->toHaveKey($relativePath)
+        ->and(glob($basePath.'/.core-panel-backups/*/'.$relativePath))->toBe([]);
+});
+
+it('refuses to remove customized unmanaged domain migrations', function (): void {
+    $basePath = makePublishBasePath('unmanaged-migration-conflict');
+    $target = $basePath.'/database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php';
+    $customized = "<?php\n// host-owned migration\n";
+
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $customized);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+        '--breaking-changes' => true,
+    ])->assertExitCode(1);
+
+    expect(file_get_contents($target))->toBe($customized)
+        ->and(glob($basePath.'/.core-panel-backups/*/database/migrations/auth/'.basename($target)))->toBe([]);
 });

@@ -26,7 +26,10 @@ final class MigrationPathResolver
     {
         $root = $basePath ?? base_path();
 
-        return self::files($root.'/database/migrations', excludeTenantMigrations: true);
+        return self::sort([
+            ...self::files($root.'/database/migrations', excludeTenantMigrations: true),
+            ...self::hostPackage(),
+        ]);
     }
 
     /**
@@ -36,9 +39,64 @@ final class MigrationPathResolver
     {
         $root = $basePath ?? base_path();
         $tenantMigrationsPath = $root.'/database/migrations/tenant';
-        $files = self::files($tenantMigrationsPath);
+        $files = self::uniqueByBasename([
+            ...self::files($tenantMigrationsPath),
+            ...self::tenantPackage(),
+        ]);
 
         return $files === [] ? [$tenantMigrationsPath] : $files;
+    }
+
+    /** @return list<string> */
+    public static function corePackage(): array
+    {
+        return self::files(dirname(__DIR__, 3).'/database/migrations');
+    }
+
+    /** @return list<string> */
+    public static function hostPackage(): array
+    {
+        return self::sort([
+            ...self::corePackage(),
+            ...self::configuredPackageMigrations('host_paths'),
+        ]);
+    }
+
+    /** @return list<string> */
+    public static function tenantPackage(): array
+    {
+        $packageMigrations = [];
+
+        foreach (self::corePackage() as $migration) {
+            $packageMigrations[basename($migration)] = $migration;
+        }
+
+        foreach (self::configuredPackageMigrations('tenant_paths') as $migration) {
+            $packageMigrations[basename($migration)] = $migration;
+        }
+
+        return self::sort(array_values($packageMigrations));
+    }
+
+    /** @return list<string> */
+    private static function configuredPackageMigrations(string $key): array
+    {
+        /** @var mixed $configuredPaths */
+        $configuredPaths = config("core-panel.migrations.{$key}", []);
+
+        if (! is_array($configuredPaths)) {
+            return [];
+        }
+
+        $migrations = [];
+
+        foreach ($configuredPaths as $configuredPath) {
+            if (is_string($configuredPath) && $configuredPath !== '') {
+                $migrations = [...$migrations, ...self::files($configuredPath)];
+            }
+        }
+
+        return self::sort($migrations);
     }
 
     /**
@@ -69,6 +127,17 @@ final class MigrationPathResolver
             $files[] = $path;
         }
 
+        return self::sort($files);
+    }
+
+    /**
+     * @param  list<string>  $files
+     * @return list<string>
+     */
+    private static function sort(array $files): array
+    {
+        $files = array_values(array_unique($files));
+
         usort($files, static function (string $left, string $right): int {
             $leftName = basename($left);
             $rightName = basename($right);
@@ -81,6 +150,24 @@ final class MigrationPathResolver
             return strcmp($left, $right);
         });
 
-        return array_values(array_unique($files));
+        return $files;
+    }
+
+    /**
+     * Keep the first migration for each basename so host tenant migrations
+     * override package defaults without relying on Laravel's path ordering.
+     *
+     * @param  list<string>  $files
+     * @return list<string>
+     */
+    private static function uniqueByBasename(array $files): array
+    {
+        $unique = [];
+
+        foreach ($files as $file) {
+            $unique[basename($file)] ??= $file;
+        }
+
+        return self::sort(array_values($unique));
     }
 }

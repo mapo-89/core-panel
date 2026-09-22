@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Actions\Fortify\CreateNewUser;
-use App\Actions\Fortify\ResetUserPassword;
-use App\Actions\Fortify\UpdateUserPassword;
+use CorePanel\Actions\Fortify\CreateNewUser;
+use CorePanel\Actions\Fortify\ResetUserPassword;
+use CorePanel\Actions\Fortify\UpdateUserPassword;
 use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
 use CorePanel\Http\Responses\LoginResponse;
 use CorePanel\Models\Setting;
@@ -356,10 +356,6 @@ it('blocks registration and password reset actions when the auth settings disabl
     config()->set('core-panel.auth.registration_enabled', false);
     config()->set('core-panel.auth.password_reset_enabled', false);
 
-    require_once __DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php';
-    require_once __DIR__.'/../../stubs/app/Actions/Fortify/ResetUserPassword.php';
-    require_once __DIR__.'/../../stubs/app/Actions/Fortify/UpdateUserPassword.php';
-
     $user = FakeUser::query()->create([
         'email' => 'auth-action-guard@example.test',
         'first_name' => 'Auth',
@@ -382,9 +378,6 @@ it('blocks registration and password reset actions when the auth settings disabl
 });
 
 it('marks invitation-based password setup as accepted in fortify password actions', function (): void {
-    require_once __DIR__.'/../../stubs/app/Actions/Fortify/ResetUserPassword.php';
-    require_once __DIR__.'/../../stubs/app/Actions/Fortify/UpdateUserPassword.php';
-
     $user = FakeUser::query()->create([
         'email' => 'invitation-password-setup@example.test',
         'first_name' => 'Invite',

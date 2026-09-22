@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use CorePanel\CorePanelServiceProvider;
+
 return [
     'default' => 'default',
     'documentations' => [
@@ -19,7 +21,8 @@ return [
                 'docs_yaml' => 'api-docs.yaml',
                 'format_to_use_for_docs' => env('L5_FORMAT_TO_USE_FOR_DOCS', 'json'),
                 'annotations' => [
-                    base_path('app/OpenApi'),
+                    dirname((new ReflectionClass(CorePanelServiceProvider::class))->getFileName()).'/OpenApi',
+                    ...is_dir(base_path('app/OpenApi')) ? [base_path('app/OpenApi')] : [],
                 ],
             ],
         ],

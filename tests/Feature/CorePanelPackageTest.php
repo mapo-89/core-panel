@@ -13,6 +13,7 @@ use CorePanel\CorePanelServiceProvider;
 use CorePanel\Domain\Dashboard\DTOs\SystemHealthData;
 use CorePanel\Http\Responses\ResetPasswordResponse;
 use CorePanel\Support\Config\CorePanelConfig;
+use CorePanel\Support\Migrations\ManagedMigrationScaffoldMigrator;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Publishing\VendorFirstAssetMigrator;
 use CorePanel\Support\PublishTag;
@@ -62,7 +63,6 @@ function publishedJavascriptAssetDirectories(string $basePath): array
         'resources/js/layouts' => $basePath.'/resources/js/layouts',
         'resources/js/pages' => $basePath.'/resources/js/pages',
         'resources/js/plugins' => $basePath.'/resources/js/plugins',
-        'stubs/resources/js/routes' => $basePath.'/resources/js/routes',
         'resources/js/support' => $basePath.'/resources/js/support',
         'resources/js/types' => $basePath.'/resources/js/types',
         'resources/js/theme/core-panel' => $basePath.'/resources/js/theme/core-panel',
@@ -125,18 +125,19 @@ function resolveRelativeImportCandidates(string $importerPath, string $importPat
 
 function coreMigrationStubPath(string $filename): string
 {
-    $root = __DIR__.'/../../stubs/database/migrations';
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
-    );
+    foreach ([__DIR__.'/../../stubs/database/migrations', __DIR__.'/../../database/migrations'] as $root) {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+        );
 
-    foreach ($iterator as $file) {
-        if ($file->isFile() && $file->getFilename() === $filename) {
-            return $file->getPathname();
+        foreach ($iterator as $file) {
+            if ($file->isFile() && $file->getFilename() === $filename) {
+                return $file->getPathname();
+            }
         }
     }
 
-    return $root.'/'.$filename;
+    return __DIR__.'/../../database/migrations/'.$filename;
 }
 
 /**
@@ -166,8 +167,9 @@ it('loads the package service provider', function (): void {
         ->toBeInstanceOf(CorePanelServiceProvider::class);
 });
 
-it('ships tenancy route helpers in the core scaffold', function (): void {
-    expect(file_exists(__DIR__.'/../../stubs/resources/js/routes/core-panel/tenants.ts'))->toBeTrue();
+it('generates tenancy route helpers instead of shipping route copies', function (): void {
+    expect(file_exists(__DIR__.'/../../stubs/resources/js/routes/core-panel/tenants.ts'))->toBeFalse()
+        ->and(file_get_contents(__DIR__.'/../../stubs/package.json'))->toContain('wayfinder:generate --no-interaction');
 });
 
 it('retranslates held login validation errors on locale changes in the auth scaffold', function (): void {
@@ -465,29 +467,19 @@ it('ships mysql and postgresql scaffold defaults in the database config stub', f
         ->and($contents)->toContain("'timezone' => env('DB_TIMEZONE', 'UTC')");
 });
 
-it('uses timezone-aware timestamps in core migration stubs', function (): void {
-    $authenticationLogs = file_get_contents(__DIR__.'/../../stubs/database/migrations/auth/2026_01_01_000021_create_authentication_logs_table.php');
+it('uses timezone-aware timestamps in core package migrations', function (): void {
+    $authenticationLogs = file_get_contents(coreMigrationStubPath('2026_01_01_000021_create_authentication_logs_table.php'));
 
     expect($authenticationLogs)->toContain("\$table->timestampTz('login_at')->nullable()->index();")
         ->and($authenticationLogs)->toContain("\$table->timestampTz('logout_at')->nullable()->index();")
         ->and($authenticationLogs)->toContain('$table->timestampsTz();');
 });
 
-it('keeps manual public form helpers inside the routes tree without a separate route-helper layer', function (): void {
-    $systemUpdateRoutes = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/system-updates.ts');
-
-    expect(file_exists(__DIR__.'/../../stubs/resources/js/routes/_wayfinder.ts'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../stubs/resources/js/routes/locale.ts'))->toBeFalse()
-        ->and(file_exists(__DIR__.'/../../stubs/resources/js/routes/core-panel/forms/public.ts'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../stubs/resources/js/routes/core-panel/system-updates.ts'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../stubs/resources/js/route-helpers/_wayfinder.ts'))->toBeFalse()
-        ->and(file_exists(__DIR__.'/../../stubs/resources/js/route-helpers/locale.ts'))->toBeFalse()
-        ->and(file_exists(__DIR__.'/../../stubs/resources/js/route-helpers/core-panel/forms/public.ts'))->toBeFalse()
-        ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/forms/public.ts'))
-        ->toContain("import { callableAction } from '../../_wayfinder'")
-        ->and($systemUpdateRoutes)
-        ->toContain("import { action } from '../_wayfinder'")
-        ->toContain("update: action('put')");
+it('does not ship handwritten route copies that shadow Wayfinder output', function (): void {
+    expect(array_filter(
+        ScaffoldsCorePanelStubs::paths(),
+        static fn (string $path): bool => str_starts_with($path, 'resources/js/routes/'),
+    ))->toBeEmpty();
 });
 
 it('renders the publishable logs tabs through the shared table builder surface', function (): void {
@@ -711,7 +703,7 @@ it('excludes generated scaffold artifacts from the installable stubs tree', func
 it('keeps route and page frontend scaffolds eligible for managed-only updates', function (): void {
     $scaffolder = file_get_contents(__DIR__.'/../../src/Support/ScaffoldsCorePanelStubs.php');
 
-    expect($scaffolder)->toContain("'resources/js/routes/core-panel/administration.ts'")
+    expect($scaffolder)->toContain('OBSOLETE_MANAGED_SCAFFOLDS')
         ->and($scaffolder)->toContain("'resources/css/app.css'")
         ->and($scaffolder)->toContain("'resources/js/components/AppIcon.vue'")
         ->and($scaffolder)->not->toContain("'resources/js/pages/Admin/Administration/Index.vue'")
@@ -747,14 +739,8 @@ it('maps installer templates onto the host application paths by relative path', 
         'AGENTS.md',
         '.env.example',
         '.env.testing',
-        'app/Actions/Fortify/CreateNewUser.php',
-        'app/Actions/Fortify/ResetUserPassword.php',
-        'app/Actions/Fortify/UpdateUserPassword.php',
-        'app/Actions/Fortify/UpdateUserProfileInformation.php',
         'app/Http/Middleware/HandleInertiaRequests.php',
         'app/Models/User.php',
-        'app/Providers/FortifyServiceProvider.php',
-        'app/Providers/HorizonServiceProvider.php',
         'bootstrap/app.php',
         'bootstrap/providers.php',
         'config/cache.php',
@@ -812,15 +798,15 @@ it('maps installer templates onto the host application paths by relative path', 
         'tests/Feature/CorePanelAuthApiTest.php',
         'tests/Feature/CorePanelInstallationTest.php',
         'tests/Feature/CorePanelResourcesTest.php',
-        'app/Http/Middleware/TrackUserPresence.php',
-    );
+    )->not->toContain('app/Http/Middleware/TrackUserPresence.php');
 });
 
 it('ships split user name scaffolding without legacy user name migration fallbacks', function (): void {
     $usersMigration = file_get_contents(coreMigrationStubPath('0001_01_01_000000_create_users_table.php'));
-    $fortifyCreateUser = file_get_contents(__DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php');
+    $fortifyCreateUser = file_get_contents(__DIR__.'/../../src/Actions/Fortify/CreateNewUser.php');
     $inertiaMiddleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php');
-    $presenceMiddleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/TrackUserPresence.php');
+    $inertiaProps = file_get_contents(__DIR__.'/../../src/Support/Inertia/CorePanelSharedProps.php');
+    $presenceMiddleware = file_get_contents(__DIR__.'/../../src/Http/Middleware/TrackUserPresence.php');
     $stubUser = file_get_contents(__DIR__.'/../../stubs/app/Models/User.php');
     $userFactory = file_get_contents(__DIR__.'/../../stubs/database/factories/UserFactory.php');
     $databaseSeeder = file_get_contents(__DIR__.'/../../stubs/database/seeders/DatabaseSeeder.php');
@@ -847,15 +833,11 @@ it('ships split user name scaffolding without legacy user name migration fallbac
         ->and(file_exists(coreMigrationStubPath('2026_01_01_000023_add_invitation_tracking_columns_to_users_table.php')))->toBeTrue()
         ->and($fortifyCreateUser)->not->toContain("'name' =>")
         ->and($inertiaMiddleware)->not->toContain("'firstName' => \$firstName,\n                    'lastName' => \$lastName,\n                    'name' =>")
-        ->and($inertiaMiddleware)->toContain('use CorePanel\\Support\\Users\\UserModelManager;')
-        ->and($inertiaMiddleware)->toContain('$users = app(UserModelManager::class);')
-        ->and($inertiaMiddleware)->toContain("'avatarUrl' => \$users->avatarUrl(\$user),")
-        ->and($inertiaMiddleware)->toContain('use CorePanel\\Support\\Presence\\PresenceManager;')
-        ->and($inertiaMiddleware)->toContain('$presence = app(PresenceManager::class);')
-        ->and($inertiaMiddleware)->toContain("'presenceLastSeenAt' => \$presence->lastSeenTimestamp(\$user),")
-        ->and($inertiaMiddleware)->toContain("'presenceStatus' => \$presence->statusFor(\$user),")
+        ->and($inertiaMiddleware)->toContain('CorePanelSharedProps')
+        ->and($inertiaProps)->toContain('UserModelManager')
+        ->and($inertiaProps)->toContain("'presenceStatus' => \$this->presence->statusFor(\$user),")
         ->and($presenceMiddleware)->toContain('use CorePanel\\Support\\Presence\\PresenceManager;')
-        ->and($presenceMiddleware)->toContain('private PresenceManager $presence,')
+        ->and($presenceMiddleware)->toContain('private PresenceManager $presence')
         ->and($presenceMiddleware)->toContain('$this->presence->touch($user);')
         ->and($stubUser)->toContain('implements HasLocalePreference, HasMedia, MustVerifyEmail')
         ->and($stubUser)->toContain('use HasUuids;')
@@ -864,17 +846,17 @@ it('ships split user name scaffolding without legacy user name migration fallbac
         ->and($stubUser)->toContain("'invitation_accepted_at' => 'datetime',")
         ->and($stubUser)->toContain("'invited_at' => 'datetime',")
         ->and($stubUser)->toContain("'two_factor_confirmed_at' => 'datetime',")
-        ->and($stubUser)->toContain('public function presenceCacheKey(): string')
-        ->and($stubUser)->toContain('public function corePanelPresenceStatus(): string')
-        ->and($stubUser)->toContain('public function corePanelPresenceLastSeenAt(): ?int')
-        ->and($stubUser)->toContain('protected function presenceStatus(): Attribute')
+        ->and($stubUser)->toContain('use TracksCorePanelPresence;')
         ->and($userFactory)->toContain("'first_name' => fake()->firstName(),")
         ->and($userFactory)->toContain("'last_name' => fake()->lastName(),")
         ->and($userFactory)->not->toContain("'name' => fake()->name(),")
         ->and($databaseSeeder)->toContain("'first_name' => 'Test',")
         ->and($databaseSeeder)->toContain("'last_name' => 'User',")
         ->and($databaseSeeder)->not->toContain("'name' => 'Test User',")
-        ->and($bootstrap)->toContain('TrackUserPresence::class');
+        ->and($bootstrap)->toContain('class_exists(App\Http\Middleware\TrackUserPresence::class)')
+        ->and($bootstrap)->toContain('? App\Http\Middleware\TrackUserPresence::class')
+        ->and($bootstrap)->toContain(': TrackUserPresence::class;')
+        ->and($bootstrap)->toContain('$presenceMiddleware,');
 });
 
 it('reapplies installed addon overlays after the core install publishes its own scaffolds', function (): void {
@@ -936,6 +918,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
     $eslint = file_get_contents(__DIR__.'/../../stubs/eslint.config.mjs');
     $prettier = file_get_contents(__DIR__.'/../../stubs/prettier.config.mjs');
     $coreReadme = file_get_contents(__DIR__.'/../../README.md');
+    $rootReadme = file_get_contents(__DIR__.'/../../../../README.md');
     $workflow = file_get_contents(__DIR__.'/../../../../.github/workflows/ci.yml');
     $releaseWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/release.yml');
     $splitWorkflow = file_get_contents(__DIR__.'/../../../../.github/workflows/split.yml');
@@ -979,6 +962,11 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($coreReadme)->toContain('php artisan optimize:clear')
         ->and($coreReadme)->toContain('git rm -r --cached -- resources/js/actions resources/js/routes resources/js/wayfinder public/build public/hot')
         ->and($coreReadme)->toContain('migrations are skipped and must be run manually')
+        ->and($rootReadme)->toContain('https://img.shields.io/packagist/v/mapo-89/core-panel.svg')
+        ->and($rootReadme)->toContain('https://packagist.org/packages/mapo-89/core-panel')
+        ->and($rootReadme)->toContain('latest public `mapo-89/core-panel` package version from Packagist')
+        ->and($rootReadme)->not->toContain('img.shields.io/github/v/release/mapo-89/core-panel-monorepo')
+        ->and($rootReadme)->not->toContain('img.shields.io/badge/version-1.4.1')
         ->and($releaseWorkflow)->toContain('name: Release')
         ->and($splitWorkflow)->toContain('name: Split Packages')
         ->and($updateChangelogWorkflow)->toContain('name: Update Changelog')
@@ -1046,6 +1034,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($releaseWorkflow)->toContain('packages/core-panel-tenancy/composer.json')
         ->and($releaseWorkflow)->toContain('packages/core-panel/config/app-version.json')
         ->and($releaseWorkflow)->toContain('packages/core-panel/stubs/config/app-version.json')
+        ->and($releaseWorkflow)->toContain('packages/core-panel/src/Support/Version/CorePanelVersion.php')
+        ->and($releaseWorkflow)->not->toContain('packages/core-panel/stubs/app/OpenApi/CorePanelApiDocumentation.php')
         ->and($releaseWorkflow)->toContain('name: Create GitHub release')
         ->and($releaseWorkflow)->toContain("if: steps.release_gate.outputs.should_release == 'true' && steps.release_state.outputs.github_release_exists != 'true'")
         ->and($releaseWorkflow)->toContain('gh release create "${RELEASE_VERSION}"')
@@ -1057,7 +1047,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($generateReleaseNotesScript)->toContain("printf '### %s %s\\n' \"\${SECTION_ICONS[\$section]}\" \"\${section}\"")
         ->and($generateReleaseNotesScript)->toContain("printf '### %s %s\\n' \"\${SECTION_ICONS[\"Other Changes\"]}\" 'Other Changes'")
         ->and($changelog)->toContain('# Changelog')
-        ->and($changelog)->toContain('## [Unreleased]')
+        ->and($changelog)->toContain('## [1.6.0]')
+        ->and($changelog)->not->toContain('## [Unreleased]')
         ->and($composer['version'])->toBe($appVersionJson['release_version'])
         ->and($addonComposer['version'])->toBe($appVersionJson['release_version'])
         ->and($addonComposer['require']['mapo-89/core-panel'])->toBe(sprintf(
@@ -1071,7 +1062,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($setReleaseVersionScript)->toContain("sprintf('^%s.%s || dev-main', \$major, \$minor)")
         ->and($setReleaseVersionScript)->toContain('APP_VERSION=\'.$version')
         ->and($setReleaseVersionScript)->toContain("'display_version' => \$displayVersion")
-        ->and($setReleaseVersionScript)->toContain('CorePanelApiDocumentation.php')
+        ->and($setReleaseVersionScript)->toContain('CorePanelVersion.php')
         ->and($appVersionJson['release_version'])->toMatch('/^\d+\.\d+\.\d+$/')
         ->and($appVersionJson['display_version'])->toMatch('/^\d+\.\d+\.\d+ \([a-f0-9]+\)$/')
         ->and($appVersionJson['image_version'])->toMatch('/^\d+\.\d+\.\d+-[a-f0-9]+$/')
@@ -1080,8 +1071,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($versionSupport)->toContain("import versionInfo from '../../../config/app-version.json'")
         ->and($versionSupport)->toContain('export const APP_RELEASE_VERSION')
         ->and($versionSupport)->toContain('export function formatCommitDate')
-        ->and($middleware)->toContain('AppVersionRepository::class')
-        ->and($middleware)->toContain('->releaseVersion()')
+        ->and(file_get_contents(__DIR__.'/../../src/Support/Inertia/CorePanelSharedProps.php'))->toContain('AppVersionRepository')
+        ->and(file_get_contents(__DIR__.'/../../src/Support/Inertia/CorePanelSharedProps.php'))->toContain('->releaseVersion()')
         ->and($workflow)->toContain('vendor/bin/phpstan analyse')
         ->and($workflow)->toContain('vendor/bin/pint --test')
         ->and($workflow)->toContain('composer test')
@@ -1098,6 +1089,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($workflow)->toContain('name: Frontend Quality (tenancy-addon)')
         ->and($workflow)->toContain('bash .github/scripts/frontend-quality.sh core-package')
         ->and($workflow)->toContain('bash .github/scripts/frontend-quality.sh tenancy-addon')
+        ->and(substr_count($workflow, 'name: Install Composer dependencies for frontend quality'))->toBe(2)
         ->and($workflow)->toContain('name: Install Smoke (core-package)')
         ->and($workflow)->toContain('name: Install Smoke (tenancy-addon)')
         ->and(substr_count($workflow, 'sudo apt-get install --yes unzip'))->toBe(2)
@@ -1107,6 +1099,8 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->toContain('workspace="$(mktemp -d "${workspace_root}/core-panel-frontend-${variant}-XXXXXX")"')
         ->toContain('"${workspace}" == "${workspace_root}"/core-panel-frontend-*')
         ->and($frontendQualityScript)->toContain('copy_vendor_first_core_panel_runtime()')
+        ->and($frontendQualityScript)->toContain('vendor/bin/testbench wayfinder:generate')
+        ->and($frontendQualityScript)->not->toContain('vendor/orchestra/testbench-core/laravel/artisan')
         ->and($frontendQualityScript)->toContain('mkdir -p "${workspace}/vendor/mapo-89/core-panel/resources"')
         ->and($frontendQualityScript)->toContain('"${workspace}/vendor/mapo-89/core-panel/config"')
         ->and($frontendQualityScript)->toContain('packages/core-panel/resources/js')
@@ -1115,11 +1109,20 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($frontendQualityScript)->toContain('packages/core-panel/config/app-version.json')
         ->and($frontendQualityScript)->toContain('${workspace}/vendor/mapo-89/core-panel/config/app-version.json')
         ->and($frontendQualityScript)->toContain('tar -C "${repo_root}/packages/core-panel-tenancy/stubs" -cf - . | tar -C "${workspace}" -xf -')
+        ->and($frontendQualityScript)->toContain('require "packages/core-panel-tenancy/routes/web/tenants.php";')
+        ->and($frontendQualityScript)->toContain('require "packages/core-panel-tenancy/stubs/routes/tenant.php";')
+        ->and($frontendQualityScript)->toContain('$app->register(Laravel\Fortify\FortifyServiceProvider::class);')
+        ->and($frontendQualityScript)->toContain('$app->register(CorePanel\CorePanelServiceProvider::class);')
+        ->and($frontendQualityScript)->toContain('$app->register(CorePanelTenancy\CorePanelTenancyServiceProvider::class);')
+        ->and($frontendQualityScript)->toContain('$app->register(Laravel\Wayfinder\WayfinderServiceProvider::class);')
+        ->and($frontendQualityScript)->toContain('"--skip-actions" => true')
+        ->and($frontendQualityScript)->toContain('$files->copyDirectory(')
         ->and($frontendQualityScript)->toContain('npm ci')
         ->and($frontendQualityScript)->toContain('npm run lint')
         ->and($frontendQualityScript)->toContain('npm run build')
         ->and($workflow)->toContain('bash .github/scripts/install-smoke.sh core-package')
         ->and($workflow)->toContain('bash .github/scripts/install-smoke.sh tenancy-addon')
+        ->and(substr_count($workflow, 'timeout-minutes: 30'))->toBe(2)
         ->and($installSmokeScript)->toContain('php artisan core-panel:install')
         ->and($installSmokeScript)->toContain('composer require mapo-89/core-panel:dev-main --with-all-dependencies --no-interaction --prefer-dist')
         ->and($installSmokeScript)->toContain('mkdir -p "${repo_root}/apps"')
@@ -1128,7 +1131,16 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($installSmokeScript)->toContain('install_tenancy="false"')
         ->and($installSmokeScript)->toContain('install_tenancy="true"')
         ->and($installSmokeScript)->toContain('php artisan serve --host=127.0.0.1')
+        ->and($installSmokeScript)->toContain('http_attempts="${INSTALL_SMOKE_HTTP_ATTEMPTS:-30}"')
+        ->and($installSmokeScript)->not->toContain('for i in {1..60}')
         ->and($installSmokeScript)->toContain('wait_for_server "${path}"')
+        ->and($installSmokeScript)->toContain("wait_for_http_healthy '/up' '200'")
+        ->and($installSmokeScript)->toContain("wait_for_http_healthy '/login' '200'")
+        ->and($installSmokeScript)->toContain('stop_server()')
+        ->and($installSmokeScript)->toContain('wait "${serve_pid}" 2>/dev/null || true')
+        ->and($installSmokeScript)->toMatch('/show_server_diagnostics 120\s+stop_server\s+echo "Falling back to built-in PHP server\."/')
+        ->and($installSmokeScript)->toContain('-t public vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')
+        ->and($installSmokeScript)->toContain('Laravel application log (${log_path}):')
         ->and($installSmokeScript)->toContain('http://127.0.0.1:${serve_port}')
         ->and($installSmokeScript)->toContain('--header "Host: ${app_host}"')
         ->and($provisionPlaygroundsScript)->toContain('composer create-project laravel/laravel "${app_dir}" "^13.0" --no-scripts --no-interaction --prefer-dist')
@@ -1176,7 +1188,7 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
 });
 
 it('synchronizes the environment file with the core panel defaults', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-env-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('env');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -1233,19 +1245,14 @@ it('does not expose internal merge helpers in the host scaffold path list', func
 });
 
 it('ships a visible domain scaffold structure for host applications', function (): void {
-    expect(is_dir(__DIR__.'/../../stubs/app/Actions/Fortify'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/Actions/Fortify/UpdateUserProfileInformation.php'))->toBeTrue()
-        ->and(is_dir(__DIR__.'/../../stubs/app/Http/Middleware'))->toBeTrue()
+    expect(is_dir(__DIR__.'/../../stubs/app/Http/Middleware'))->toBeTrue()
         ->and(is_file(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/Http/Middleware/TrackUserPresence.php'))->toBeTrue()
+        ->and(is_file(__DIR__.'/../../src/Http/Middleware/TrackUserPresence.php'))->toBeTrue()
         ->and(is_dir(__DIR__.'/../../stubs/app/Models'))->toBeTrue()
         ->and(is_file(__DIR__.'/../../stubs/app/Models/User.php'))->toBeTrue()
-        ->and(is_dir(__DIR__.'/../../stubs/app/OpenApi/Paths'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/OpenApi/CorePanelApiDocumentation.php'))->toBeTrue()
-        ->and(is_dir(__DIR__.'/../../stubs/app/Providers'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/Providers/FortifyServiceProvider.php'))->toBeTrue()
-        ->and(is_file(__DIR__.'/../../stubs/app/Providers/HorizonServiceProvider.php'))->toBeTrue();
+        ->and(is_dir(__DIR__.'/../../src/OpenApi/Paths'))->toBeTrue()
+        ->and(is_file(__DIR__.'/../../src/OpenApi/CorePanelApiDocumentation.php'))->toBeTrue()
+        ->and(is_file(__DIR__.'/../../src/Providers/CorePanelFortifyServiceProvider.php'))->toBeTrue();
 });
 
 it('keeps generator defaults in package resources while preserving readable template filenames', function (): void {
@@ -1434,7 +1441,7 @@ it('ships pwa scaffolds for the host application', function (): void {
 });
 
 it('renders the scaffolded pwa manifest from the host app name', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-pwa-manifest-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('pwa-manifest');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/.env', "APP_NAME=\"Acme Control\"\n");
@@ -1530,7 +1537,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     $appDevDockerfile = explode('FROM app-runtime-base AS app-dev', $dockerfile, 2)[1] ?? '';
 
     expect($readme)->toContain('## Upgrade To The Unified Docker Application Image')
-        ->and($readme)->toContain('APP_IMAGE=registry.example.com/core-panel/app:1.5.0')
+        ->and($readme)->toContain('APP_IMAGE=registry.example.com/core-panel/app:1.6.0')
         ->and($readme)->toContain('SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler')
         ->and($readme)->toContain('up -d --remove-orphans')
         ->and($dockerfile)->toContain('FROM node:24-bookworm AS node')
@@ -1720,7 +1727,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
 });
 
 it('initializes one-off cli commands without starting a second process manager', function (): void {
-    $appRoot = sys_get_temp_dir().'/core-panel-entrypoint-information-'.bin2hex(random_bytes(5));
+    $appRoot = corePanelTestTemporaryPath('entrypoint-information');
     $filesystem = new Filesystem;
 
     $filesystem->makeDirectory($appRoot.'/.docker/php', 0777, true);
@@ -1754,8 +1761,8 @@ it('initializes one-off cli commands without starting a second process manager',
     $filesystem->deleteDirectory($appRoot);
 });
 
-it('runs standard laravel migrations from the web container hook when addon commands are unavailable', function (): void {
-    $appRoot = sys_get_temp_dir().'/core-panel-entrypoint-without-tenancy-addon-'.bin2hex(random_bytes(5));
+it('falls back to standard laravel migrations and skips tenant migrations when addon commands are unavailable', function (): void {
+    $appRoot = corePanelTestTemporaryPath('entrypoint-without-tenancy-addon');
     $binDir = $appRoot.'/bin';
     $phpStub = $binDir.'/php';
     $artisanStub = $appRoot.'/artisan';
@@ -1813,17 +1820,16 @@ SH);
 
 it('ships a user stub that uses passport tokens without sanctum compatibility shims', function (): void {
     $contents = file_get_contents(__DIR__.'/../../stubs/app/Models/User.php');
-    $fortifyProvider = file_get_contents(__DIR__.'/../../stubs/app/Providers/FortifyServiceProvider.php');
+    $passportTrait = file_get_contents(__DIR__.'/../../src/Models/Concerns/InteractsWithCorePanelPassport.php');
+    $fortifyProvider = file_get_contents(__DIR__.'/../../src/Providers/CorePanelFortifyServiceProvider.php');
 
-    expect($contents)->toContain('use PassportHasApiTokens {')
-        ->and($contents)->not->toContain('Laravel\\Passport\\Contracts\\OAuthenticatable')
-        ->and($contents)->not->toContain('implements MustVerifyEmail, OAuthenticatable')
+    expect($contents)->toContain('use InteractsWithCorePanelPassport;')
+        ->and($passportTrait)->toContain('use PassportHasApiTokens;')
+        ->and($contents)->toContain('use Laravel\\Passport\\Contracts\\OAuthenticatable;')
+        ->and($contents)->toContain('MustVerifyEmail, OAuthenticatable')
         ->and($contents)->not->toContain('Sanctum')
         ->and($contents)->not->toContain('createPassportToken')
-        ->and($fortifyProvider)->toContain('use App\\Actions\\Fortify\\CreateNewUser;')
-        ->and($fortifyProvider)->toContain('use App\\Actions\\Fortify\\ResetUserPassword;')
-        ->and($fortifyProvider)->toContain('use App\\Actions\\Fortify\\UpdateUserPassword;')
-        ->and($fortifyProvider)->toContain('use App\\Actions\\Fortify\\UpdateUserProfileInformation;')
+        ->and($fortifyProvider)->toContain('use CorePanel\\Actions\\Fortify\\CreateNewUser;')
         ->and($fortifyProvider)->toContain('use CorePanel\\Http\\Responses\\ResetPasswordResponse;')
         ->and($fortifyProvider)->toContain('use Laravel\\Fortify\\Contracts\\PasswordResetResponse as PasswordResetResponseContract;')
         ->and($fortifyProvider)->toContain('$this->app->singleton(PasswordResetResponseContract::class, ResetPasswordResponse::class);');
@@ -1840,7 +1846,7 @@ it('redirects successful password resets back to the login path without requirin
 });
 
 it('removes a conflicting vite.config.js when scaffolding a host application', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-vite-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('vite');
 
     mkdir($temporaryBasePath, 0777, true);
     file_put_contents($temporaryBasePath.'/vite.config.js', 'legacy');
@@ -1852,7 +1858,7 @@ it('removes a conflicting vite.config.js when scaffolding a host application', f
 });
 
 it('replaces the default laravel baseline migrations when scaffolding a host application', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-migrations-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('migrations');
 
     mkdir($temporaryBasePath.'/database/migrations', 0777, true);
     mkdir($temporaryBasePath.'/app/Models', 0777, true);
@@ -1901,7 +1907,7 @@ PHP);
 });
 
 it('replaces the default laravel bootstrap and web entrypoints when scaffolding a host application', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-host-entrypoints-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('host-entrypoints');
 
     mkdir($temporaryBasePath.'/bootstrap', 0777, true);
     mkdir($temporaryBasePath.'/routes', 0777, true);
@@ -1968,12 +1974,7 @@ BLADE);
         ->and($bootstrap)->toContain('redirectGuestsTo(static fn (Request')
         ->and($webRoutes)->toContain("Route::redirect('/', config('core-panel.route_prefix', 'admin'));")
         ->and($webRoutes)->not->toContain("return view('welcome');")
-        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.horizon.enabled', true) && app()->bound('command.horizon.snapshot')) {")
-        ->and($consoleRoutes)->toContain("Schedule::command('database-backups:auto')")
-        ->and($consoleRoutes)->toContain("if ((bool) config('database-backups.enabled', config('core-panel.administration.database_backups.enabled', true))) {")
-        ->and($consoleRoutes)->toContain("if ((bool) config('core-panel.administration.system_updates.enabled', true)) {")
-        ->and($consoleRoutes)->toContain('->withoutOverlapping(20)')
-        ->and($consoleRoutes)->toContain('->onOneServer()')
+        ->and($consoleRoutes)->not->toContain('Schedule::')
         ->and($consoleRoutes)->not->toContain("app()->bound('command.database-backups:auto')")
         ->and($consoleRoutes)->not->toContain("app()->bound('command.system-updates:auto')")
         ->and(file_exists($temporaryBasePath.'/resources/views/welcome.blade.php'))->toBeFalse()
@@ -1985,7 +1986,7 @@ BLADE);
 });
 
 it('merges all required core-panel providers into an existing bootstrap providers file during force scaffolding', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-bootstrap-providers-force-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('bootstrap-providers-force');
     $target = $temporaryBasePath.'/bootstrap/providers.php';
 
     mkdir(dirname($target), 0777, true);
@@ -2005,17 +2006,15 @@ PHP);
 
     $contents = file_get_contents($target);
 
-    expect($contents)->toContain('use App\Providers\FortifyServiceProvider;')
-        ->and($contents)->toContain('use App\Providers\HorizonServiceProvider;')
+    expect($contents)->not->toContain('FortifyServiceProvider')
+        ->and($contents)->not->toContain('HorizonServiceProvider')
         ->and($contents)->toContain('use EragLaravelPwa\EragLaravelPwaServiceProvider;')
         ->and($contents)->toContain('AppServiceProvider::class,')
-        ->and($contents)->toContain('FortifyServiceProvider::class,')
-        ->and($contents)->toContain('HorizonServiceProvider::class,')
         ->and($contents)->toContain('EragLaravelPwaServiceProvider::class,');
 });
 
 it('removes legacy sass theme files when scaffolding a host application', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-theme-cleanup-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('theme-cleanup');
 
     mkdir($temporaryBasePath.'/resources/css/theme', 0777, true);
 
@@ -2038,7 +2037,7 @@ it('removes legacy sass theme files when scaffolding a host application', functi
 });
 
 it('merges the scaffold package.json into an existing host package.json', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-package-json-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('package-json');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -2075,7 +2074,7 @@ it('merges the scaffold package.json into an existing host package.json', functi
 });
 
 it('scaffolds ai, agent and claude support files into a host application', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-agent-files-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('agent-files');
 
     mkdir($temporaryBasePath, 0777, true);
 
@@ -2191,6 +2190,18 @@ it('ships scaffold installation tests that expect vendor-first frontend assets',
         )
         ->and($contents)->toContain(
             "import { installCorePanelUi } from '@core-panel/plugins/core-panel'",
+        )
+        ->and($contents)->toContain(
+            "base_path('vendor/mapo-89/core-panel/src/Http/Middleware/TrackUserPresence.php')",
+        )
+        ->and($contents)->toContain(
+            "base_path('vendor/mapo-89/core-panel/database/migrations/2016_06_01_000001_create_oauth_auth_codes_table.php')",
+        )
+        ->and($contents)->not->toContain(
+            "base_path('app/Http/Middleware/TrackUserPresence.php')",
+        )
+        ->and($contents)->not->toContain(
+            "base_path('database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php')",
         )
         ->and($contents)->not->toContain(
             "import { installCorePanelUi } from './plugins/core-panel'",
@@ -2309,33 +2320,17 @@ it('ships shared live password requirement feedback for auth and admin password 
 
 it('shares auth, locale, and upload state with the scaffold inertia middleware', function (): void {
     $middleware = file_get_contents(__DIR__.'/../../stubs/app/Http/Middleware/HandleInertiaRequests.php');
+    $props = file_get_contents(__DIR__.'/../../src/Support/Inertia/CorePanelSharedProps.php');
 
     expect($middleware)->not->toBeFalse()
         ->and($middleware)->toContain('public function version(Request $request): ?string')
         ->and($middleware)->toContain('return null;')
-        ->and($middleware)->toContain('use Illuminate\\Support\\Arr;')
-        ->and($middleware)->toContain("\$appName = data_get(\$publicSettings, 'general.app_name');")
-        ->and($middleware)->toContain("\$hasAppSubtitle = Arr::has(\$publicSettings, 'general.app_subtitle');")
-        ->and($middleware)->toContain("'appName' => is_string(\$appName) && \$appName !== ''")
-        ->and($middleware)->toContain("'appSubtitle' => \$hasAppSubtitle")
-        ->and($middleware)->toContain('? (is_string($appSubtitle) ? $appSubtitle : null)')
-        ->and($middleware)->toContain(": (string) __('page-layout.brand_subtitle_default'),")
-        ->and($middleware)->toContain("'name' => is_string(\$appName) && \$appName !== ''")
-        ->and($middleware)->toContain('use CorePanel\\Support\\Users\\UserModelManager;')
-        ->and($middleware)->toContain('$users = app(UserModelManager::class);')
-        ->and($middleware)->toContain('$roleNames = $user === null ? [] : $users->roleNames($user);')
-        ->and($middleware)->toContain('$permissionNames = $users->permissionNames($user);')
-        ->and($middleware)->toContain("'avatarUrl' => \$users->avatarUrl(\$user),")
-        ->and($middleware)->toContain("'debug' => (bool) config('app.debug', false),")
-        ->and($middleware)->toContain("'environment' => app()->environment(),")
-        ->and($middleware)->toContain("'isLocal' => app()->environment('local'),")
-        ->and($middleware)->toContain("'permissions' => \$permissionNames,")
-        ->and($middleware)->toContain("'role' => \$users->primaryRole(\$user),")
-        ->and($middleware)->toContain("'roles' => \$roleNames,")
-        ->and($middleware)->toContain('use CorePanel\\Support\\Presence\\PresenceManager;')
-        ->and($middleware)->toContain('$presence = app(PresenceManager::class);')
-        ->and($middleware)->toContain("'presenceLastSeenAt' => \$presence->lastSeenTimestamp(\$user),")
-        ->and($middleware)->toContain("'presenceStatus' => \$presence->statusFor(\$user),");
+        ->and($middleware)->toContain('array_replace_recursive')
+        ->and($middleware)->toContain('hostSharedProps')
+        ->and($props)->toContain('use Illuminate\\Support\\Arr;')
+        ->and($props)->toContain("'permissions' => \$this->users->permissionNames(\$user),")
+        ->and($props)->toContain("'role' => \$this->users->primaryRole(\$user),")
+        ->and($props)->toContain("'presenceStatus' => \$this->presence->statusFor(\$user),");
 });
 
 it('keeps the core user management index page free of tenant datasets', function (): void {
@@ -2351,7 +2346,7 @@ it('keeps the core user management index page free of tenant datasets', function
 });
 
 it('resolves all relative imports after publishing javascript assets into a host application layout', function (): void {
-    $temporaryBasePath = sys_get_temp_dir().'/core-panel-publish-layout-'.bin2hex(random_bytes(5));
+    $temporaryBasePath = corePanelTestTemporaryPath('publish-layout');
     mkdir($temporaryBasePath, 0777, true);
 
     seedPublishedJavascriptAssets($temporaryBasePath);
@@ -2459,8 +2454,8 @@ it('ships the optional tenancy addon package scaffold', function (): void {
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/routes/central.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/routes/tenant.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/routes/universal.php'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/database/migrations/tenancy/2026_01_01_000001_create_tenants_table.php'))->toBeTrue()
-        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/stubs/database/migrations/tenancy/2026_01_01_000020_create_domains_table.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/database/migrations/2026_01_01_000001_create_tenants_table.php'))->toBeTrue()
+        ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/database/migrations/2026_01_01_000020_create_domains_table.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/resources/lang/en/page-tenants.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/resources/lang/de/page-tenants.php'))->toBeTrue()
         ->and(file_exists(__DIR__.'/../../../core-panel-tenancy/resources/lang/en/tenancy.php'))->toBeTrue()
@@ -3283,19 +3278,7 @@ it('uses wayfinder-driven user management endpoints in the user pages', function
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserSecurityTab.vue'))->not->toContain('$t(\'common.ui.roles\')')
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserPasswordResetDialog.vue'))->toContain("import TranslatedPassword from '@core-panel/components/TranslatedPassword.vue'")
         ->and(file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Users/components/UserPasswordResetDialog.vue'))->toContain('userPasswordRoutes.update.url(user.id)')
-        ->and($inertiaMiddleware)->toContain("'uploads' => [")
-        ->and($inertiaMiddleware)->toContain('$publicSettings = app(SettingsRepository::class)->public();')
-        ->and($inertiaMiddleware)->toContain("\$appSubtitle = data_get(\$publicSettings, 'general.app_subtitle');")
-        ->and($inertiaMiddleware)->toContain("\$hasAppSubtitle = Arr::has(\$publicSettings, 'general.app_subtitle');")
-        ->and($inertiaMiddleware)->toContain("'appLogo' => fn (): ?string => \$settingsLogo->currentUrl()")
-        ->and($inertiaMiddleware)->toContain("'error' => fn (): ?string => \$request->session()->get('error')")
-        ->and($inertiaMiddleware)->toContain("'success' => fn (): ?string => \$request->session()->get('success')")
-        ->and($inertiaMiddleware)->toContain("'accept' => implode(',', \$avatarMimeTypes)")
-        ->and($inertiaMiddleware)->toContain("'formatBadges' => \$avatarFormatBadges")
-        ->and($inertiaMiddleware)->toContain("'accept' => implode(',', \$logoMimeTypes)")
-        ->and($inertiaMiddleware)->toContain("'formatBadges' => \$logoFormatBadges")
-        ->and($inertiaMiddleware)->toContain("'maxSizeMb' => (int) floor(")
-        ->and($inertiaMiddleware)->toContain("'mimeTypes' => \$avatarMimeTypes")
+        ->and(file_get_contents(__DIR__.'/../../src/Support/Inertia/CorePanelSharedProps.php'))->toContain("'uploads' => [")
         ->and(file_get_contents(__DIR__.'/../../stubs/resources/js/app.ts'))->toContain('document.documentElement.dataset.appName?.trim() || currentAppName')
         ->and(file_get_contents(__DIR__.'/../../resources/js/layouts/AuthLayout.vue'))->toContain('const appSubtitle = computed(() => {')
         ->and(file_get_contents(__DIR__.'/../../resources/js/layouts/AuthLayout.vue'))->toContain('document.documentElement.dataset.appName = appName.value')
@@ -3485,7 +3468,6 @@ it('uses wayfinder-driven activity endpoints in the activity page', function ():
 it('ships the consolidated developer area with tabbed activity, authentication, and log views', function (): void {
     $routes = file_get_contents(__DIR__.'/../../routes/web/admin.php');
     $logRoutes = file_get_contents(__DIR__.'/../../routes/web/admin/logs.php');
-    $administrationRoute = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/administration.ts');
     $developer = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/Index.vue');
     $logFilePage = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/File.vue');
     $adminMenu = file_get_contents(__DIR__.'/../../resources/js/composables/useAdminMenu.ts');
@@ -3497,10 +3479,8 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
     $authenticationPresentation = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/authenticationLogPresentation.ts');
     $logUserAvatar = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/LogUserAvatar.vue');
     $logsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Logs/components/LogFilesTab.vue');
-    $logRoutesHelper = file_get_contents(__DIR__.'/../../stubs/resources/js/routes/core-panel/log-files.ts');
 
     expect($routes)->toContain("'logs.php'")
-        ->and($administrationRoute)->toContain("index: action('get')")
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\ActivityLogDetailController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\AuthenticationLogDetailController;')
         ->and($logRoutes)->toContain('use CorePanel\Http\Controllers\Logs\LogController;')
@@ -3551,8 +3531,6 @@ it('ships the consolidated developer area with tabbed activity, authentication, 
         ->and($logsTab)->toContain('<ColumnVisibilityDropdown')
         ->and($logsTab)->toContain('logFiles.clear.url(pendingClearFile.value.name)')
         ->and($logsTab)->toContain('logFiles.destroy.url(pendingDeleteFile.value.name)')
-        ->and($logRoutesHelper)->toContain("clear: callableAction('delete')")
-        ->and($logRoutesHelper)->toContain("destroy: callableAction('delete')")
         ->and($logFilePage)->toContain("import logFiles from '@/routes/core-panel/log-files'")
         ->and($logFilePage)->toContain("import logsPage from '@/routes/core-panel/logs'")
         ->and($logFilePage)->toContain('files: LogFileRecord[]')
@@ -3574,11 +3552,11 @@ it('ships a dedicated developer workspace with route inspection and swagger-back
     $routeTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Developer/components/RouteListTab.vue');
     $docsTab = file_get_contents(__DIR__.'/../../resources/js/pages/Admin/Developer/components/SwaggerDocsTab.vue');
     $swaggerConfig = file_get_contents(__DIR__.'/../../stubs/config/l5-swagger.php');
-    $openApiInfo = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/CorePanelApiDocumentation.php');
-    $openApiSchemas = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/Components/CorePanelSchemas.php');
-    $openApiAuth = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/Paths/AuthenticationApi.php');
-    $openApiSystem = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/Paths/SystemApi.php');
-    $openApiUsers = file_get_contents(__DIR__.'/../../stubs/app/OpenApi/Paths/UsersApi.php');
+    $openApiInfo = file_get_contents(__DIR__.'/../../src/OpenApi/CorePanelApiDocumentation.php');
+    $openApiSchemas = file_get_contents(__DIR__.'/../../src/OpenApi/Components/CorePanelSchemas.php');
+    $openApiAuth = file_get_contents(__DIR__.'/../../src/OpenApi/Paths/AuthenticationApi.php');
+    $openApiSystem = file_get_contents(__DIR__.'/../../src/OpenApi/Paths/SystemApi.php');
+    $openApiUsers = file_get_contents(__DIR__.'/../../src/OpenApi/Paths/UsersApi.php');
     $composer = file_get_contents(__DIR__.'/../../composer.json');
 
     expect($routes)->toContain("'developer.php'")
@@ -3655,14 +3633,13 @@ it('ships locale switching assets and shared locale scaffolding', function (): v
         ->and($hostEntry)->toContain('const loader =')
         ->and($hostEntry)->toContain('lazyLanguageModules[`../../lang/php_${lang}.json`]')
         ->and(ScaffoldsCorePanelStubs::paths())->toContain('lang/de/page-layout.php', 'lang/en/page-layout.php')
-        ->and($handleInertia)->toContain('SettingsRepository::class')
+        ->and($handleInertia)->toContain('CorePanelSharedProps')
         ->and($runtimeSettingsMiddleware)->toContain("config()->set('app.name'")
         ->and($runtimeSettingsMiddleware)->toContain("config()->set('app.languages', SupportedLocales::labelsFor(\$supportedLocaleCodes));")
         ->and($runtimeSettingsMiddleware)->toContain("config()->set('core-panel.i18n.supported_locales'")
         ->and($localeController)->toContain("Cookie::queue(Cookie::forever(self::COOKIE_NAME, \$validated['locale']));")
         ->and($localeResolver)->toContain('$request->cookie(self::COOKIE_NAME)')
-        ->and($handleInertia)->toContain("'locale' => [")
-        ->and($handleInertia)->toContain("'settings' => app(SettingsRepository::class)->public()")
+        ->and(file_get_contents(__DIR__.'/../../src/Support/Inertia/CorePanelSharedProps.php'))->toContain("'locale' => [")
         ->and($authLayout)->toContain('preserveState: true')
         ->and($authLayout)->toContain('page.props.locale?.supported ?? []')
         ->and($authLayout)->toContain('I18n.getSharedInstance().setOptions({')
@@ -3795,17 +3772,34 @@ it('orders assignable users without relying on a legacy name column', function (
     ]);
 });
 
-it('ships core panel migrations with fixed timestamped php filenames', function (): void {
+it('ships only host foundation migrations as fixed timestamped scaffold files', function (): void {
     $migrations = coreMigrationStubFiles('php');
 
     expect($migrations)->not->toBeFalse()
+        ->toHaveCount(3)
         ->and($migrations)->each->toMatch('/\/\d{4}_\d{2}_\d{2}_\d{6}_.+\.php$/')
         ->and(coreMigrationStubFiles('stub'))->toBe([]);
 });
 
-it('keeps package-level database migrations empty because scaffold migrations are the source of truth', function (): void {
-    expect(glob(__DIR__.'/../../database/migrations/*.php'))->toBe([])
-        ->and(file_get_contents(__DIR__.'/../../src/CorePanelServiceProvider.php'))->not->toContain("loadMigrationsFrom(__DIR__.'/../database/migrations')");
+it('owns domain migrations in the package and registers them with Laravel', function (): void {
+    $migrations = glob(__DIR__.'/../../database/migrations/*.php');
+
+    expect($migrations)->toHaveCount(19)
+        ->and(array_map('basename', $migrations))->toContain(
+            '2016_06_01_000001_create_oauth_auth_codes_table.php',
+            '2026_01_01_000003_create_core_panel_settings_table.php',
+            '2026_01_01_000023_add_invitation_tracking_columns_to_users_table.php',
+        )
+        ->and(file_get_contents(__DIR__.'/../../src/CorePanelServiceProvider.php'))->toContain("loadMigrationsFrom(__DIR__.'/../database/migrations')");
+});
+
+it('keeps legacy migration baselines aligned with package migration contents', function (): void {
+    foreach (ManagedMigrationScaffoldMigrator::coreHostScaffolds() as $legacyPath => $legacyHash) {
+        $packageMigration = __DIR__.'/../../database/migrations/'.basename($legacyPath);
+
+        expect(file_exists($packageMigration))->toBeTrue()
+            ->and(hash_file('sha256', $packageMigration))->toBe($legacyHash);
+    }
 });
 
 it('ships laravel default migration names in the scaffold', function (): void {

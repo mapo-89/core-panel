@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace CorePanel\Support\Migrations;
 
 use Illuminate\Contracts\Console\Kernel;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -13,7 +12,6 @@ final readonly class HostMigrationExecutor
 {
     public function __construct(
         private Kernel $artisan,
-        private Filesystem $files,
     ) {}
 
     /**
@@ -61,12 +59,6 @@ final readonly class HostMigrationExecutor
     public function migrationFiles(?string $basePath = null): array
     {
         $root = $basePath ?? base_path();
-        $migrationsRoot = $root.'/database/migrations';
-
-        if (! $this->files->isDirectory($migrationsRoot)) {
-            return [];
-        }
-
         $migrationFiles = MigrationPathResolver::host($root);
 
         if ($migrationFiles === []) {

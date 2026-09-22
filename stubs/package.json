@@ -2,7 +2,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "php artisan wayfinder:generate --no-interaction && vite build",
         "dev": "vite",
         "lint": "npm run lint:eslint && npm run lint:prettier && npm run typecheck",
         "lint:eslint": "eslint resources/js vite.config.ts --max-warnings=0",

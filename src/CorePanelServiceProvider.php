@@ -24,7 +24,9 @@ use CorePanel\Console\UpdateCommand;
 use CorePanel\Console\VendorFirstCleanupCommand;
 use CorePanel\Contracts\CorePanelInstallerInterface;
 use CorePanel\Contracts\DatabaseBackupCloudUploader;
+use CorePanel\Contracts\HorizonAccess;
 use CorePanel\Contracts\LocaleResolver;
+use CorePanel\Contracts\PresenceCacheKeyResolver;
 use CorePanel\Contracts\SettingsLogoUrlGenerator;
 use CorePanel\Contracts\SystemUpdateSettingsAccess;
 use CorePanel\Domain\File\Policies\FilePolicy;
@@ -39,11 +41,13 @@ use CorePanel\Http\Middleware\EnsureCorePanelEmailIsVerified;
 use CorePanel\Http\Middleware\ResolveCorePanelLocale;
 use CorePanel\Http\Middleware\SecurityHeaders;
 use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
+use CorePanel\Http\Middleware\TrackUserPresence;
 use CorePanel\Models\ApiToken;
 use CorePanel\Models\Form;
 use CorePanel\Models\ManagedFile;
 use CorePanel\Models\Media;
 use CorePanel\Models\OAuthClient;
+use CorePanel\Providers\CorePanelFortifyServiceProvider;
 use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupCloudBackupService;
 use CorePanel\Support\Administration\DatabaseBackups\DatabaseBackupEncryptor;
@@ -69,7 +73,9 @@ use CorePanel\Support\Database\TimestampTzConverter;
 use CorePanel\Support\Files\FileModelManager;
 use CorePanel\Support\FormBuilder\FormSubmissionValidator;
 use CorePanel\Support\Forms\FormModelManager;
+use CorePanel\Support\Fortify\HostActionOverrides;
 use CorePanel\Support\Generators\CorePanelGenerator;
+use CorePanel\Support\Horizon\DefaultHorizonAccess;
 use CorePanel\Support\Install\AppServiceProviderMerger;
 use CorePanel\Support\Install\BackupManager;
 use CorePanel\Support\Install\CorePanelInstaller;
@@ -77,15 +83,18 @@ use CorePanel\Support\LocaleResolver as RequestLocaleResolver;
 use CorePanel\Support\Media\CorePanelMediaPathGenerator;
 use CorePanel\Support\Media\MediaService;
 use CorePanel\Support\Migrations\HostMigrationExecutor;
+use CorePanel\Support\Migrations\ManagedMigrationScaffoldMigrator;
 use CorePanel\Support\Permissions\CorePanelAccess;
 use CorePanel\Support\Permissions\CorePanelPermissions;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Support\Permissions\RoutePermissionResolver;
+use CorePanel\Support\Presence\DefaultPresenceCacheKeyResolver;
 use CorePanel\Support\Publishing\CorePanelPublisher;
 use CorePanel\Support\Publishing\PublishedAssetManifest;
 use CorePanel\Support\Publishing\VendorFirstAssetMigrator;
 use CorePanel\Support\PublishTag;
 use CorePanel\Support\Query\QueryBuilderAdapter;
+use CorePanel\Support\Scheduling\CorePanelSchedule;
 use CorePanel\Support\Security\SecurityHeaderConfig;
 use CorePanel\Support\Settings\AssetSettingsLogoUrlGenerator;
 use CorePanel\Support\Settings\SettingsRepository;
@@ -101,6 +110,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -132,11 +142,15 @@ final class CorePanelServiceProvider extends PackageServiceProvider
             'core-panel-access',
             array_replace_recursive($accessConfig, (array) $this->app['config']->get('core-panel-access', [])),
         );
+        HostActionOverrides::apply($this->app['config'], base_path());
 
         $this->app->bind(LocaleResolver::class, RequestLocaleResolver::class);
+        $this->app->bindIf(HorizonAccess::class, DefaultHorizonAccess::class);
+        $this->app->bind(PresenceCacheKeyResolver::class, DefaultPresenceCacheKeyResolver::class);
         $this->app->bindIf(SystemUpdateSettingsAccess::class, AllowSystemUpdateSettingsAccess::class);
         $this->app->scoped(DatabaseBackupCloudUploader::class, NullDatabaseBackupCloudUploader::class);
         $this->app->bind(SettingsLogoUrlGenerator::class, AssetSettingsLogoUrlGenerator::class);
+        $this->app->register(CorePanelFortifyServiceProvider::class);
         $this->app->scoped(CorePanelConfig::class, static fn ($app): CorePanelConfig => CorePanelConfig::fromRepository($app['config']));
         $this->app->scoped(ActivityLogService::class);
         $this->app->scoped(AuthenticationLogRecorder::class);
@@ -158,6 +172,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(FormSubmissionValidator::class);
         $this->app->scoped(CorePanelGenerator::class);
         $this->app->scoped(HostMigrationExecutor::class);
+        $this->app->scoped(ManagedMigrationScaffoldMigrator::class);
         $this->app->scoped(ListBrowserSessions::class);
         $this->app->scoped(MediaService::class);
         $this->app->scoped(RunAutomaticSystemUpdateAction::class);
@@ -173,6 +188,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->app->scoped(QueryBuilderAdapter::class);
         $this->app->scoped(RevokeBrowserSession::class);
         $this->app->scoped(SecurityHeaderConfig::class);
+        $this->app->singleton(CorePanelSchedule::class);
         $this->app->scoped(SocialAccountStore::class);
         $this->app->scoped(SocialiteProviderRegistry::class);
         $this->app->scoped(SocialUserManager::class);
@@ -216,6 +232,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
     {
         $router = $this->app['router'];
 
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadTranslationsFrom(lang_path('vendor/core-panel'), null);
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', null);
 
@@ -230,6 +247,9 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $this->configurePassport();
         $this->configureAuthNotificationMail();
         $this->configureSocialiteProviders();
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $this->app->make(CorePanelSchedule::class)->register($schedule);
+        });
         $roleModel = config('permission.models.role');
         $userGroupModel = config('core-panel.user_group_model');
         $userModel = config('core-panel.user_model');
@@ -253,6 +273,7 @@ final class CorePanelServiceProvider extends PackageServiceProvider
         $router->aliasMiddleware('core-panel.resolve-locale', ResolveCorePanelLocale::class);
         $router->aliasMiddleware('core-panel.security-headers', SecurityHeaders::class);
         $router->aliasMiddleware('core-panel.share-locale', ShareLocaleDataWithInertia::class);
+        $router->aliasMiddleware('core-panel.presence', TrackUserPresence::class);
 
         Event::listen(Login::class, function (Login $event): void {
             app(AuthenticationLogRecorder::class)->recordSuccessfulLogin($event);
@@ -320,24 +341,23 @@ final class CorePanelServiceProvider extends PackageServiceProvider
             return;
         }
 
-        $gate = Gate::getFacadeRoot();
+        $this->app->booted(static function (): void {
+            $gate = Gate::getFacadeRoot();
 
-        if (method_exists($gate, 'has') && ! $gate->has('viewHorizon')) {
-            Gate::define('viewHorizon', static function ($user): bool {
-                if (! is_object($user)) {
-                    return false;
-                }
+            if (method_exists($gate, 'has') && ! $gate->has('viewHorizon')) {
+                Gate::define('viewHorizon', static fn ($user): bool => app(HorizonAccess::class)->allows($user));
+            }
+        });
 
-                if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {
-                    return true;
-                }
+        Horizon::auth(static function ($request): bool {
+            return app()->environment('local') || Gate::forUser($request->user())->allows('viewHorizon');
+        });
 
-                if (! method_exists($user, 'can')) {
-                    return false;
-                }
+        $slackWebhook = config('core-panel.horizon.slack.webhook_url');
+        $slackChannel = config('core-panel.horizon.slack.channel');
 
-                return $user->can('horizon.view') || $user->can('core-panel.view-horizon');
-            });
+        if (is_string($slackWebhook) && $slackWebhook !== '' && is_string($slackChannel) && $slackChannel !== '') {
+            Horizon::routeSlackNotificationsTo($slackWebhook, $slackChannel);
         }
     }
 

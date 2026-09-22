@@ -157,7 +157,7 @@ final class MediaAvatarFakeUser extends Authenticatable implements HasMedia
     {
         if ($collectionName === 'avatars') {
             $this->testAvatarMedia = null;
-            unset(static::$persistedAvatarMedia[(string) $this->getKey()]);
+            unset(self::$persistedAvatarMedia[(string) $this->getKey()]);
         }
 
         return $this;

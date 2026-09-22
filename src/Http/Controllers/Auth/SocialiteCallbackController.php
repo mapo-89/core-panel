@@ -53,6 +53,11 @@ final class SocialiteCallbackController extends Controller
 
     public function __invoke(Request $request, string $provider): RedirectResponse
     {
+        return $this->callback($request, $provider);
+    }
+
+    public function callback(Request $request, string $provider): RedirectResponse
+    {
         abort_unless(class_exists(Socialite::class), 404);
         abort_unless($this->providers->isSupported($provider), 404);
         abort_unless($this->providers->isEnabled($provider, true), 404);

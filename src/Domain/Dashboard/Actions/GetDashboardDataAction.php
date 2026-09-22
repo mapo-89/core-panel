@@ -7,6 +7,7 @@ namespace CorePanel\Domain\Dashboard\Actions;
 use CorePanel\Domain\Dashboard\DTOs\DashboardData;
 use CorePanel\Domain\Dashboard\DTOs\SystemHealthData;
 use CorePanel\Support\Users\UserModelManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -130,7 +131,7 @@ final readonly class GetDashboardDataAction
     }
 
     /**
-     * @return Builder<Model>
+     * @return Builder<Model&Authenticatable>
      */
     private function userQuery(): Builder
     {

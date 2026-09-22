@@ -6,7 +6,7 @@ use Illuminate\Filesystem\Filesystem;
 
 function makeGeneratorBasePath(string $suffix): string
 {
-    return sys_get_temp_dir().'/core-panel-generator-'.bin2hex(random_bytes(4)).'-'.$suffix;
+    return corePanelTestTemporaryPath('generator-'.$suffix);
 }
 
 function seedGeneratorProject(string $basePath): void

@@ -10,7 +10,7 @@ it('ships the permission middleware, menu filtering, and frontend authorization 
     $header = file_get_contents(__DIR__.'/../../resources/js/layouts/components/AppHeader.vue');
     $adminMenu = file_get_contents(__DIR__.'/../../resources/js/composables/useAdminMenu.ts');
     $menuBuilder = file_get_contents(__DIR__.'/../../resources/js/composables/useMenuBuilder.ts');
-    $fortifyProvider = file_get_contents(__DIR__.'/../../stubs/app/Providers/FortifyServiceProvider.php');
+    $fortifyProvider = file_get_contents(__DIR__.'/../../src/Providers/CorePanelFortifyServiceProvider.php');
 
     expect($provider)->toContain("aliasMiddleware('check.permission', CheckPermission::class)")
         ->and($bootstrap)->toContain("'check.permission' => CheckPermission::class")

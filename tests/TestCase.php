@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CorePanel\Tests;
 
 use CorePanel\CorePanelServiceProvider;
+use Illuminate\Filesystem\Filesystem;
 use Laravel\Passport\ClientRepository;
 use Laravel\Passport\Passport;
 use Laravel\Passport\PassportServiceProvider;
@@ -15,6 +16,36 @@ use Spatie\Permission\Models\Role;
 
 abstract class TestCase extends Orchestra
 {
+    /** @var list<string> */
+    private static array $temporaryPaths = [];
+
+    public static function temporaryPath(string $name): string
+    {
+        $path = sys_get_temp_dir().'/core-panel-'.$name.'-'.getmypid().'-'.bin2hex(random_bytes(5));
+        self::$temporaryPaths[] = $path;
+
+        return $path;
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            parent::tearDown();
+        } finally {
+            $filesystem = new Filesystem;
+
+            foreach (array_reverse(self::$temporaryPaths) as $path) {
+                if (is_dir($path)) {
+                    $filesystem->deleteDirectory($path);
+                } elseif (is_file($path)) {
+                    $filesystem->delete($path);
+                }
+            }
+
+            self::$temporaryPaths = [];
+        }
+    }
+
     protected static function usesSqliteTestDatabase(): bool
     {
         return extension_loaded('pdo_sqlite') && in_array('sqlite', PDO::getAvailableDrivers(), true);
@@ -131,15 +162,17 @@ abstract class TestCase extends Orchestra
      */
     private function scaffoldMigrationFiles(): array
     {
-        $root = __DIR__.'/../stubs/database/migrations';
         $files = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($root, \RecursiveDirectoryIterator::SKIP_DOTS),
-        );
 
-        foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
-                $files[] = $file->getPathname();
+        foreach ([__DIR__.'/../stubs/database/migrations', __DIR__.'/../database/migrations'] as $root) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($root, \RecursiveDirectoryIterator::SKIP_DOTS),
+            );
+
+            foreach ($iterator as $file) {
+                if ($file->isFile() && $file->getExtension() === 'php') {
+                    $files[] = $file->getPathname();
+                }
             }
         }
 

@@ -262,8 +262,8 @@ php artisan core-panel:update --force --with-addon-updates --no-interaction
 Replace the previous `PHP_IMAGE` and `NGINX_IMAGE` variables in `.env`, Portainer, or the relevant deployment configuration with one unified application image:
 
 ```dotenv
-APP_IMAGE=registry.example.com/core-panel/app:1.5.0
-UPDATER_IMAGE=registry.example.com/core-panel/system-updater:1.5.0
+APP_IMAGE=registry.example.com/core-panel/app:1.6.0
+UPDATER_IMAGE=registry.example.com/core-panel/system-updater:1.6.0
 SYSTEM_UPDATER_RUNTIME_SERVICES=app,horizon,scheduler
 ```
 
@@ -357,6 +357,47 @@ CorePanel is designed vendor-first where Laravel supports it:
 - package config is loaded by default and only needs publishing when the host app wants to override it
 - translations and Blade views are loaded from the package first and can be overridden through the normal Laravel vendor paths when needed
 - `core-panel:update` keeps frontend overlays vendor-first by default and only refreshes host scaffolds plus explicit opt-in overrides
+
+### Upgrading To 1.6.0 (Breaking)
+
+Version 1.6.0 changes ownership boundaries between the package and host application and introduces an explicit breaking migration path.
+
+CorePanel now owns the default implementations for:
+
+- presence middleware and CorePanel Inertia shared props
+- OpenAPI declarations and package scan paths
+- backup, system-update, and Horizon schedules
+- Fortify actions, Fortify registration, and Horizon authorization
+- reusable user-model behavior while the concrete `App\Models\User` remains host-owned
+- generated Wayfinder routes and package domain migrations
+
+Host applications continue to own composition and deployment concerns such as `bootstrap/app.php`, the concrete user model, host routes and Inertia props, frontend entrypoints, environment files, database configuration, and Docker or Compose files. Package behavior can still be replaced through the documented configuration, contracts, middleware bridge, gates, and host props.
+
+Back up the application and database before the one-time upgrade, then run:
+
+```bash
+composer update mapo-89/core-panel
+php artisan core-panel:update --force --breaking-changes
+npm install
+php artisan wayfinder:generate --no-interaction
+npm run build
+php artisan optimize:clear
+```
+
+If the Tenancy addon is installed, update both packages and their managed scaffolds in one run:
+
+```bash
+composer update mapo-89/core-panel mapo-89/core-panel-tenancy
+php artisan core-panel:update --force --breaking-changes --with-addon-updates
+npm install
+php artisan wayfinder:generate --no-interaction
+npm run build
+php artisan optimize:clear
+```
+
+CorePanel domain migrations are loaded from `vendor/mapo-89/core-panel/database/migrations`; central Tenancy migrations come from the addon package. The host retains its users, cache, jobs, and application-specific migrations. Existing migration ledger entries remain valid because basenames are unchanged. The updater backs up and removes only recognized unchanged or managed baselines. Customized migrations and obsolete scaffolds are preserved as conflicts for manual reconciliation, and a preserved tenant migration wins over a package migration with the same basename.
+
+Review `.core-panel-backups/` and the update output before deployment. Verify login and registration, password and profile flows, Socialite, Horizon, schedules, Swagger generation, the frontend build, and tenant creation where applicable. The `--breaking-changes` option is only needed for the 1.6.0 ownership transition; normal later updates continue to use the standard commands below.
 
 ### What To Watch For In Existing Installations
 

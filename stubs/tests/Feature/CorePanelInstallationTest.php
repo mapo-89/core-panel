@@ -36,9 +36,9 @@ final class CorePanelInstallationTest extends TestCase
         $this->assertFileDoesNotExist(base_path('resources/js/pages/Admin/Administration/Index.vue'));
         $this->assertFileDoesNotExist(base_path('resources/js/pages/Admin/Dashboard/Index.vue'));
         $this->assertFileExists(base_path('resources/js/theme/core-panel/index.ts'));
-        $this->assertFileExists(base_path('app/Http/Middleware/TrackUserPresence.php'));
+        $this->assertFileExists(base_path('vendor/mapo-89/core-panel/src/Http/Middleware/TrackUserPresence.php'));
         $this->assertFileExists(base_path('database/migrations/users/0001_01_01_000000_create_users_table.php'));
-        $this->assertFileExists(base_path('database/migrations/auth/2016_06_01_000001_create_oauth_auth_codes_table.php'));
+        $this->assertFileExists(base_path('vendor/mapo-89/core-panel/database/migrations/2016_06_01_000001_create_oauth_auth_codes_table.php'));
         $this->assertFileDoesNotExist(base_path('database/migrations/2026_01_01_000001_create_tenants_table.php'));
     }
 

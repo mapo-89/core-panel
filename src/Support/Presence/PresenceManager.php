@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CorePanel\Support\Presence;
 
 use BadMethodCallException;
+use CorePanel\Contracts\PresenceCacheKeyResolver;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -29,6 +30,8 @@ final class PresenceManager
     private const CURSOR_CACHE_KEY = 'core-panel:presence:cursor';
 
     private const EVENT_CACHE_KEY_PREFIX = 'core-panel:presence:event:';
+
+    public function __construct(private readonly PresenceCacheKeyResolver $cacheKeys) {}
 
     /**
      * @return array{cursor:int,status:string,timestamp:int,userId:string}
@@ -108,7 +111,7 @@ final class PresenceManager
     public function latestCursor(): int
     {
         try {
-            $cursor = Cache::get(self::CURSOR_CACHE_KEY, 0);
+            $cursor = Cache::get($this->cacheKeys->scope(self::CURSOR_CACHE_KEY), 0);
         } catch (BadMethodCallException) {
             return 0;
         }
@@ -164,11 +167,7 @@ final class PresenceManager
 
     private function cacheKey(Model|Authenticatable|string|int $user): string
     {
-        if (($user instanceof Model || $user instanceof Authenticatable) && method_exists($user, 'presenceCacheKey')) {
-            return $user->presenceCacheKey();
-        }
-
-        return 'user-presence:'.$this->resolveUserId($user);
+        return $this->cacheKeys->resolve($user);
     }
 
     /**
@@ -204,17 +203,17 @@ final class PresenceManager
 
     private function eventCacheKey(int $cursor): string
     {
-        return self::EVENT_CACHE_KEY_PREFIX.$cursor;
+        return $this->cacheKeys->scope(self::EVENT_CACHE_KEY_PREFIX.$cursor);
     }
 
     private function incrementCursor(): int
     {
         try {
-            return (int) Cache::increment(self::CURSOR_CACHE_KEY);
+            return (int) Cache::increment($this->cacheKeys->scope(self::CURSOR_CACHE_KEY));
         } catch (BadMethodCallException) {
             $cursor = $this->latestCursor() + 1;
 
-            Cache::put(self::CURSOR_CACHE_KEY, $cursor, now()->addMinutes(self::CACHE_TTL_MINUTES));
+            Cache::put($this->cacheKeys->scope(self::CURSOR_CACHE_KEY), $cursor, now()->addMinutes(self::CACHE_TTL_MINUTES));
 
             return $cursor;
         }

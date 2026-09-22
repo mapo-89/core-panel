@@ -348,7 +348,35 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
                 [PHP_BINARY, 'artisan', 'core-panel:tenancy:install', '--force'],
                 600,
             );
+            $this->registerLocalAddonMigrationPaths($localAddon);
         });
+    }
+
+    /**
+     * @param  array{package:string, version:string, path:string}  $addon
+     */
+    private function registerLocalAddonMigrationPaths(array $addon): void
+    {
+        foreach ([
+            'host_paths' => 'database/migrations',
+            'tenant_paths' => 'database/tenant-migrations',
+        ] as $key => $relativePath) {
+            $path = $addon['path'].'/'.$relativePath;
+
+            if (! $this->files->isDirectory($path)) {
+                continue;
+            }
+
+            $configuredPaths = array_values(array_filter(
+                (array) config("core-panel.migrations.{$key}", []),
+                static fn (mixed $configuredPath): bool => is_string($configuredPath) && $configuredPath !== '',
+            ));
+
+            config()->set("core-panel.migrations.{$key}", array_values(array_unique([
+                ...$configuredPaths,
+                $path,
+            ])));
+        }
     }
 
     private function createAdminUser(CorePanelInstallOptions $options, Command $command): ?Model
@@ -405,9 +433,7 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
 
         if ($this->permissionTablesExist()) {
             $this->ensureSuperAdminAccess($command);
-            if ($user instanceof Authenticatable) {
-                $this->assignInstallerSuperAdminRole($user);
-            }
+            $this->assignInstallerSuperAdminRole($user);
         }
 
         $command->info(sprintf('Admin user ready: %s', $email));
@@ -580,7 +606,8 @@ final readonly class CorePanelInstaller implements CorePanelInstallerInterface
         }
 
         config()->set('l5-swagger.documentations.default.paths.annotations', [
-            base_path('app/OpenApi'),
+            dirname(__DIR__, 3).'/src/OpenApi',
+            ...is_dir(base_path('app/OpenApi')) ? [base_path('app/OpenApi')] : [],
         ]);
 
         try {

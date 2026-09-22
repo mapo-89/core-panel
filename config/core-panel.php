@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use CorePanel\Actions\Fortify\CreateNewUser;
+use CorePanel\Actions\Fortify\ResetUserPassword;
+use CorePanel\Actions\Fortify\UpdateUserPassword;
+use CorePanel\Actions\Fortify\UpdateUserProfileInformation;
 use CorePanel\Models\UserGroup;
 
 $env = static fn (string $key, string $legacyKey, mixed $default = null): mixed => env($key, env($legacyKey, $default));
@@ -13,11 +17,25 @@ return [
     'user_group_model' => $env('USER_GROUP_MODEL', 'CORE_PANEL_USER_GROUP_MODEL', UserGroup::class),
     'route_prefix' => $env('ROUTE_PREFIX', 'CORE_PANEL_ROUTE_PREFIX', 'admin'),
     'middleware' => ['web', 'auth'],
+    'presence' => [
+        'enabled' => $env('PRESENCE_ENABLED', 'CORE_PANEL_PRESENCE_ENABLED', true),
+    ],
     'api' => [
         'version' => $env('API_VERSION', 'CORE_PANEL_API_VERSION', 'v1'),
     ],
 
+    'migrations' => [
+        'host_paths' => [],
+        'tenant_paths' => [],
+    ],
+
     'auth' => [
+        'actions' => [
+            'create_user' => CreateNewUser::class,
+            'reset_password' => ResetUserPassword::class,
+            'update_password' => UpdateUserPassword::class,
+            'update_profile' => UpdateUserProfileInformation::class,
+        ],
         'email_verification_enabled' => $env('EMAIL_VERIFICATION_ENABLED', 'CORE_PANEL_EMAIL_VERIFICATION_ENABLED', true),
         'password_reset_enabled' => $env('PASSWORD_RESET_ENABLED', 'CORE_PANEL_PASSWORD_RESET_ENABLED', true),
         'registration_enabled' => $env('REGISTRATION_ENABLED', 'CORE_PANEL_REGISTRATION_ENABLED', false),
@@ -92,6 +110,10 @@ return [
 
     'horizon' => [
         'enabled' => $env('HORIZON_ENABLED', 'CORE_PANEL_HORIZON_ENABLED', true),
+        'slack' => [
+            'channel' => $env('HORIZON_SLACK_CHANNEL', 'CORE_PANEL_HORIZON_SLACK_CHANNEL'),
+            'webhook_url' => $env('HORIZON_SLACK_WEBHOOK_URL', 'CORE_PANEL_HORIZON_SLACK_WEBHOOK_URL'),
+        ],
     ],
 
     'administration' => [

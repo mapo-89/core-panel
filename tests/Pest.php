@@ -21,6 +21,11 @@ afterEach(function (): void {
     resetCorePanelTestEnvironment();
 });
 
+function corePanelTestTemporaryPath(string $name): string
+{
+    return TestCase::temporaryPath($name);
+}
+
 function corePanelTestbenchDatabaseAvailable(): bool
 {
     return extension_loaded('pdo_sqlite') && in_array('sqlite', PDO::getAvailableDrivers(), true);

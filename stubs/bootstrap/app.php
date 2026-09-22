@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\TrackUserPresence;
 use CorePanel\Http\Middleware\AllowBlobImageCsp;
 use CorePanel\Http\Middleware\ApplyCorePanelRuntimeSettings;
 use CorePanel\Http\Middleware\CheckPermission;
 use CorePanel\Http\Middleware\ResolveCorePanelLocale;
 use CorePanel\Http\Middleware\SecurityHeaders;
 use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
+use CorePanel\Http\Middleware\TrackUserPresence;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -38,6 +38,9 @@ $tenantSessionCookieMiddlewareClass = 'CorePanelTenancy\\Http\\Middleware\\SetTe
 $tenantSessionCookieMiddleware = class_exists($tenantSessionCookieMiddlewareClass)
     ? [$tenantSessionCookieMiddlewareClass]
     : [];
+$presenceMiddleware = class_exists(App\Http\Middleware\TrackUserPresence::class)
+    ? App\Http\Middleware\TrackUserPresence::class
+    : TrackUserPresence::class;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -46,7 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: $consoleRoutes,
         health: $healthRoute,
     )
-    ->withMiddleware(function (Middleware $middleware) use ($tenantSessionCookieMiddleware): void {
+    ->withMiddleware(function (Middleware $middleware) use ($presenceMiddleware, $tenantSessionCookieMiddleware): void {
         $middleware->redirectUsersTo(static fn (Request $request): string => '/'.trim((string) config('core-panel.route_prefix', 'admin'), '/'));
         $middleware->redirectGuestsTo(static fn (Request $request): ?string => $request->expectsJson() ? null : '/login');
         $middleware->alias([
@@ -61,7 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
             ResolveCorePanelLocale::class,
             ShareLocaleDataWithInertia::class,
-            TrackUserPresence::class,
+            $presenceMiddleware,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
