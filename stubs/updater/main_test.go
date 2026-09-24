@@ -27,6 +27,39 @@ func TestNewUpdateAttemptIDReturnsUUID(t *testing.T) {
 	}
 }
 
+func TestStatusReturnsCachedStateWithoutInspectingImages(t *testing.T) {
+	originalCommandOutputFunc := commandOutputFunc
+	defer func() {
+		commandOutputFunc = originalCommandOutputFunc
+	}()
+
+	commandCalled := false
+	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
+		commandCalled = true
+
+		return nil, errors.New("status must not run external commands")
+	}
+
+	server := &Server{
+		config: Config{StatePath: filepath.Join(t.TempDir(), "state.json")},
+		state: State{
+			Images:          []ImageState{{Image: "app:test", Service: "app"}},
+			Logs:            []LogEntry{},
+			UpdateAvailable: true,
+		},
+	}
+	response := httptest.NewRecorder()
+
+	server.status(response, httptest.NewRequest("GET", "/status", nil))
+
+	if commandCalled {
+		t.Fatal("expected status to return cached state without inspecting images")
+	}
+	if response.Code != 200 || !strings.Contains(response.Body.String(), `"service":"app"`) {
+		t.Fatalf("expected cached status response, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestCheckPublishesStartLogBeforePullCompletes(t *testing.T) {
 	originalCommandOutputFunc := commandOutputFunc
 	defer func() {

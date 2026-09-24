@@ -399,15 +399,6 @@ func (server *Server) status(response http.ResponseWriter, request *http.Request
 		return
 	}
 
-	images, err := server.collectImages()
-	if err == nil {
-		server.state.Images = images
-		server.state.UpdateAvailable = anyUpdateAvailable(images)
-		server.saveState()
-	} else {
-		server.addLog("error", fmt.Sprintf("status failed: %s", err.Error()))
-	}
-
 	writeJSON(response, http.StatusOK, server.stateForAttempt(""))
 }
 
