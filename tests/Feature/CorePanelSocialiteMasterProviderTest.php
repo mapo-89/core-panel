@@ -18,6 +18,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Passport\HasApiTokens;
 use Laravel\Socialite\Contracts\Factory as SocialiteFactoryContract;
@@ -257,6 +258,48 @@ beforeEach(function (): void {
 
     app(SettingsRepository::class)->set('auth', 'social_master_provider', 'microsoft', 'text', false);
     app(SettingsRepository::class)->set('auth', 'social_microsoft_enabled', true, 'boolean', false);
+});
+
+it('logs safe diagnostics when the socialite provider callback fails', function (): void {
+    Log::spy();
+
+    app()->instance(SocialiteFactoryContract::class, new class implements SocialiteFactoryContract
+    {
+        public function driver($driver = null)
+        {
+            return new class
+            {
+                public function user(): never
+                {
+                    throw new RuntimeException(
+                        'Token exchange failed: {"error":"invalid_client","error_description":"AADSTS7000215 secret-do-not-log"}',
+                    );
+                }
+            };
+        }
+    });
+
+    $session = app('session.store');
+    $session->start();
+
+    $request = Request::create(route('socialite.callback', ['provider' => 'microsoft']), 'GET');
+    $request->setLaravelSession($session);
+
+    $response = app(SocialiteCallbackController::class)->__invoke($request, 'microsoft');
+
+    expect($response->getTargetUrl())->toBe(url('/login'))
+        ->and($session->get('errors')->first('socialite'))->toBe(__('page-auth.socialite.login_failed'));
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->with('Socialite provider callback failed.', Mockery::on(
+            static fn (array $context): bool => $context === [
+                'provider' => 'microsoft',
+                'exception' => RuntimeException::class,
+                'oauth_error' => 'invalid_client',
+                'aadsts_code' => 'AADSTS7000215',
+            ],
+        ));
 });
 
 it('redirects master-provider link conflicts to the confirmation flow when the provider email belongs to another user', function (): void {
