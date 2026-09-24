@@ -2,6 +2,7 @@ import { computed, unref, type Ref } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 
 import { useCan } from '@core-panel/composables/useCan'
+import type { PageNavigationLoadingState } from '@core-panel/composables/usePageNavigationPending'
 
 export type MenuBuilderItem = {
     anyPermissions?: string[]
@@ -12,6 +13,7 @@ export type MenuBuilderItem = {
     icon?: string
     key: string
     label: string
+    loadingState?: PageNavigationLoadingState
     match?: string[]
     permission?: string
     query?: Record<string, string>
