@@ -30,12 +30,20 @@ if ! psql \
     -d postgres \
     -Atqc "SELECT 1 FROM pg_database WHERE datname = '${DB_DATABASE:-core_panel}'" | grep -q 1
 then
-    psql \
+    if ! psql \
         -h "${DB_HOST:-postgres}" \
         -p "${DB_PORT:-5432}" \
         -U "${DB_USERNAME:-core_panel}" \
         -d postgres \
         -c "CREATE DATABASE \"${DB_DATABASE:-core_panel}\""
+    then
+        psql \
+            -h "${DB_HOST:-postgres}" \
+            -p "${DB_PORT:-5432}" \
+            -U "${DB_USERNAME:-core_panel}" \
+            -d postgres \
+            -Atqc "SELECT 1 FROM pg_database WHERE datname = '${DB_DATABASE:-core_panel}'" | grep -q 1
+    fi
 fi
 
 if ! psql \
@@ -45,12 +53,20 @@ if ! psql \
     -d postgres \
     -Atqc "SELECT 1 FROM pg_database WHERE datname = '${DB_DATABASE_TEST:-core_panel_test}'" | grep -q 1
 then
-    psql \
+    if ! psql \
         -h "${DB_HOST:-postgres}" \
         -p "${DB_PORT:-5432}" \
         -U "${DB_USERNAME:-core_panel}" \
         -d postgres \
         -c "CREATE DATABASE \"${DB_DATABASE_TEST:-core_panel_test}\""
+    then
+        psql \
+            -h "${DB_HOST:-postgres}" \
+            -p "${DB_PORT:-5432}" \
+            -U "${DB_USERNAME:-core_panel}" \
+            -d postgres \
+            -Atqc "SELECT 1 FROM pg_database WHERE datname = '${DB_DATABASE_TEST:-core_panel_test}'" | grep -q 1
+    fi
 fi
 
 php artisan optimize:clear

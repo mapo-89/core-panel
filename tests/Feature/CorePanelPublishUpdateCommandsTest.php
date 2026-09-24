@@ -2047,14 +2047,14 @@ DOCKERFILE.PHP_EOL.PHP_EOL, '', $currentFiles['Dockerfile']),
             [
                 '    user: root'.PHP_EOL,
                 '    pull_policy: never'.PHP_EOL,
-                'UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}',
-                '- ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro',
+                'UPDATER_COMPOSE_FILES: docker-compose.yml,docker-compose.dev.yml',
+                'UPDATER_COMPOSE_WORKDIR: /workspace',
             ],
             [
                 '',
                 '',
+                'UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-auto}',
                 'UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-auto}',
-                '- ./:/workspace:ro',
             ],
             str_replace([
                 <<<'COMPOSE'
@@ -2102,6 +2102,41 @@ COMPOSE.PHP_EOL,
             ->and(file_get_contents($backups[0]))->toBe($previousFiles[$relativePath])
             ->and($manifest['files'][$relativePath]['destination_hash'] ?? null)->toBe(hash('sha256', $currentContents));
     }
+});
+
+it('upgrades the development compose scaffold with container-safe updater paths', function (): void {
+    $basePath = makePublishBasePath('development-updater-container-paths');
+    $relativePath = 'docker-compose.dev.yml';
+    $currentContents = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+    $previousContents = str_replace(
+        [
+            'UPDATER_COMPOSE_FILES: docker-compose.yml,docker-compose.dev.yml',
+            'UPDATER_COMPOSE_WORKDIR: /workspace',
+            '- ./:/workspace:ro',
+        ],
+        [
+            'UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-auto}',
+            'UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}',
+            '- ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro',
+        ],
+        $currentContents,
+    );
+
+    expect(hash('sha256', $previousContents))
+        ->toBe('30fa0802a5decceb07129f307cbbdccaaa834bac35abba3ab80d0ed3228901e6');
+
+    mkdir($basePath, 0777, true);
+    file_put_contents($basePath.'/'.$relativePath, $previousContents);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+    expect(file_get_contents($basePath.'/'.$relativePath))->toBe($currentContents)
+        ->and($backups)->not->toBeEmpty()
+        ->and(file_get_contents($backups[0]))->toBe($previousContents);
 });
 
 it('upgrades the exact previous production compose scaffolds with and without package environment merge manifests', function (): void {

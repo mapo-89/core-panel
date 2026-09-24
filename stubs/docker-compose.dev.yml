@@ -101,9 +101,9 @@ services:
     pull_policy: never
     environment:
       UPDATER_ADDR: :8080
-      UPDATER_COMPOSE_FILES: ${SYSTEM_UPDATER_COMPOSE_FILES:-auto}
+      UPDATER_COMPOSE_FILES: docker-compose.yml,docker-compose.dev.yml
       UPDATER_COMPOSE_PROJECT_NAME: ${SYSTEM_UPDATER_COMPOSE_PROJECT_NAME:-auto}
-      UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}
+      UPDATER_COMPOSE_WORKDIR: /workspace
       UPDATER_FORCE_SELF_UPDATE_AVAILABLE: ${SYSTEM_UPDATER_FORCE_SELF_UPDATE_AVAILABLE:-false}
       UPDATER_RUNTIME_SERVICES: ${SYSTEM_UPDATER_RUNTIME_SERVICES:-app,horizon,scheduler}
       UPDATER_SELF_SERVICE: ${SYSTEM_UPDATER_SELF_SERVICE:-system-updater}
@@ -113,7 +113,7 @@ services:
     ports:
       - "${SYSTEM_UPDATER_PORT:-8080}:8080"
     volumes:
-      - ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro
+      - ./:/workspace:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - system-updater-data:/data
 
