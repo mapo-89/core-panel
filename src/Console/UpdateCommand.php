@@ -56,6 +56,7 @@ final class UpdateCommand extends Command
         $withAddonUpdates = (bool) $this->option('with-addon-updates');
         $withBreakingChanges = (bool) $this->option('breaking-changes');
         $localScaffoldSync = $this->shouldFullySynchronizeScaffolds($basePath);
+        $migrateUnifiedRuntimeServices = $this->stubs->hasPendingUnifiedRegistryMigration($basePath);
         $tags = PublishTag::updateTags();
         $result = $this->emptyPublishResult($basePath);
         $vendorFirstResult = $this->emptyPublishResult($basePath);
@@ -153,7 +154,7 @@ final class UpdateCommand extends Command
             onlyManagedChanges: ! $localScaffoldSync,
         );
         $this->appServiceProviderMerger->merge($basePath);
-        $this->syncEnvironmentDefaults($basePath);
+        $this->syncEnvironmentDefaults($basePath, $migrateUnifiedRuntimeServices);
 
         if ($withAddonUpdates) {
             $addonExitCode = $this->updateInstalledOptionalAddons(
@@ -317,7 +318,7 @@ final class UpdateCommand extends Command
             || app()->bound('command.core-panel.tenancy.update');
     }
 
-    private function syncEnvironmentDefaults(?string $basePath): void
+    private function syncEnvironmentDefaults(?string $basePath, bool $migrateUnifiedRuntimeServices): void
     {
         $root = $basePath ?? base_path();
 
@@ -325,7 +326,10 @@ final class UpdateCommand extends Command
             return;
         }
 
-        $this->environment->sync($basePath);
+        $this->environment->sync(
+            basePath: $basePath,
+            migrateLegacyUpdaterRuntimeServices: $migrateUnifiedRuntimeServices ?: null,
+        );
     }
 
     private function runMigrations(?string $basePath): void

@@ -1523,6 +1523,7 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
     $registryCompose = file_get_contents(__DIR__.'/../../stubs/docker-compose.registry.yml');
     $dockerignore = file_get_contents(__DIR__.'/../../stubs/.dockerignore');
     $phpEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/bin/php-entrypoint.sh');
+    $developmentEnvironment = file_get_contents(__DIR__.'/../../stubs/.docker/bin/prepare-local-environment.sh');
     $developmentAppEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/bin/start-dev-app.sh');
     $developmentArtisanEntrypoint = file_get_contents(__DIR__.'/../../stubs/.docker/bin/start-dev-artisan.sh');
     $nginx = file_get_contents(__DIR__.'/../../stubs/.docker/nginx/default.conf');
@@ -1620,8 +1621,12 @@ it('ships docker scaffolding for package development and skeleton app runtime', 
         ->and(substr_count($developmentCompose, '    user: root'))->toBe(1)
         ->and(substr_count($developmentCompose, '    pull_policy: never'))->toBe(4)
         ->and($developmentCompose)->toContain('- ./:/var/www/html')
-        ->and($developmentCompose)->toContain('- ./:${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}:ro')
-        ->and($developmentCompose)->toContain('UPDATER_COMPOSE_WORKDIR: ${SYSTEM_UPDATER_COMPOSE_WORKDIR:-/workspace}')
+        ->and($developmentCompose)->toContain('- ./:/workspace:ro')
+        ->and($developmentCompose)->toContain('UPDATER_COMPOSE_FILES: docker-compose.yml,docker-compose.dev.yml')
+        ->and($developmentCompose)->toContain('UPDATER_COMPOSE_WORKDIR: /workspace')
+        ->and($developmentEnvironment)->toContain('if ! psql')
+        ->and(substr_count($developmentEnvironment, 'SELECT 1 FROM pg_database WHERE datname ='))
+        ->toBe(4)
         ->and($developmentCompose)->toContain('/var/www/html/.docker/bin/start-dev-artisan.sh')
         ->and($developmentCompose)->not->toContain("\n  nginx:")
         ->and($developmentCompose)->toContain('system-updater:')

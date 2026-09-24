@@ -331,6 +331,7 @@ final readonly class ScaffoldsCorePanelStubs
             '92b9b0142fc76cb9341ef68efc99477e59d6afd02c93d01011aaa626bcc4d90a',
         ],
         'docker-compose.dev.yml' => [
+            '30fa0802a5decceb07129f307cbbdccaaa834bac35abba3ab80d0ed3228901e6',
             '18b871d6e4d52e607cabff4329c3bbb32a89f6b3a3a3a6c4f86474b779e7e915',
             '88c39324b28df031794498e2bd4e9e374a5b2a5728e93a78f8cb6621f95d22fd',
             '4f0aecf94e0392c234d6ccd313858e9cbe26ea8306492bf55516cc7c4b449660',
