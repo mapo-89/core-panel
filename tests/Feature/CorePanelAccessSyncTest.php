@@ -7,7 +7,9 @@ use CorePanel\Domain\Permission\Actions\ResyncAccessMatrixAction;
 use CorePanel\Support\Permissions\CorePanelAccess;
 use CorePanel\Support\Permissions\PermissionService;
 use CorePanel\Tests\FakeUser;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -82,6 +84,25 @@ it('fresh resynchronization removes managed role permission drift', function ():
     $adminRole->refresh()->load('permissions');
 
     expect($adminRole->permissions->pluck('name')->all())->not->toContain('roles.delete');
+});
+
+it('recovers from a stale permission cache after permissions are imported', function (): void {
+    Permission::findOrCreate('database-backups.update', 'web');
+
+    $checks = 0;
+    $user = Mockery::mock(Authenticatable::class);
+    $user->shouldReceive('can')
+        ->twice()
+        ->with('database-backups.update')
+        ->andReturnUsing(function () use (&$checks): bool {
+            if ($checks++ === 0) {
+                throw PermissionDoesNotExist::create('database-backups.update', 'web');
+            }
+
+            return true;
+        });
+
+    expect(app(PermissionService::class)->userHas($user, 'database-backups.update'))->toBeTrue();
 });
 
 it('counts assigned role users through the string-based permission pivot for uuid user models', function (): void {
