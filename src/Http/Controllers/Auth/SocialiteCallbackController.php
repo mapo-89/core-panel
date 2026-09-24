@@ -64,7 +64,12 @@ final class SocialiteCallbackController extends Controller
 
         try {
             $providerUser = Socialite::driver($provider)->user();
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            Log::warning('Socialite provider callback failed.', [
+                'provider' => $provider,
+                ...$this->safeProviderFailureContext($exception),
+            ]);
+
             return redirect()
                 ->to('/login')
                 ->withErrors(['socialite' => __('page-auth.socialite.login_failed')]);
@@ -93,6 +98,27 @@ final class SocialiteCallbackController extends Controller
         } catch (DecryptException $exception) {
             return $this->handleBrokenMicrosoftConnectionDuringAuthentication($request, $provider, $exception);
         }
+    }
+
+    /**
+     * Return diagnostic fields that cannot expose authorization codes, tokens, or client secrets.
+     *
+     * @return array{exception: class-string<Throwable>, oauth_error?: string, aadsts_code?: string}
+     */
+    private function safeProviderFailureContext(Throwable $exception): array
+    {
+        $context = ['exception' => $exception::class];
+        $message = $exception->getMessage();
+
+        if (preg_match('/["\\\']error["\\\']\s*:\s*["\\\']([a-z0-9_.-]+)["\\\']/i', $message, $match) === 1) {
+            $context['oauth_error'] = $match[1];
+        }
+
+        if (preg_match('/\bAADSTS\d+\b/i', $message, $match) === 1) {
+            $context['aadsts_code'] = strtoupper($match[0]);
+        }
+
+        return $context;
     }
 
     public function showConflict(Request $request, string $provider): Response|RedirectResponse
