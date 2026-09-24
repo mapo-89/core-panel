@@ -1,7 +1,7 @@
 {
-    "release_version": "1.6.0",
-    "display_version": "1.6.0 (1fcf25b)",
-    "image_version": "1.6.0-1fcf25b",
-    "commit": "1fcf25b",
-    "commit_date": "2026-09-22T21:31:30Z"
+    "release_version": "1.6.1",
+    "display_version": "1.6.1 (bee6310)",
+    "image_version": "1.6.1-bee6310",
+    "commit": "bee6310",
+    "commit_date": "2026-09-24T09:17:16Z"
 }
