@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { progress, router, usePage } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { trans } from 'laravel-vue-i18n'
 import PrimePopover from 'primevue/popover'
 import { useToast } from 'primevue/usetoast'
@@ -699,7 +699,6 @@ async function runCheck(): Promise<void> {
     }
 
     checkStarting.value = true
-    progress.start()
     void pollCheckLogs()
     toast.add({
         detail: trans('system_updates.check_started'),
@@ -757,7 +756,6 @@ async function runCheck(): Promise<void> {
     } finally {
         checkStarting.value = false
         stopCheckLogsPolling()
-        progress.finish()
     }
 }
 

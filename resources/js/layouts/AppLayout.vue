@@ -15,11 +15,13 @@ import AppToast from '@core-panel/components/AppToast.vue'
 import SocialAvatarSyncDialog from '@core-panel/components/Auth/SocialAvatarSyncDialog.vue'
 import { useColorMode } from '@core-panel/composables/useColorMode'
 import { usePresenceRuntime } from '@core-panel/composables/usePresenceRealtime'
+import { usePageNavigationPending } from '@core-panel/composables/usePageNavigationPending'
 import { useRuntimeUiSettings } from '@core-panel/composables/useRuntimeUiSettings'
 import { useSidebar } from '@core-panel/composables/useSidebar'
 import AppFooter from '@core-panel/layouts/components/AppFooter.vue'
 import AppHeader from '@core-panel/layouts/components/AppHeader.vue'
 import AppPageHeader from '@core-panel/layouts/components/AppPageHeader.vue'
+import PageNavigationLoadingState from '@core-panel/layouts/components/PageNavigationLoadingState.vue'
 import AppSidebar from '@core-panel/layouts/components/AppSidebar.vue'
 
 const props = withDefaults(
@@ -84,6 +86,25 @@ const authUserId = computed(() => page.props.auth?.user?.id ?? null)
 const authUserPresenceLastSeenAt = computed(
     () => page.props.auth?.user?.presenceLastSeenAt ?? null,
 )
+const {
+    loadingState: pageNavigationLoadingState,
+    pending: pageNavigationPending,
+    presentation: pageNavigationPresentation,
+} = usePageNavigationPending()
+const pageHeaderTitle = computed(() => {
+    const key = pageNavigationPresentation.value.titleKey
+
+    return pageNavigationPending.value && key ? trans(key) : props.title
+})
+const pageHeaderSubtitle = computed(() => {
+    if (!pageNavigationPending.value) {
+        return props.subtitle
+    }
+
+    const key = pageNavigationPresentation.value.subtitleKey
+
+    return key ? trans(key) : ''
+})
 
 usePresenceRuntime(authUserId, authUserPresenceLastSeenAt)
 
@@ -276,16 +297,44 @@ const socialAvatarPrompt = computed(() => page.props.flash?.socialAvatarPrompt)
                 class="app-main flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pt-[4.5rem] pb-8 md:px-6 lg:px-8"
             >
                 <AppPageHeader
-                    :back-url="props.backUrl"
-                    :subtitle="props.subtitle"
-                    :title="props.title"
+                    :back-url="pageNavigationPending ? false : props.backUrl"
+                    :subtitle="pageHeaderSubtitle"
+                    :title="pageHeaderTitle"
                 >
                     <template #actions>
-                        <slot name="page-actions" />
+                        <div
+                            v-if="
+                                pageNavigationPending &&
+                                pageNavigationPresentation.actionCount > 0
+                            "
+                            aria-hidden="true"
+                            class="flex items-center gap-2"
+                        >
+                            <Skeleton
+                                v-for="index in pageNavigationPresentation.actionCount"
+                                :key="index"
+                                border-radius="var(--cp-control-radius, var(--cp-radius-md))"
+                                height="2.5rem"
+                                :width="
+                                    index ===
+                                    pageNavigationPresentation.actionCount
+                                        ? '8.5rem'
+                                        : '7rem'
+                                "
+                            />
+                        </div>
+                        <slot
+                            v-else-if="!pageNavigationPending"
+                            name="page-actions"
+                        />
                     </template>
                 </AppPageHeader>
 
-                <slot />
+                <PageNavigationLoadingState
+                    v-if="pageNavigationPending"
+                    :variant="pageNavigationLoadingState"
+                />
+                <slot v-else />
             </main>
 
             <AppFooter v-if="showAppFooter" />

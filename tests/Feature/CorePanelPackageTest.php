@@ -3704,6 +3704,55 @@ it('resets repeated flash toast deduplication when a new inertia visit starts', 
         ->and($layout)->toContain('removeVisitStartListener?.()');
 });
 
+it('shows a skeleton while full page inertia get navigation is pending', function (): void {
+    $layout = file_get_contents(__DIR__.'/../../resources/js/layouts/AppLayout.vue');
+    $dataTableLoadingState = file_get_contents(__DIR__.'/../../resources/js/components/TableBuilder/DataTableLoadingState.vue');
+    $loadingState = file_get_contents(__DIR__.'/../../resources/js/layouts/components/PageNavigationLoadingState.vue');
+    $navigation = file_get_contents(__DIR__.'/../../resources/js/composables/usePageNavigationPending.ts');
+
+    expect($layout)
+        ->toContain("import { usePageNavigationPending } from '@core-panel/composables/usePageNavigationPending'")
+        ->toContain('loadingState: pageNavigationLoadingState')
+        ->toContain('pending: pageNavigationPending')
+        ->toContain('presentation: pageNavigationPresentation')
+        ->toContain('const pageHeaderTitle = computed(() => {')
+        ->toContain('const pageHeaderSubtitle = computed(() => {')
+        ->toContain(':title="pageHeaderTitle"')
+        ->toContain(':subtitle="pageHeaderSubtitle"')
+        ->toContain('pageNavigationPresentation.actionCount > 0')
+        ->toContain('v-if="pageNavigationPending"')
+        ->toContain(':variant="pageNavigationLoadingState"')
+        ->toContain('<slot v-else />')
+        ->and($dataTableLoadingState)
+        ->toContain('class="grid gap-0 cp-datatable"')
+        ->toContain('cp-datatable__sticky-header-row')
+        ->and($loadingState)
+        ->toContain("variant === 'side-tabs'")
+        ->toContain("variant === 'side-tabs-cards'")
+        ->toContain("variant === 'files'")
+        ->toContain("variant === 'dashboard'")
+        ->toContain('DataTableLoadingState')
+        ->toContain('<Skeleton')
+        ->and($navigation)
+        ->toContain("removeBeforeListener = router.on('before'")
+        ->toContain("removeFinishListener = router.on('finish'")
+        ->toContain("String(visit.method ?? 'get').toLowerCase() !== 'get'")
+        ->toContain('visit.prefetch')
+        ->toContain('target.pathname !== current.pathname')
+        ->toContain("'/admin/users'")
+        ->toContain("titleKey: 'page-users.management_title'")
+        ->toContain("subtitleKey: 'page-users.index_description'")
+        ->toContain('actionCount: 2')
+        ->toContain("'/admin/settings'")
+        ->toContain("loadingState: 'side-tabs-cards'")
+        ->toContain("loadingState: 'side-tabs'")
+        ->toContain("loadingState: 'files'")
+        ->toContain('pending.value = true')
+        ->toContain('pending.value = false')
+        ->toContain('removeBeforeListener?.()')
+        ->toContain('removeFinishListener?.()');
+});
+
 it('does not ship unresolved core-panel users route imports in publishable core-panel vue assets', function (): void {
     $matches = [];
     $directories = [
@@ -3971,9 +4020,9 @@ it('ships the persistent system update restart and completion experience', funct
         ->toContain("restartDialogState.value = 'failed'")
         ->toContain('useSystemRestartPolling(props.routes.health, {')
         ->toContain('const checkStarting = ref(false)')
-        ->toContain("import { progress, router, usePage } from '@inertiajs/vue3'")
-        ->toContain('progress.start()')
-        ->toContain('progress.finish()')
+        ->toContain("import { router, usePage } from '@inertiajs/vue3'")
+        ->not->toContain('progress.start()')
+        ->not->toContain('progress.finish()')
         ->toContain("detail: trans('system_updates.check_started')")
         ->toContain('const response = await fetch(props.routes.check, {')
         ->toContain('statusPayload.value = body.status')
