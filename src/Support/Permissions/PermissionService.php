@@ -12,6 +12,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 use Spatie\Permission\PermissionRegistrar;
 
 final class PermissionService
@@ -22,7 +23,44 @@ final class PermissionService
             return true;
         }
 
-        return (bool) $user->can($permission);
+        try {
+            return (bool) $user->can($permission);
+        } catch (PermissionDoesNotExist) {
+            $this->resetCache();
+
+            if (! $this->permissionExists($permission)) {
+                return false;
+            }
+
+            try {
+                return (bool) $user->can($permission);
+            } catch (PermissionDoesNotExist) {
+                return false;
+            }
+        }
+    }
+
+    public function userHasAssignedPermission(Authenticatable $user, string $permission): bool
+    {
+        if (! method_exists($user, 'hasPermissionTo')) {
+            return $this->userHas($user, $permission);
+        }
+
+        try {
+            return (bool) $user->hasPermissionTo($permission);
+        } catch (PermissionDoesNotExist) {
+            $this->resetCache();
+
+            if (! $this->permissionExists($permission)) {
+                return false;
+            }
+
+            try {
+                return (bool) $user->hasPermissionTo($permission);
+            } catch (PermissionDoesNotExist) {
+                return false;
+            }
+        }
     }
 
     public function permissionExists(string $permission): bool
