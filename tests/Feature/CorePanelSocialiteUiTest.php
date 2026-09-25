@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use GuzzleHttp\Client;
 
 it('ships social login buttons in the login page and linked account actions in security settings', function (): void {
     $login = file_get_contents(__DIR__.'/../../resources/js/pages/Auth/Login.vue');
@@ -96,6 +97,7 @@ it('ships socialite scaffolding for services configuration and environment varia
         ->and($services)->toContain("'microsoft' => [")
         ->and($services)->toContain("'oidc' => [")
         ->and($environment)->toContain('SOCIAL_GITHUB_ENABLED=')
+        ->and($environment)->toContain('MICROSOFT_FORCE_TLS12=false')
         ->and($environment)->toContain('GOOGLE_CLIENT_ID=')
         ->and($environment)->toContain('OIDC_ISSUER=')
         ->and($platformRoutes)->toContain("Route::get('/auth/{provider}/redirect'")
@@ -109,3 +111,49 @@ it('ships socialite scaffolding for services configuration and environment varia
         ->and($platformRoutes)->toContain("Route::get('/auth/{provider}/conflict'")
         ->and($platformRoutes)->toContain("Route::post('/auth/{provider}/resolve-conflict'");
 });
+
+it('configures Microsoft TLS compatibility without disabling certificate verification', function (?string $setting, bool $forceTls12): void {
+    $key = 'MICROSOFT_FORCE_TLS12';
+    $originalEnv = $_ENV[$key] ?? null;
+    $originalServer = $_SERVER[$key] ?? null;
+    $originalProcess = getenv($key);
+
+    try {
+        if ($setting === null) {
+            unset($_ENV[$key], $_SERVER[$key]);
+            putenv($key);
+        } else {
+            $_ENV[$key] = $setting;
+            $_SERVER[$key] = $setting;
+            putenv($key.'='.$setting);
+        }
+
+        $services = require __DIR__.'/../../stubs/config/services.php';
+        $client = new Client($services['microsoft']['guzzle']);
+
+        expect($client->getConfig('verify'))->toBeTrue();
+
+        if ($forceTls12) {
+            expect($client->getConfig('curl')[CURLOPT_SSLVERSION])
+                ->toBe(CURL_SSLVERSION_TLSv1_2 | CURL_SSLVERSION_MAX_TLSv1_2);
+        } else {
+            expect($client->getConfig('curl') ?? [])->not->toHaveKey(CURLOPT_SSLVERSION);
+        }
+    } finally {
+        unset($_ENV[$key], $_SERVER[$key]);
+        putenv($key);
+        if ($originalEnv !== null) {
+            $_ENV[$key] = $originalEnv;
+        }
+        if ($originalServer !== null) {
+            $_SERVER[$key] = $originalServer;
+        }
+        if ($originalProcess !== false) {
+            putenv($key.'='.$originalProcess);
+        }
+    }
+})->with([
+    'default negotiation' => [null, false],
+    'explicitly disabled' => ['false', false],
+    'TLS 1.2 compatibility' => ['true', true],
+]);

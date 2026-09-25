@@ -128,6 +128,10 @@ func main() {
 	server := &Server{config: config}
 	server.state = server.loadState()
 
+	if err := server.initializeImages(); err != nil {
+		log.Printf("initial image inventory unavailable: %v", err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /status", server.withAuth(server.status))
 	mux.HandleFunc("POST /check", server.withAuth(server.check))
@@ -736,6 +740,16 @@ func (server *Server) logs(response http.ResponseWriter, request *http.Request) 
 	writeJSON(response, http.StatusOK, map[string][]LogEntry{"entries": server.state.Logs})
 }
 
+func (server *Server) initializeImages() error {
+	images, err := server.collectImages()
+	if err != nil {
+		return err
+	}
+	server.state.Images = images
+	server.state.UpdateAvailable = anyUpdateAvailable(images)
+	return nil
+}
+
 func (server *Server) collectImages() ([]ImageState, error) {
 	services, err := server.composeConfig()
 	if err != nil {
@@ -750,7 +764,13 @@ func (server *Server) collectImages() ([]ImageState, error) {
 	servicesByImageGroup := make(map[imageGroup][]string)
 	for service, definition := range services.Services {
 		if definition.Image == "" {
-			continue
+			definition.Image, err = server.currentImage(service)
+			if err != nil {
+				return nil, fmt.Errorf("inspect image for service %q: %w", service, err)
+			}
+			if definition.Image == "" {
+				continue
+			}
 		}
 
 		group := imageGroup{
@@ -857,6 +877,25 @@ func (server *Server) composeConfig() (composeConfig, error) {
 	}
 
 	return config, nil
+}
+
+func (server *Server) currentImage(service string) (string, error) {
+	output, err := server.composeOutput("ps", "-q", service)
+	if err != nil {
+		return "", err
+	}
+
+	containerID := strings.TrimSpace(string(output))
+	if containerID == "" {
+		return "", nil
+	}
+
+	image, err := commandOutputFunc(server.config.Workdir, "docker", "inspect", "--format", "{{.Config.Image}}", containerID)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(image)), nil
 }
 
 func (server *Server) currentDigest(service string) (string, error) {

@@ -20,6 +20,11 @@ return [
         'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
         'redirect' => env('MICROSOFT_REDIRECT_URI', '/auth/microsoft/callback'),
         'tenant' => env('MICROSOFT_TENANT', 'common'),
+        'guzzle' => env('MICROSOFT_FORCE_TLS12', false) ? [
+            'curl' => [
+                CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2 | CURL_SSLVERSION_MAX_TLSv1_2,
+            ],
+        ] : [],
     ],
 
     'oidc' => [

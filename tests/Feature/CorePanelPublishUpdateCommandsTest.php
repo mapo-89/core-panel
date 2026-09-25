@@ -2329,7 +2329,8 @@ it('creates the OIDC services scaffold when it is missing during an update', fun
 
     expect((string) file_get_contents($basePath.'/config/services.php'))
         ->toContain("'oidc' => [")
-        ->toContain("env('OIDC_ISSUER')");
+        ->toContain("env('OIDC_ISSUER')")
+        ->toContain("env('MICROSOFT_FORCE_TLS12', false)");
 });
 
 it('adopts an existing untracked services scaffold with the OIDC provider during a forced update', function (): void {
@@ -2357,6 +2358,7 @@ it('adopts an existing untracked services scaffold with the OIDC provider during
     expect((string) file_get_contents($target))
         ->toContain("'oidc' => [")
         ->toContain("env('OIDC_CLIENT_ID')")
+        ->toContain("env('MICROSOFT_FORCE_TLS12', false)")
         ->and($backups)->not->toBeEmpty()
         ->and((string) file_get_contents($backups[0]))->toBe($legacy)
         ->and($manifest['files']['config/services.php'] ?? null)->toBeArray();
@@ -4189,4 +4191,41 @@ it('refuses to remove customized unmanaged domain migrations', function (): void
 
     expect(file_get_contents($target))->toBe($customized)
         ->and(glob($basePath.'/.core-panel-backups/*/database/migrations/auth/'.basename($target)))->toBe([]);
+});
+
+it('updates a managed services scaffold while retaining the Microsoft TLS environment opt-in', function (): void {
+    $basePath = makePublishBasePath('microsoft-tls-services-upgrade');
+    $legacy = "<?php\n\nreturn ['microsoft' => []];\n";
+    seedScaffoldManifest($basePath, 'config/services.php', $legacy);
+    mkdir($basePath.'/config', 0777, true);
+    file_put_contents($basePath.'/config/services.php', $legacy);
+    file_put_contents($basePath.'/.env', "MICROSOFT_FORCE_TLS12=true\n");
+
+    $this->artisan('core-panel:update', ['--base-path' => $basePath])->assertExitCode(0);
+
+    expect(file_get_contents($basePath.'/config/services.php'))
+        ->toBe(file_get_contents(__DIR__.'/../../stubs/config/services.php'))
+        ->and(file_get_contents($basePath.'/.env'))
+        ->toContain('MICROSOFT_FORCE_TLS12=true')
+        ->not->toContain('MICROSOFT_FORCE_TLS12=false');
+
+    $backups = glob($basePath.'/.core-panel-backups/*/config/services.php');
+    expect($backups)->not->toBeEmpty()
+        ->and(file_get_contents($backups[0]))->toBe($legacy);
+});
+
+it('delivers the local image inventory updater during a package upgrade', function (): void {
+    $basePath = makePublishBasePath('local-image-inventory-updater');
+    $legacy = "package main\n\nfunc main() {}\n";
+    seedScaffoldManifest($basePath, 'updater/main.go', $legacy);
+    mkdir($basePath.'/updater', 0777, true);
+    file_put_contents($basePath.'/updater/main.go', $legacy);
+
+    $this->artisan('core-panel:update', ['--base-path' => $basePath])->assertExitCode(0);
+
+    expect(file_get_contents($basePath.'/updater/main.go'))
+        ->toBe(file_get_contents(__DIR__.'/../../stubs/updater/main.go'));
+    $backups = glob($basePath.'/.core-panel-backups/*/updater/main.go');
+    expect($backups)->not->toBeEmpty()
+        ->and(file_get_contents($backups[0]))->toBe($legacy);
 });

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -711,5 +714,91 @@ func TestSelfUpdateHelperDoesNotConfirmFailedCompose(t *testing.T) {
 	}
 	if _, err := os.Stat(selfUpdateHeartbeatPath(statePath)); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected helper heartbeat to be removed after failure, got %v", err)
+	}
+}
+
+func TestCollectImagesIncludesRunningLocalBuilds(t *testing.T) {
+	original := commandOutputFunc
+	t.Cleanup(func() { commandOutputFunc = original })
+	commandOutputFunc = func(workdir, name string, args ...string) ([]byte, error) {
+		command := strings.Join(append([]string{name}, args...), " ")
+		switch command {
+		case "docker compose -p onehub -f docker-compose.dev.yml config --format json":
+			return []byte(`{"services":{"app":{"build":{}},"stopped":{"build":{}}}}`), nil
+		case "docker compose -p onehub -f docker-compose.dev.yml ps -q app":
+			return []byte("app-container\n"), nil
+		case "docker compose -p onehub -f docker-compose.dev.yml ps -q stopped":
+			return nil, nil
+		case "docker inspect --format {{.Config.Image}} app-container":
+			return []byte("onehub-app\n"), nil
+		case "docker inspect --format {{.Image}} app-container":
+			return []byte("sha256:old\n"), nil
+		case "docker image inspect --format {{.Id}} onehub-app":
+			return []byte("sha256:new\n"), nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return nil, nil
+		}
+	}
+	server := Server{config: Config{
+		ComposeFiles:    []string{"docker-compose.dev.yml"},
+		ProjectName:     "onehub",
+		RuntimeServices: []string{"app"},
+	}}
+	images, err := server.collectImages()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(images) != 1 || images[0].Image != "onehub-app" || images[0].CurrentDigest != "sha256:old" || !images[0].UpdateAvailable {
+		t.Fatalf("expected running local image with rebuilt image available, got %#v", images)
+	}
+}
+
+func TestCurrentImagePropagatesInspectFailure(t *testing.T) {
+	original := commandOutputFunc
+	t.Cleanup(func() { commandOutputFunc = original })
+	commandOutputFunc = func(workdir, name string, args ...string) ([]byte, error) {
+		if args[0] == "compose" {
+			return []byte("app-container"), nil
+		}
+		return nil, fmt.Errorf("container disappeared")
+	}
+	server := Server{}
+	if _, err := server.currentImage("app"); err == nil {
+		t.Fatal("expected container inspection error")
+	}
+}
+
+func TestInitializeImagesPopulatesStatusWithoutPulling(t *testing.T) {
+	original := commandOutputFunc
+	t.Cleanup(func() { commandOutputFunc = original })
+	commandOutputFunc = func(workdir, name string, args ...string) ([]byte, error) {
+		command := strings.Join(append([]string{name}, args...), " ")
+		switch command {
+		case "docker compose -p onehub config --format json":
+			return []byte(`{"services":{"app":{"image":"app:local"}}}`), nil
+		case "docker compose -p onehub ps -q app":
+			return []byte("app-container"), nil
+		case "docker image inspect --format {{.Id}} app:local":
+			return []byte("sha256:current"), nil
+		case "docker inspect --format {{.Image}} app-container":
+			return []byte("sha256:current"), nil
+		default:
+			t.Fatalf("unexpected startup command: %s", command)
+			return nil, nil
+		}
+	}
+	server := Server{config: Config{ProjectName: "onehub"}, state: State{UpdateAvailable: true}}
+	if err := server.initializeImages(); err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	server.status(response, httptest.NewRequest(http.MethodGet, "/status", nil))
+	var state State
+	if err := json.Unmarshal(response.Body.Bytes(), &state); err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Images) != 1 || state.Images[0].Image != "app:local" || state.UpdateAvailable || state.LastCheckAt != nil {
+		t.Fatalf("expected initial inventory without claiming a registry check: %#v", state)
 	}
 }
