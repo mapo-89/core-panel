@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -105,6 +107,7 @@ const (
 	maxAttemptResults         = 50
 	selfUpdateConfirmationTTL = 2 * time.Minute
 	selfUpdateHeartbeatPeriod = 10 * time.Second
+	selfUpdateMaxDuration     = 3 * time.Minute
 )
 
 var loadComposeLabelsFunc = loadComposeLabels
@@ -113,13 +116,24 @@ var sleepFunc = time.Sleep
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "self-update-helper" {
-		if err := runSelfUpdateHelper(os.Args[2:]); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), selfUpdateMaxDuration)
+		defer cancel()
+		commandOutputFunc = func(workdir, name string, args ...string) ([]byte, error) {
+			return commandOutputContext(ctx, workdir, name, args...)
+		}
+		if err := runSelfUpdateHelper(ctx, os.Args[2:]); err != nil {
 			log.Fatalf("self-update helper failed: %v", err)
 		}
 
 		return
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "--healthcheck" {
+		if err := updaterHealthcheck(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatalf("configuration error: %v", err)
@@ -555,6 +569,9 @@ func (server *Server) runUpdate(attemptID string) {
 		server.mu.Unlock()
 
 		selfUpdateErr := server.updateSelfService(attemptID)
+		if selfUpdateErr == nil {
+			return
+		}
 
 		server.mu.Lock()
 		now = time.Now().UTC()
@@ -562,21 +579,11 @@ func (server *Server) runUpdate(attemptID string) {
 		server.state.SelfUpdatePending = false
 		server.state.UpdateRunning = false
 
-		if selfUpdateErr != nil {
-			server.state.LastUpdateState = "failed"
-			server.recordAttemptResult(attemptID)
-			server.addLog("error", fmt.Sprintf("updater service update failed: %s", selfUpdateErr.Error()))
-			server.saveState()
-			server.mu.Unlock()
-			return
-		}
-
-		server.state.LastUpdateState = "success"
+		server.state.LastUpdateState = "failed"
 		server.recordAttemptResult(attemptID)
-		server.addLog("info", "system update completed")
+		server.addLog("error", fmt.Sprintf("updater service update failed: %s", selfUpdateErr.Error()))
 		server.saveState()
 		server.mu.Unlock()
-
 		return
 	}
 
@@ -660,17 +667,37 @@ func (server *Server) updateSelfService(attemptID string) error {
 	server.saveState()
 	server.mu.Unlock()
 
-	if err := server.compose(server.selfUpdateHelperArgs(attemptID)...); err != nil {
+	configuration, err := server.composeConfig()
+	if err != nil {
+		return err
+	}
+	image := configuration.Services[server.config.SelfService].Image
+	if image == "" {
+		image, err = server.currentImage(server.config.SelfService)
+	}
+	if err != nil {
+		return err
+	}
+	expected, err := server.imageDigest(image)
+	if err != nil {
+		return err
+	}
+	if expected == "" {
+		return errors.New("updater image identity unavailable")
+	}
+	if err := server.compose(server.selfUpdateHelperArgs(attemptID, expected)...); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (server *Server) selfUpdateHelperArgs(attemptID string) []string {
-	innerComposeArgs := server.composeCommandArgs("up", "-d", "--no-deps", server.config.SelfService)
+func (server *Server) selfUpdateHelperArgs(attemptID string, expectedImage string) []string {
+	innerComposeArgs := server.composeCommandArgs()
 	helperArgs := []string{
 		"run",
+		"--detach",
+		"--pull", "never",
 		"--rm",
 		"--no-deps",
 		"-T",
@@ -681,22 +708,35 @@ func (server *Server) selfUpdateHelperArgs(attemptID string) []string {
 		server.config.StatePath,
 		attemptID,
 		server.config.Workdir,
+		server.config.SelfService,
+		expectedImage,
 	}
 
 	return append(helperArgs, innerComposeArgs...)
 }
 
-func runSelfUpdateHelper(args []string) error {
-	if len(args) < 4 {
-		return errors.New("self-update-helper requires state path, attempt ID, workdir, and Docker arguments")
+func runSelfUpdateHelper(ctx context.Context, args []string) (resultErr error) {
+	if len(args) < 6 {
+		return errors.New("self-update-helper requires state path, attempt ID, workdir, service, expected image, and Compose arguments")
 	}
 
 	statePath := strings.TrimSpace(args[0])
 	attemptID := strings.TrimSpace(args[1])
 	workdir := strings.TrimSpace(args[2])
+	service := strings.TrimSpace(args[3])
+	expected := strings.TrimSpace(args[4])
+	if !validServiceName(service) || expected == "" {
+		return errors.New("invalid updater helper target")
+	}
 	if statePath == "" || attemptID == "" {
 		return errors.New("self-update-helper requires a non-empty state path and attempt ID")
 	}
+
+	defer func() {
+		if resultErr != nil {
+			_ = writeSelfUpdateMarker(selfUpdateFailurePath(statePath), attemptID)
+		}
+	}()
 
 	if err := writeSelfUpdateHeartbeat(statePath, attemptID); err != nil {
 		return fmt.Errorf("could not write self-update heartbeat: %w", err)
@@ -726,10 +766,15 @@ func runSelfUpdateHelper(args []string) error {
 		_ = clearSelfUpdateHeartbeat(statePath)
 	}()
 
-	if _, err := commandOutputFunc(workdir, "docker", args[3:]...); err != nil {
+	composeArgs := args[5:]
+	updateArgs := append(append([]string{}, composeArgs...), "up", "-d", "--no-deps", "--no-build", "--pull", "never", service)
+	if _, err := commandOutputFunc(workdir, "docker", updateArgs...); err != nil {
 		return err
 	}
 
+	if err := waitForSelfUpdate(ctx, workdir, composeArgs, service, expected); err != nil {
+		return err
+	}
 	return writeSelfUpdateCompletion(statePath, attemptID)
 }
 
@@ -950,7 +995,11 @@ func (server *Server) composeCommandArgs(args ...string) []string {
 }
 
 func commandOutput(workdir string, name string, args ...string) ([]byte, error) {
-	command := exec.Command(name, args...)
+	return commandOutputContext(context.Background(), workdir, name, args...)
+}
+
+func commandOutputContext(ctx context.Context, workdir, name string, args ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = workdir
 
 	var stderr bytes.Buffer
@@ -1026,11 +1075,13 @@ func (server *Server) reconcilePendingSelfUpdate() {
 		_ = server.clearSelfUpdateHeartbeat()
 		return
 	}
-	if server.selfUpdateHelperIsLive() {
+	failure, failureErr := os.ReadFile(selfUpdateFailurePath(server.config.StatePath))
+	helperFailed := failureErr == nil && strings.TrimSpace(string(failure)) == server.state.UpdateAttemptID
+	if !helperFailed && server.selfUpdateHelperIsLive() {
 		return
 	}
 
-	if server.state.LastUpdateAt == nil || time.Since(*server.state.LastUpdateAt) < selfUpdateConfirmationTTL {
+	if !helperFailed && (server.state.LastUpdateAt == nil || time.Since(*server.state.LastUpdateAt) < selfUpdateConfirmationTTL) {
 		return
 	}
 
@@ -1043,6 +1094,8 @@ func (server *Server) reconcilePendingSelfUpdate() {
 	server.addLog("error", "updater service restart was not confirmed")
 	server.saveState()
 }
+
+func selfUpdateFailurePath(statePath string) string { return statePath + ".self-update-failed" }
 
 func selfUpdateCompletionPath(statePath string) string {
 	return statePath + ".self-update-complete"
@@ -1134,6 +1187,9 @@ func (server *Server) clearSelfUpdateHeartbeat() error {
 }
 
 func (server *Server) clearSelfUpdateArtifacts() error {
+	if err := os.Remove(selfUpdateFailurePath(server.config.StatePath)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	if err := server.clearSelfUpdateCompletion(); err != nil {
 		return err
 	}
@@ -1153,7 +1209,7 @@ func (server *Server) saveState() {
 		return
 	}
 
-	if err := os.WriteFile(server.config.StatePath, content, 0o640); err != nil {
+	if err := writeSelfUpdateMarker(server.config.StatePath, string(content)); err != nil {
 		log.Printf("failed to write state: %v", err)
 	}
 }
@@ -1238,4 +1294,50 @@ func splitList(value string) []string {
 	}
 
 	return result
+}
+
+func updaterHealthcheck() error {
+	address := env("UPDATER_ADDR", ":8080")
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	request, err := http.NewRequest(http.MethodGet, "http://"+net.JoinHostPort(host, port)+"/status", nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Authorization", "Bearer "+os.Getenv("UPDATER_TOKEN"))
+	response, err := (&http.Client{Timeout: 3 * time.Second}).Do(request)
+	if err != nil {
+		return errors.New("updater status endpoint unavailable")
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("updater status endpoint returned HTTP %d", response.StatusCode)
+	}
+	return nil
+}
+
+func waitForSelfUpdate(ctx context.Context, workdir string, composeArgs []string, service, expected string) error {
+	for {
+		psArgs := append(append([]string{}, composeArgs...), "ps", "-q", service)
+		container, err := commandOutputFunc(workdir, "docker", psArgs...)
+		id := strings.TrimSpace(string(container))
+		if err == nil && id != "" {
+			image, imageErr := commandOutputFunc(workdir, "docker", "inspect", "--format", "{{.Image}}", id)
+			if imageErr == nil && strings.TrimSpace(string(image)) == expected {
+				if _, healthErr := commandOutputFunc(workdir, "docker", "exec", id, "system-updater", "--healthcheck"); healthErr == nil {
+					return nil
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return errors.New("updater did not become ready with the expected image before the timeout")
+		case <-time.After(time.Second):
+		}
+	}
 }

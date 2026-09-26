@@ -68,6 +68,29 @@ CorePanel also registers the short alias:
 php artisan core:install
 ```
 
+## Microsoft access token refresh
+
+Resolve tokens before Microsoft Graph requests using the shared package service:
+
+```php
+$result = app(\CorePanel\Support\Socialite\MicrosoftAccessTokenResolver::class)
+    ->forUser($user);
+
+if ($result['token'] !== null) {
+    // Use this token for the next Graph request.
+}
+```
+
+`forUser()` accepts the configured authenticatable user; `forAccount()` accepts a `SocialAccount`. Both return `token` (nullable), `message` and `scopes`. Scopes decoded from an access token are informational, not an authorization check; opaque tokens return an empty scope list. The profile test email uses this resolver automatically. Other host integrations must call it explicitly; refresh is demand-driven and does not extend the Laravel session.
+
+The resolver uses Microsoft credentials from authentication settings with `services.microsoft` fallbacks, scopes from `core-panel.auth.socialite.providers.microsoft.scopes`, and HTTP options from `services.microsoft.guzzle`. Request `offline_access` during authorization to obtain a refresh token. Host-specific Graph permissions remain host configuration; this change adds or removes no scopes.
+
+Rotated tokens are saved before checking Graph availability. Responses without a new refresh token retain the previous token. Temporary transport or Graph failures report unavailability instead of requiring reconnection. Failure logs contain only sanitized phase/status/error codes. PostgreSQL timestamp writes include the timezone offset so runtime timezone changes do not shift expiry. Existing incorrect expiry values are not rewritten retroactively; a subsequent successful refresh replaces them.
+
+After adopting a package release containing this service, hosts can replace their local resolver and redundant token persistence overrides with the package implementation. Keep application-specific scopes and integration behavior in the host.
+
+The PostgreSQL regression suite is opt-in: set `CORE_PANEL_TEST_PGSQL_DATABASE`, `CORE_PANEL_TEST_PGSQL_HOST`, `CORE_PANEL_TEST_PGSQL_PORT`, `CORE_PANEL_TEST_PGSQL_USERNAME` and `CORE_PANEL_TEST_PGSQL_PASSWORD` for a dedicated test database, then run `vendor/bin/pest packages/core-panel/tests/Feature/MicrosoftTokenPostgresTimezoneTest.php` from the monorepo. It uses transaction-local temporary tables and verifies consecutive refreshes across timezone and daylight-saving changes.
+
 ## Generic OpenID Connect login
 
 CorePanel ships a provider-neutral `oidc` Socialite driver. It uses OpenID Connect Discovery and has been validated against authentik. The same provider appears in the login page and the profile connection list; the existing account-linking and optional master-provider flow apply unchanged.
@@ -294,6 +317,10 @@ docker compose --env-file .env \
 ```
 
 The service list must contain `app`, `horizon`, `scheduler`, and `system-updater`, but no separate `nginx` service. `app`, `horizon`, and `scheduler` must all resolve to the same `APP_IMAGE` value.
+
+When `SYSTEM_UPDATER_SELF_UPDATE_ENABLED=true`, a detached, temporary Compose helper replaces the updater after updating the application services. It uses the same service configuration and mounts, publishes no service ports, and is removed automatically. The update remains pending until the replacement runs the expected image and its authenticated `/status` endpoint responds. Completion or failure is correlated with the original update attempt, including across updater restarts. Helper execution is limited to three minutes; a lost helper is detected through the existing heartbeat timeout.
+
+`php artisan core-panel:update --force` delivers the corrected `updater/main.go` through the versioned scaffold mechanism, backing up an existing managed file. Customized files without a scaffold baseline remain protected even with `--force`; merge this change into those files manually. Rebuild the updater image afterwards. For the first upgrade from an updater with an unreliable self-replacement implementation, install the image externally through Compose or Portainer. Keep the updater state volume mounted. Hosts with custom multi-file updater implementations must reconcile their overrides before rebuilding to avoid duplicate Go definitions; do not combine a host-specific helper file with CorePanel's helper already included in `main.go`.
 
 ### 5. Pull The Images And Replace The Stack
 

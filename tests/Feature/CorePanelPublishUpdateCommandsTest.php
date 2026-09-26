@@ -4229,3 +4229,45 @@ it('delivers the local image inventory updater during a package upgrade', functi
     expect($backups)->not->toBeEmpty()
         ->and(file_get_contents($backups[0]))->toBe($legacy);
 });
+
+it('delivers the detached updater helper to missing and managed host scaffolds', function (bool $existing): void {
+    $basePath = makePublishBasePath('detached-updater-helper-'.($existing ? 'existing' : 'missing'));
+    $target = $basePath.'/updater/main.go';
+    $legacy = "package main\n\nfunc main() {}\n";
+
+    if ($existing) {
+        seedScaffoldManifest($basePath, 'updater/main.go', $legacy);
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0777, true);
+        }
+        file_put_contents($target, $legacy);
+    }
+
+    $this->artisan('core-panel:update', ['--base-path' => $basePath])->assertExitCode(0);
+
+    $source = file_get_contents(__DIR__.'/../../stubs/updater/main.go');
+    expect(file_get_contents($target))->toBe($source)
+        ->toContain('"--detach"')
+        ->toContain('waitForSelfUpdate(ctx, workdir, composeArgs, service, expected)');
+
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true);
+    expect($manifest['files']['updater/main.go'] ?? null)->toBeArray();
+
+    if ($existing) {
+        $backups = glob($basePath.'/.core-panel-backups/*/updater/main.go');
+        expect($backups)->not->toBeEmpty()
+            ->and(file_get_contents($backups[0]))->toBe($legacy);
+    }
+})->with([false, true]);
+
+it('preserves an unmanaged customized updater during a forced update', function (): void {
+    $basePath = makePublishBasePath('customized-detached-updater');
+    $target = $basePath.'/updater/main.go';
+    $legacy = "package main\n\nfunc main() {}\n";
+    mkdir(dirname($target), 0777, true);
+    file_put_contents($target, $legacy);
+
+    $this->artisan('core-panel:update', ['--base-path' => $basePath, '--force' => true])->assertExitCode(0);
+
+    expect(file_get_contents($target))->toBe($legacy);
+});

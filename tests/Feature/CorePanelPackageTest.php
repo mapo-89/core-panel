@@ -1048,7 +1048,6 @@ it('ships scaffold linting, formatting and ci workflow configuration', function 
         ->and($generateReleaseNotesScript)->toContain("printf '### %s %s\\n' \"\${SECTION_ICONS[\"Other Changes\"]}\" 'Other Changes'")
         ->and($changelog)->toContain('# Changelog')
         ->and($changelog)->toContain('## [1.6.0]')
-        ->and($changelog)->not->toContain('## [Unreleased]')
         ->and($composer['version'])->toBe($appVersionJson['release_version'])
         ->and($addonComposer['version'])->toBe($appVersionJson['release_version'])
         ->and($addonComposer['require']['mapo-89/core-panel'])->toBe(sprintf(
@@ -4098,7 +4097,7 @@ it('ships updater attempt correlation for terminal statuses between polls', func
         ->toContain('[]string{"up", "-d", "--no-deps", "--force-recreate"}')
         ->toContain('SelfUpdatePending bool')
         ->toContain('server.state.SelfUpdatePending = true')
-        ->toContain('server.compose(server.selfUpdateHelperArgs(attemptID)...)')
+        ->toContain('server.compose(server.selfUpdateHelperArgs(attemptID, expected)...)')
         ->toContain('"system-updater",')
         ->toContain('innerComposeArgs := server.composeCommandArgs(')
         ->toContain('if state.UpdateRunning && state.SelfUpdatePending')

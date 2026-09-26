@@ -90,23 +90,37 @@ class SocialAccountStore
             throw new \InvalidArgumentException('The configured user must be an Eloquent model.');
         }
 
+        $values = [
+            'avatar_url' => $attributes['avatar_url'] ?? null,
+            'expires_at' => isset($attributes['expires_in'])
+                ? now('UTC')->addSeconds($attributes['expires_in'])->setTimezone(date_default_timezone_get())
+                : null,
+            'provider_email' => $attributes['provider_email'] ?? null,
+            'token_encrypted' => $attributes['token'] ?? null,
+            'user_id' => (string) $user->getKey(),
+        ];
+        $refreshToken = $attributes['refresh_token'] ?? null;
+
+        if (is_string($refreshToken) && trim($refreshToken) !== '') {
+            $values['refresh_token_encrypted'] = $refreshToken;
+        }
+
         /** @var SocialAccount $account */
-        $account = SocialAccount::query()->updateOrCreate(
+        $account = SocialAccount::query()->firstOrCreate(
             [
                 'provider' => $provider,
                 'provider_user_id' => $attributes['provider_user_id'],
             ],
-            [
-                'avatar_url' => $attributes['avatar_url'] ?? null,
-                'expires_at' => isset($attributes['expires_in'])
-                    ? now()->addSeconds($attributes['expires_in'])
-                    : null,
-                'provider_email' => $attributes['provider_email'] ?? null,
-                'refresh_token_encrypted' => $attributes['refresh_token'] ?? null,
-                'token_encrypted' => $attributes['token'] ?? null,
-                'user_id' => (string) $user->getKey(),
-            ],
+            $values,
         );
+
+        if (! $account->wasRecentlyCreated) {
+            if ($account->getAttribute('user_id') !== (string) $user->getKey() && ! array_key_exists('refresh_token_encrypted', $values)) {
+                $values['refresh_token_encrypted'] = null;
+            }
+
+            $account->fill($values)->save();
+        }
 
         return $account;
     }

@@ -1206,11 +1206,13 @@ it('sends a microsoft test mail for a linked account with a stored access token'
         'provider' => 'microsoft',
         'provider_email' => 'current@example.test',
         'provider_user_id' => 'provider-user-id-mail',
+        'expires_at' => now()->addHour(),
         'token_encrypted' => 'microsoft-access-token',
         'user_id' => (string) $user->getKey(),
     ]);
 
     Http::fake([
+        'https://graph.microsoft.com/v1.0/me?$select=id' => Http::response(['id' => 'provider-user-id-mail']),
         'https://graph.microsoft.com/v1.0/me/sendMail' => Http::response('', 202),
     ]);
 
@@ -1230,6 +1232,41 @@ it('sends a microsoft test mail for a linked account with a stored access token'
             && $request['message']['toRecipients'][0]['emailAddress']['address'] === 'current@example.test';
     });
 });
+
+it('refreshes before sending test mail and stops on refresh failure', function (int $status): void {
+    $user = FakeUser::query()->create([
+        'email' => 'refresh@example.test', 'email_verified_at' => now(),
+        'first_name' => 'Refresh', 'last_name' => 'Tester', 'password' => Hash::make('test-password'),
+    ]);
+    $account = SocialAccount::query()->create([
+        'provider' => 'microsoft', 'provider_user_id' => 'refresh-mail-user',
+        'provider_email' => 'refresh@example.test', 'user_id' => (string) $user->getKey(),
+        'expires_at' => now()->subMinute(), 'token_encrypted' => 'old-access',
+        'refresh_token_encrypted' => 'old-refresh',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response($status === 200
+            ? ['access_token' => 'new-access', 'refresh_token' => 'new-refresh', 'expires_in' => 3600]
+            : ['error' => 'invalid_grant'], $status),
+        'https://graph.microsoft.com/v1.0/me?$select=id' => Http::response(['id' => 'refresh-mail-user']),
+        'https://graph.microsoft.com/v1.0/me/sendMail' => Http::response('', 202),
+    ]);
+    $request = Request::create(route('socialite.test-mail', ['provider' => 'microsoft']), 'POST');
+    $request->setUserResolver(static fn () => $user);
+
+    app(SocialiteCallbackController::class)->sendTestMail($request, 'microsoft');
+
+    if ($status === 200) {
+        Http::assertSent(fn (Illuminate\Http\Client\Request $request): bool => str_ends_with($request->url(), '/me/sendMail')
+            && $request->hasHeader('Authorization', 'Bearer new-access'));
+        expect($account->refresh()->getAttribute('refresh_token_encrypted'))->toBe('new-refresh');
+        Http::assertSentCount(3);
+    } else {
+        Http::assertSentCount(1);
+        expect($account->refresh()->getAttribute('refresh_token_encrypted'))->toBe('old-refresh');
+    }
+})->with([200, 400]);
 
 it('switches to the matching existing user when the master provider email already belongs to that user', function (): void {
     $currentUser = FakeUser::query()->create([

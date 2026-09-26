@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -484,8 +485,8 @@ func TestSelfUpdateUsesIndependentComposeHelper(t *testing.T) {
 		},
 	}
 
-	actual := strings.Join(server.selfUpdateHelperArgs("attempt-123"), " ")
-	expected := "run --rm --no-deps -T --entrypoint system-updater system-updater self-update-helper /data/state.json attempt-123 /workspace compose --env-file /workspace/.env -p core-panel -f /workspace/docker-compose.prod.yml -f /workspace/docker-compose.registry.yml up -d --no-deps system-updater"
+	actual := strings.Join(server.selfUpdateHelperArgs("attempt-123", "sha256:new"), " ")
+	expected := "run --detach --pull never --rm --no-deps -T --entrypoint system-updater system-updater self-update-helper /data/state.json attempt-123 /workspace system-updater sha256:new compose --env-file /workspace/.env -p core-panel -f /workspace/docker-compose.prod.yml -f /workspace/docker-compose.registry.yml"
 
 	if actual != expected {
 		t.Fatalf("expected self-update to run through an independent Compose helper, got %q", actual)
@@ -509,8 +510,12 @@ func TestRunUpdateMarksStateFailedWhenSelfUpdateFails(t *testing.T) {
 		case "docker compose -p core-panel -f docker-compose.yml up -d --no-deps --force-recreate app":
 			return []byte{}, nil
 		case "docker compose -p core-panel -f docker-compose.yml config --format json":
-			return []byte(`{"services":{}}`), nil
-		case "docker compose -p core-panel -f docker-compose.yml run --rm --no-deps -T --entrypoint system-updater system-updater self-update-helper " + server.config.StatePath + " attempt-123 " + server.config.Workdir + " compose -p core-panel -f docker-compose.yml up -d --no-deps system-updater":
+			return []byte(`{"services":{"system-updater":{"image":"updater:staging"}}}`), nil
+		case "docker image inspect --format {{.Id}} updater:staging":
+			return []byte("sha256:new"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q system-updater":
+			return nil, nil
+		case "docker compose -p core-panel -f docker-compose.yml run --detach --pull never --rm --no-deps -T --entrypoint system-updater system-updater self-update-helper " + server.config.StatePath + " attempt-123 " + server.config.Workdir + " system-updater sha256:new compose -p core-panel -f docker-compose.yml":
 			if !server.state.UpdateRunning || server.state.LastUpdateState != "running" || !server.state.SelfUpdatePending {
 				t.Fatalf("expected self-update to remain nonterminal while Compose is running, got %#v", server.state)
 			}
@@ -668,7 +673,16 @@ func TestSelfUpdateHelperWritesCompletionAfterComposeSucceeds(t *testing.T) {
 
 	statePath := filepath.Join(t.TempDir(), "state.json")
 	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
-		if workdir != "/workspace" || name != "docker" || strings.Join(args, " ") != "compose up -d system-updater" {
+		command := strings.Join(args, " ")
+		switch command {
+		case "compose ps -q system-updater":
+			return []byte("new-container"), nil
+		case "inspect --format {{.Image}} new-container":
+			return []byte("sha256:new"), nil
+		case "exec new-container system-updater --healthcheck":
+			return nil, nil
+		}
+		if workdir != "/workspace" || name != "docker" || command != "compose up -d --no-deps --no-build --pull never system-updater" {
 			t.Fatalf("unexpected helper command: %s %s in %s", name, strings.Join(args, " "), workdir)
 		}
 		heartbeat, err := os.ReadFile(selfUpdateHeartbeatPath(statePath))
@@ -679,7 +693,7 @@ func TestSelfUpdateHelperWritesCompletionAfterComposeSucceeds(t *testing.T) {
 		return []byte{}, nil
 	}
 
-	if err := runSelfUpdateHelper([]string{statePath, "attempt-123", "/workspace", "compose", "up", "-d", "system-updater"}); err != nil {
+	if err := runSelfUpdateHelper(context.Background(), []string{statePath, "attempt-123", "/workspace", "system-updater", "sha256:new", "compose"}); err != nil {
 		t.Fatalf("expected helper to succeed: %v", err)
 	}
 
@@ -704,7 +718,7 @@ func TestSelfUpdateHelperDoesNotConfirmFailedCompose(t *testing.T) {
 		return nil, errors.New("compose failed")
 	}
 
-	if err := runSelfUpdateHelper([]string{statePath, "attempt-123", "/workspace", "compose", "up"}); err == nil {
+	if err := runSelfUpdateHelper(context.Background(), []string{statePath, "attempt-123", "/workspace", "system-updater", "sha256:new", "compose"}); err == nil {
 		t.Fatalf("expected helper failure")
 	}
 
@@ -800,5 +814,148 @@ func TestInitializeImagesPopulatesStatusWithoutPulling(t *testing.T) {
 	}
 	if len(state.Images) != 1 || state.Images[0].Image != "app:local" || state.UpdateAvailable || state.LastCheckAt != nil {
 		t.Fatalf("expected initial inventory without claiming a registry check: %#v", state)
+	}
+}
+
+func TestDetachedHelperStartKeepsUpdatePending(t *testing.T) {
+	originalCommandOutputFunc := commandOutputFunc
+	defer func() {
+		commandOutputFunc = originalCommandOutputFunc
+	}()
+
+	var server *Server
+
+	commandOutputFunc = func(workdir string, name string, args ...string) ([]byte, error) {
+		command := strings.Join(append([]string{name}, args...), " ")
+
+		switch command {
+		case "docker compose -p core-panel -f docker-compose.yml pull":
+			return []byte{}, nil
+		case "docker compose -p core-panel -f docker-compose.yml up -d --no-deps --force-recreate app":
+			return []byte{}, nil
+		case "docker compose -p core-panel -f docker-compose.yml config --format json":
+			return []byte(`{"services":{"system-updater":{"image":"updater:staging"}}}`), nil
+		case "docker image inspect --format {{.Id}} updater:staging":
+			return []byte("sha256:new"), nil
+		case "docker compose -p core-panel -f docker-compose.yml ps -q system-updater":
+			return nil, nil
+		case "docker compose -p core-panel -f docker-compose.yml run --detach --pull never --rm --no-deps -T --entrypoint system-updater system-updater self-update-helper " + server.config.StatePath + " attempt-123 " + server.config.Workdir + " system-updater sha256:new compose -p core-panel -f docker-compose.yml":
+			if !server.state.UpdateRunning || server.state.LastUpdateState != "running" || !server.state.SelfUpdatePending {
+				t.Fatalf("expected self-update to remain nonterminal while Compose is running, got %#v", server.state)
+			}
+
+			if _, exists := server.state.AttemptResults["attempt-123"]; exists {
+				t.Fatalf("expected no terminal attempt result before self-update completes")
+			}
+
+			return []byte("helper-container"), nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return nil, nil
+		}
+	}
+
+	server = &Server{
+		config: Config{
+			ComposeFiles:    []string{"docker-compose.yml"},
+			ProjectName:     "core-panel",
+			RuntimeServices: []string{"app"},
+			SelfService:     "system-updater",
+			SelfUpdate:      true,
+			StatePath:       filepath.Join(t.TempDir(), "state.json"),
+		},
+		state: State{
+			LastUpdateState: "running",
+			Logs:            []LogEntry{},
+			UpdateAttemptID: "attempt-123",
+			UpdateRunning:   true,
+		},
+	}
+
+	server.runUpdate("attempt-123")
+
+	if !server.state.UpdateRunning || !server.state.SelfUpdatePending || server.state.LastUpdateState != "running" {
+		t.Fatalf("detached helper start must not complete the update: %#v", server.state)
+	}
+	if _, exists := server.state.AttemptResults["attempt-123"]; exists {
+		t.Fatal("helper start is not a terminal attempt result")
+	}
+	if err := writeSelfUpdateCompletion(server.config.StatePath, "attempt-123"); err != nil {
+		t.Fatal(err)
+	}
+	server.reconcilePendingSelfUpdate()
+	if server.state.UpdateRunning || server.state.AttemptResults["attempt-123"].LastUpdateState != "success" {
+		t.Fatal("verified completion must finish the matching attempt")
+	}
+}
+
+func TestHealthcheckAuthenticatesAgainstUpdaterStatus(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusUnauthorized, http.StatusServiceUnavailable} {
+		api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/status" || r.Header.Get("Authorization") != "Bearer test-token" {
+				t.Error("incorrect health probe")
+			}
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(map[string]bool{"update_running": true})
+		}))
+		t.Setenv("UPDATER_ADDR", strings.TrimPrefix(api.URL, "http://"))
+		t.Setenv("UPDATER_TOKEN", "test-token")
+		err := updaterHealthcheck()
+		api.Close()
+		if (err == nil) != (status == http.StatusOK) {
+			t.Fatalf("unexpected health result for %d: %v", status, err)
+		}
+	}
+}
+
+func TestSelfUpdateReadinessRejectsWrongImageAndUnreachableAPI(t *testing.T) {
+	for _, scenario := range []string{"ready", "wrong-image", "unreachable"} {
+		t.Run(scenario, func(t *testing.T) {
+			original := commandOutputFunc
+			t.Cleanup(func() { commandOutputFunc = original })
+			commandOutputFunc = func(workdir, name string, args ...string) ([]byte, error) {
+				switch strings.Join(args, " ") {
+				case "compose -p example ps -q system-updater":
+					return []byte("new-container"), nil
+				case "inspect --format {{.Image}} new-container":
+					if scenario == "wrong-image" {
+						return []byte("sha256:old"), nil
+					}
+					return []byte("sha256:new"), nil
+				case "exec new-container system-updater --healthcheck":
+					if scenario == "unreachable" {
+						return nil, errors.New("connection refused")
+					}
+					return nil, nil
+				}
+				t.Fatalf("unexpected command: %v", args)
+				return nil, nil
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			defer cancel()
+			err := waitForSelfUpdate(ctx, "/workspace", []string{"compose", "-p", "example"}, "system-updater", "sha256:new")
+			if (err == nil) != (scenario == "ready") {
+				t.Fatalf("unexpected readiness result: %v", err)
+			}
+		})
+	}
+}
+
+func TestHelperFailureMarkerFinishesOnlyItsOwnAttempt(t *testing.T) {
+	now := time.Now().UTC()
+	server := Server{config: Config{StatePath: filepath.Join(t.TempDir(), "state.json")}, state: State{UpdateAttemptID: "current", UpdateRunning: true, SelfUpdatePending: true, LastUpdateState: "running", LastUpdateAt: &now}}
+	if err := writeSelfUpdateMarker(selfUpdateFailurePath(server.config.StatePath), "previous"); err != nil {
+		t.Fatal(err)
+	}
+	server.reconcilePendingSelfUpdate()
+	if !server.state.UpdateRunning {
+		t.Fatal("stale helper failure must not finish current attempt")
+	}
+	if err := writeSelfUpdateMarker(selfUpdateFailurePath(server.config.StatePath), "current"); err != nil {
+		t.Fatal(err)
+	}
+	server.reconcilePendingSelfUpdate()
+	if server.state.UpdateRunning || server.state.AttemptResults["current"].LastUpdateState != "failed" {
+		t.Fatal("matching helper failure must finish the attempt immediately")
 	}
 }

@@ -10,6 +10,7 @@ use CorePanel\Support\ActivityLog\ActivityLogService;
 use CorePanel\Support\Auth\ResolveLoginDestination;
 use CorePanel\Support\Media\MediaService;
 use CorePanel\Support\Settings\SettingsRepository;
+use CorePanel\Support\Socialite\MicrosoftAccessTokenResolver;
 use CorePanel\Support\Socialite\SocialAccountStore;
 use CorePanel\Support\Socialite\SocialiteProviderRegistry;
 use CorePanel\Support\Socialite\SocialUserManager;
@@ -301,11 +302,12 @@ final class SocialiteCallbackController extends Controller
             ]);
         }
 
-        $accessToken = $account->getAttribute('token_encrypted');
+        $resolved = app(MicrosoftAccessTokenResolver::class)->forAccount($account);
+        $accessToken = $resolved['token'];
 
         if (! is_string($accessToken) || trim($accessToken) === '') {
             return $this->redirectToConnections()->withErrors([
-                'socialite' => __('core-panel::page-settings.microsoft_reconnect_required'),
+                'socialite' => $resolved['message'],
             ]);
         }
 

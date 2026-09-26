@@ -7,6 +7,7 @@ namespace CorePanel\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 class SocialAccount extends Model
 {
@@ -42,6 +43,18 @@ class SocialAccount extends Model
             'refresh_token_encrypted' => 'encrypted',
             'token_encrypted' => 'encrypted',
         ];
+    }
+
+    public function getDateFormat(): string
+    {
+        return $this->getConnection()->getDriverName() === 'pgsql'
+            ? 'Y-m-d H:i:sP'
+            : parent::getDateFormat();
+    }
+
+    public function freshTimestamp(): Carbon
+    {
+        return now('UTC')->setTimezone(date_default_timezone_get());
     }
 
     /** @return BelongsTo<Model, $this> */
