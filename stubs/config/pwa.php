@@ -14,7 +14,7 @@ return [
         'theme_color' => '#1ab88f',
         'icons' => [
             [
-                'src' => 'logo.png',
+                'src' => 'logo.png?v=3e611ce2b10c',
                 'sizes' => '512x512',
                 'type' => 'image/png',
             ],

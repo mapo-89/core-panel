@@ -2550,11 +2550,11 @@ it('creates the versioned pwa scaffolds during updates', function (): void {
 
     expect(file_exists($configTarget))->toBeTrue()
         ->and(file_get_contents($configTarget))->toContain("'install-button' => true")
-        ->and(file_get_contents($configTarget))->toContain("'src' => 'logo.png'")
+        ->and(file_get_contents($configTarget))->toContain("'src' => 'logo.png?v=3e611ce2b10c'")
         ->and(file_exists($manifestTarget))->toBeTrue()
         ->and(file_get_contents($manifestTarget))->toContain('"name": "Reference Control"')
         ->and(file_get_contents($manifestTarget))->toContain('"short_name": "Reference Control"')
-        ->and(file_get_contents($manifestTarget))->toContain('"src": "logo.png"')
+        ->and(file_get_contents($manifestTarget))->toContain('"src": "logo.png?v=3e611ce2b10c"')
         ->and(file_exists($serviceWorkerTarget))->toBeTrue()
         ->and(file_get_contents($serviceWorkerTarget))->toContain("const OFFLINE_URL = '/offline.html';")
         ->and(file_exists($offlineTarget))->toBeTrue()
@@ -4301,3 +4301,45 @@ it('publishes the CP favicon on updates and backs up an untracked previous asset
         expect(file_get_contents($backups[0]))->toBe($previous);
     }
 })->with([false, true]);
+
+it('versions the PWA icon URL with its actual image content', function (): void {
+    $stubs = __DIR__.'/../../stubs';
+    $manifest = json_decode((string) file_get_contents($stubs.'/public/manifest.json'), true, 512, JSON_THROW_ON_ERROR);
+    $icon = $manifest['icons'][0];
+    $expected = 'logo.png?v='.substr(hash_file('sha256', $stubs.'/public/logo.png'), 0, 12);
+    $config = require $stubs.'/config/pwa.php';
+    $image = getimagesize($stubs.'/public/logo.png');
+
+    expect($icon['src'])->toBe($expected)
+        ->and($config['manifest']['icons'][0]['src'])->toBe($expected)
+        ->and($icon['sizes'])->toBe('512x512')
+        ->and($image[0])->toBe(512)
+        ->and($image[1])->toBe(512)
+        ->and($image['mime'])->toBe('image/png');
+});
+
+it('refreshes managed PWA manifests and configuration to the versioned icon URL', function (): void {
+    $basePath = makePublishBasePath('versioned-pwa-icon-upgrade');
+    $paths = ['config/pwa.php', 'public/manifest.json'];
+    $previousFiles = [];
+
+    foreach ($paths as $relativePath) {
+        $current = (string) file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+        $previous = preg_replace('/logo\.png\?v=[a-f0-9]+/', 'logo.png', $current);
+        mkdir(dirname($basePath.'/'.$relativePath), 0777, true);
+        file_put_contents($basePath.'/'.$relativePath, $previous);
+        $previousFiles[$relativePath] = $previous;
+    }
+
+    seedScaffoldManifestFiles($basePath, $previousFiles);
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $expected = 'logo.png?v='.substr(hash_file('sha256', __DIR__.'/../../stubs/public/logo.png'), 0, 12);
+
+    foreach ($paths as $relativePath) {
+        expect(file_get_contents($basePath.'/'.$relativePath))->toContain($expected);
+    }
+});
