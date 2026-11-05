@@ -42,6 +42,7 @@ use CorePanel\Http\Middleware\ResolveCorePanelLocale;
 use CorePanel\Http\Middleware\SecurityHeaders;
 use CorePanel\Http\Middleware\ShareLocaleDataWithInertia;
 use CorePanel\Http\Middleware\TrackUserPresence;
+use CorePanel\Models\Activity;
 use CorePanel\Models\ApiToken;
 use CorePanel\Models\Form;
 use CorePanel\Models\ManagedFile;
@@ -69,6 +70,7 @@ use CorePanel\Support\Auth\AuthenticationLogRecorder;
 use CorePanel\Support\Auth\ListBrowserSessions;
 use CorePanel\Support\Auth\RevokeBrowserSession;
 use CorePanel\Support\Config\CorePanelConfig;
+use CorePanel\Support\Database\PostgresDateTimeGrammar;
 use CorePanel\Support\Database\TimestampTzConverter;
 use CorePanel\Support\Files\FileModelManager;
 use CorePanel\Support\FormBuilder\FormSubmissionValidator;
@@ -113,6 +115,7 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -121,6 +124,7 @@ use Laravel\Passport\Passport;
 use Laravel\Socialite\Contracts\Factory as SocialiteFactory;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use SocialiteProviders\Microsoft\Provider as MicrosoftProvider;
+use Spatie\Activitylog\Models\Activity as SpatieActivity;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Spatie\MediaLibrary\Support\PathGenerator\PathGeneratorFactory;
@@ -230,6 +234,20 @@ final class CorePanelServiceProvider extends PackageServiceProvider
 
     public function bootingPackage(): void
     {
+        config()->set('core-panel.runtime_timezone', config('core-panel.runtime_timezone', config('app.timezone', 'UTC')));
+        config()->set('app.timezone', 'UTC');
+        date_default_timezone_set('UTC');
+
+        $this->app['events']->listen(ConnectionEstablished::class, static function (ConnectionEstablished $event): void {
+            PostgresDateTimeGrammar::apply($event->connection);
+        });
+        foreach ($this->app['db']->getConnections() as $connection) {
+            PostgresDateTimeGrammar::apply($connection);
+        }
+        if (in_array(config('activitylog.activity_model'), [null, SpatieActivity::class], true)) {
+            config()->set('activitylog.activity_model', Activity::class);
+        }
+
         $router = $this->app['router'];
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');

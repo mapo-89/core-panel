@@ -49,7 +49,7 @@ final readonly class FileData
             previewUrl: $url,
             downloadUrl: $url,
             meta: (array) ($file->getAttribute('meta_json') ?? []),
-            createdAt: optional($file->getAttribute('created_at'))->toDateTimeString(),
+            createdAt: optional($file->getAttribute('created_at'))->toIso8601String(),
         );
     }
 

@@ -31,6 +31,15 @@ class ActivityLogService
 
     public function __construct(private UserModelManager $users) {}
 
+    /** @return Builder<Activity> */
+    private function activityQuery(): Builder
+    {
+        /** @var class-string<Activity> $modelClass */
+        $modelClass = config('activitylog.activity_model', \CorePanel\Models\Activity::class);
+
+        return $modelClass::query();
+    }
+
     public function withCauser(?Authenticatable $user): self
     {
         $clone = clone $this;
@@ -59,7 +68,7 @@ class ActivityLogService
             'spatie/laravel-activitylog'
         );
 
-        $query = Activity::query()->where('created_at', '<', $cutoff);
+        $query = $this->activityQuery()->where('created_at', '<', $cutoff);
 
         return $query->delete();
     }
@@ -82,7 +91,7 @@ class ActivityLogService
             'spatie/laravel-activitylog'
         );
 
-        $query = Activity::query()->with(['causer', 'subject']);
+        $query = $this->activityQuery()->with(['causer', 'subject']);
 
         $activity = $query->find($id);
 
@@ -126,7 +135,7 @@ class ActivityLogService
             'spatie/laravel-activitylog'
         );
 
-        $query = Activity::query();
+        $query = $this->activityQuery();
         $table = $query->getModel()->getTable();
 
         $query->with(['causer', 'subject']);

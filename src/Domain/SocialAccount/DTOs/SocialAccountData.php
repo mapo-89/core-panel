@@ -26,8 +26,8 @@ final readonly class SocialAccountData
             label: $label,
             providerEmail: is_string($account->getAttribute('provider_email')) ? $account->getAttribute('provider_email') : null,
             avatarUrl: is_string($account->getAttribute('avatar_url')) ? $account->getAttribute('avatar_url') : null,
-            expiresAt: $account->getAttribute('expires_at')?->toDateTimeString(),
-            connectedAt: $account->getAttribute('created_at')?->toDateTimeString(),
+            expiresAt: $account->getAttribute('expires_at')?->toIso8601String(),
+            connectedAt: $account->getAttribute('created_at')?->toIso8601String(),
         );
     }
 

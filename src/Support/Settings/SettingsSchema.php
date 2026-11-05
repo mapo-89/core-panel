@@ -313,7 +313,7 @@ final class SettingsSchema
                         'type' => 'text',
                     ],
                     'timezone' => [
-                        'default' => (string) config('app.timezone', 'UTC'),
+                        'default' => (string) config('core-panel.runtime_timezone', 'UTC'),
                         'help' => __('core-panel::settings.help.timezone'),
                         'is_localized' => false,
                         'is_public' => true,

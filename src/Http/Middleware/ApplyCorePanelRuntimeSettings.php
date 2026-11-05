@@ -109,7 +109,7 @@ final readonly class ApplyCorePanelRuntimeSettings
         $timezone = $this->settings->get(
             'general',
             'timezone',
-            config('app.timezone', 'UTC'),
+            config('core-panel.runtime_timezone', 'UTC'),
         );
         $defaultLocale = $this->settings->get(
             'i18n',
@@ -127,11 +127,11 @@ final readonly class ApplyCorePanelRuntimeSettings
             [],
         );
         $supportedLocaleCodes = SupportedLocales::normalize($supportedLocales);
-        $resolvedTimezone = is_string($timezone) && $timezone !== '' ? $timezone : config('app.timezone', 'UTC');
+        $resolvedTimezone = is_string($timezone) && $timezone !== '' ? $timezone : config('core-panel.runtime_timezone', 'UTC');
         config()->set('app.name', is_string($appName) && $appName !== '' ? $appName : config('app.name', 'CorePanel'));
-        config()->set('app.timezone', $resolvedTimezone);
+        config()->set('app.timezone', 'UTC');
         config()->set('core-panel.runtime_timezone', $resolvedTimezone);
-        date_default_timezone_set($resolvedTimezone);
+        date_default_timezone_set('UTC');
         config()->set('app.locale', is_string($defaultLocale) && $defaultLocale !== '' ? $defaultLocale : config('app.locale', 'de'));
         config()->set('app.fallback_locale', is_string($fallbackLocale) && $fallbackLocale !== '' ? $fallbackLocale : config('app.fallback_locale', 'en'));
         if (! config()->has('core-panel.i18n.available_language_labels')) {

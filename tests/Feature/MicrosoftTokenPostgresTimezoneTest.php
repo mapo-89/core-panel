@@ -99,7 +99,7 @@ it('preserves login and refresh instants through PostgreSQL across timezone chan
     'winter' => '2026-01-15 12:00:00',
     'spring clock change' => '2026-03-29 00:30:00',
     'autumn clock change' => '2026-10-25 00:30:00',
-])->with(['UTC', 'America/New_York']);
+])->with(['UTC', 'Europe/Berlin', 'America/New_York']);
 
 function assertCorePanelTokenTimes(SocialAccount $account, Carbon $start, int $elapsed): void
 {
