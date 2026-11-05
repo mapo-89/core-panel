@@ -1,4 +1,4 @@
-import { computed, ref, toValue, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import type { FormDataConvertible } from '@inertiajs/core'
@@ -74,6 +74,17 @@ export function useDataTable(
     const perPage = ref(currentSchema.value.pagination.perPage ?? 10)
 
     let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+    let submittedSearch = search.value
+    let cancelSearchRequest: (() => void) | null = null
+
+    onBeforeUnmount(() => {
+        if (searchDebounce !== null) {
+            clearTimeout(searchDebounce)
+        }
+
+        cancelSearchRequest?.()
+    })
 
     const columnMap = computed<Record<string, DataTableColumn>>(() =>
         Object.fromEntries(
@@ -295,6 +306,7 @@ export function useDataTable(
         }
 
         filters.value = nextState.filters
+        submittedSearch = nextState.search
 
         isLoading.value = true
 
@@ -312,6 +324,9 @@ export function useDataTable(
                 sort: nextState.sort || undefined,
             },
             {
+                onCancelToken: ({ cancel }) => {
+                    cancelSearchRequest = cancel
+                },
                 only: options.only,
                 preserveScroll: true,
                 preserveState: true,
@@ -386,11 +401,15 @@ export function useDataTable(
             return
         }
 
+        cancelSearchRequest?.()
+        cancelSearchRequest = null
+
         if (searchDebounce !== null) {
             clearTimeout(searchDebounce)
         }
 
         searchDebounce = setTimeout(() => {
+            searchDebounce = null
             syncQuery({
                 search: value,
             })
@@ -500,7 +519,11 @@ export function useDataTable(
         [() => currentSchema.value.state, () => currentSchema.value.pagination],
         ([nextState, nextPagination]) => {
             filters.value = { ...(nextState.filters ?? {}) }
-            search.value = nextState.search ?? ''
+            // A response may describe an older search while the user keeps typing.
+            if (search.value === submittedSearch) {
+                search.value = nextState.search ?? ''
+                submittedSearch = search.value
+            }
             sort.value = nextState.sort ?? ''
             visibleColumns.value =
                 nextState.visibleColumns.length > 0
