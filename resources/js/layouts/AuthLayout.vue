@@ -4,6 +4,7 @@ import {
     I18n,
     currentLocale as activeLocale,
     loadLanguageAsync,
+    trans,
 } from 'laravel-vue-i18n'
 import type { MenuItem } from 'primevue/menuitem'
 import { computed, ref, useSlots, watchEffect } from 'vue'
@@ -14,6 +15,7 @@ import CorePanelLogo from '@core-panel/components/CorePanelLogo.vue'
 import LocaleFlag from '@core-panel/components/Locale/LocaleFlag.vue'
 import { useColorMode } from '@core-panel/composables/useColorMode'
 import { useRuntimeUiSettings } from '@core-panel/composables/useRuntimeUiSettings'
+import type { CorePanelColorModePreference } from '@core-panel/theme/core-panel'
 import locale from '@/routes/locale'
 
 withDefaults(
@@ -46,7 +48,7 @@ const page = usePage<{
     url?: string
 }>()
 
-const { isDarkMode, toggleColorMode } = useColorMode('system')
+const { colorMode, setColorMode } = useColorMode('system')
 useRuntimeUiSettings()
 
 const appName = computed(() => page.props.appName ?? 'CorePanel')
@@ -73,6 +75,24 @@ const localeMenuItems = computed<LocaleMenuItem[]>(() =>
         label: displayLocaleLabel(code),
         localeCode: code,
     })),
+)
+
+const nextColorMode = computed<CorePanelColorModePreference>(() => {
+    if (colorMode.value === 'system') {
+        return 'light'
+    }
+
+    return colorMode.value === 'light' ? 'dark' : 'system'
+})
+const colorModeIcon = computed(() => {
+    if (nextColorMode.value === 'system') {
+        return 'desktop'
+    }
+
+    return nextColorMode.value === 'dark' ? 'moon' : 'sun'
+})
+const colorModeLabel = computed(() =>
+    trans(`page-layout.${nextColorMode.value}`),
 )
 
 const hasHeaderSlot = computed(() => Boolean(slots.header))
@@ -168,11 +188,13 @@ async function switchLocale(code: string): Promise<void> {
             </Menu>
 
             <button
+                :aria-label="colorModeLabel"
+                :title="colorModeLabel"
                 class="auth-control-button"
                 type="button"
-                @click="toggleColorMode"
+                @click="setColorMode(nextColorMode)"
             >
-                <AppIcon :name="isDarkMode ? 'sun' : 'moon'" />
+                <AppIcon :name="colorModeIcon" />
             </button>
         </div>
 
