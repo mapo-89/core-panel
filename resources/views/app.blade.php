@@ -11,6 +11,7 @@
             : config('app.name', 'CorePanel');
     @endphp
     <title inertia>{{ $resolvedAppName }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('core-panel-favicon.svg') }}">
     @PwaHead
     @vite(['resources/js/app.ts', 'resources/css/app.css'])
     @inertiaHead

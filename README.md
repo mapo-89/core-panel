@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="resources/logo-inverse.svg">
+  <img src="resources/logo.svg" alt="Core Panel" width="440">
+</picture>
+
 # Laravel CorePanel
 
 [![Latest Stable Version](https://img.shields.io/packagist/v/mapo-89/core-panel.svg)](https://packagist.org/packages/mapo-89/core-panel)

@@ -4271,3 +4271,33 @@ it('preserves an unmanaged customized updater during a forced update', function 
 
     expect(file_get_contents($target))->toBe($legacy);
 });
+
+it('publishes the CP favicon on updates and backs up an untracked previous asset', function (bool $existing): void {
+    $relativePath = 'public/core-panel-favicon.svg';
+    $basePath = makePublishBasePath('cp-favicon-'.($existing ? 'existing' : 'missing'));
+    $target = $basePath.'/'.$relativePath;
+    $previous = '<svg xmlns="http://www.w3.org/2000/svg"><title>Previous favicon</title></svg>';
+
+    mkdir(dirname($target), 0777, true);
+
+    if ($existing) {
+        file_put_contents($target, $previous);
+    }
+
+    $this->artisan('core-panel:update', [
+        '--base-path' => $basePath,
+    ])->assertExitCode(0);
+
+    $expected = file_get_contents(__DIR__.'/../../stubs/'.$relativePath);
+    $manifest = json_decode((string) file_get_contents($basePath.'/storage/app/core-panel/scaffolds.json'), true, 512, JSON_THROW_ON_ERROR);
+    $backups = glob($basePath.'/.core-panel-backups/*/'.$relativePath);
+
+    expect(file_get_contents($target))->toBe($expected)
+        ->and($manifest['files'][$relativePath]['source_hash'])->toBe(hash('sha256', $expected))
+        ->and($manifest['files'][$relativePath]['destination_hash'])->toBe(hash('sha256', $expected))
+        ->and($backups)->toHaveCount($existing ? 1 : 0);
+
+    if ($existing) {
+        expect(file_get_contents($backups[0]))->toBe($previous);
+    }
+})->with([false, true]);

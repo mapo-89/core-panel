@@ -134,6 +134,7 @@ final readonly class ScaffoldsCorePanelStubs
         'config/pwa.php',
         'config/services.php',
         'config/trustedproxy.php',
+        'public/core-panel-favicon.svg',
         'public/logo.png',
         'public/manifest.json',
         'public/offline.html',
