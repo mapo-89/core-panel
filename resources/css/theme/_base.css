@@ -167,9 +167,7 @@
 
 /* Locale flag primitive */
 .locale-flag {
-    @apply inline-flex h-4 w-5 shrink-0 overflow-hidden rounded-[0.3125rem] ring-1 ring-black/10;
-    background: color-mix(in srgb, var(--p-surface-0) 92%, transparent);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2);
+    @apply inline-flex h-[0.9375rem] w-5 shrink-0 overflow-hidden rounded-[0.3125rem];
 }
 
 .locale-flag svg {
