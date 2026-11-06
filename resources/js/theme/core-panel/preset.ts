@@ -25,7 +25,6 @@ export const corePanelRuntimePreset = definePreset(Aura, {
             color: corePanelRuntimeTokens.colors.primary[300],
             offset: '2px',
         },
-        borderRadius: corePanelRuntimeTokens.radius.md,
         formField: {
             paddingX: corePanelRuntimeTokens.spacing[4],
             paddingY: '0.64rem',
