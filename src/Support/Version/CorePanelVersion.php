@@ -6,5 +6,5 @@ namespace CorePanel\Support\Version;
 
 final class CorePanelVersion
 {
-    public const RELEASE = '1.7.0';
+    public const RELEASE = '1.7.1';
 }
